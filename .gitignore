@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# never commit a user's CV, key, or generated documents
+.env
+profile.yaml
+output/
+*.pdf

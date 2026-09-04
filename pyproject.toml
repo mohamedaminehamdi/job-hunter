@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "job-hunter"
+version = "0.1.0"
+description = "Self-hosted job application assistant: tailor your CV, cover letter and application answers to any job."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Mohamed Amine Hamdi" }]
+keywords = ["cv", "resume", "cover-letter", "job-search", "llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",   # form uploads
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "litellm>=1.55",             # one interface, ~100 providers, incl. local Ollama
+  "playwright>=1.47",          # HTML -> PDF, and job-page fetching
+  "pypdf>=5.0",                # CV intake
+  "python-docx>=1.1",          # CV intake
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-cov>=5.0", "ruff>=0.6"]
+
+[project.scripts]
+job-hunter = "job_hunter.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/mohamedaminehamdi/job-hunter"
+Issues = "https://github.com/mohamedaminehamdi/job-hunter/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/job_hunter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
