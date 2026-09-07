@@ -13,14 +13,12 @@ what the model was looking at.
 
 from __future__ import annotations
 
-import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-from ..generate import llm
+from ..generate import llm, parsing
 from .models import Profile
 from .store import from_dict
 
@@ -143,31 +141,12 @@ def from_text(text: str, *, settings=None) -> IntakeResult:
 
 
 def parse_json(raw: str) -> dict:
-    """Pull a JSON object out of a model response.
+    """Read the extraction response, reporting failures as intake failures.
 
-    Models wrap JSON in fences or prose despite instructions, so this is
-    forgiving by design rather than trusting the format.
+    The forgiving part lives in `generate.parsing`; this only re-labels its
+    errors so a caller handling intake has one exception type to catch.
     """
-    fence = r"^\s*```(?:json)?|```\s*$"
-    cleaned = re.sub(fence, "", raw.strip(), flags=re.MULTILINE).strip()
     try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
-        start, end = cleaned.find("{"), cleaned.rfind("}")
-        if start == -1:
-            raise IntakeError(
-                "The model did not return JSON. Try again, or paste your CV as YAML."
-            ) from None
-        if end <= start:
-            # An object was started but never closed - usually a truncated response.
-            raise IntakeError(
-                "The model returned malformed JSON (the response looks cut off). "
-                "Try again, or paste your CV as YAML."
-            ) from None
-        try:
-            parsed = json.loads(cleaned[start : end + 1])
-        except json.JSONDecodeError as exc:
-            raise IntakeError(f"The model returned malformed JSON: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise IntakeError("Expected a JSON object describing the profile.")
-    return parsed
+        return parsing.parse_json(raw, hint="Try again, or paste your CV as YAML.")
+    except parsing.ParseError as exc:
+        raise IntakeError(str(exc)) from exc
