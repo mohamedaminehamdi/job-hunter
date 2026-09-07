@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{ lang | default('en') }}">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  /* Font stacks pass through `| safe`: they are code constants containing the
+     quotes CSS needs, and autoescaping them turns the stack into &#34; and drops
+     the page back to the browser's default serif. Every value that comes from a
+     user, a model or a job page is escaped as normal; the accent is hex-validated. */
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    font-family: {{ theme.body_font | safe }};
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: {{ theme.ink }};
+    background: #fff;
+  }
+  /* @page only applies when printing. On screen - the review frame - the page
+     needs its own margins, or right-aligned dates are clipped at the edge. */
+  @media screen {
+    body { max-width: 210mm; margin: 0 auto; padding: 16mm 15mm; }
+  }
+  a { color: {{ theme.accent }}; text-decoration: none; }
+  h1, h2, h3 { font-family: {{ theme.heading_font | safe }}; margin: 0; }
+  h1 { font-size: 20pt; letter-spacing: -0.4pt; line-height: 1.15; }
+  h2 {
+    font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt;
+    color: {{ theme.accent }}; margin: 16px 0 7px;
+    padding-bottom: 3px; border-bottom: 1px solid {{ theme.rule }};
+  }
+  h3 { font-size: 11pt; }
+  p { margin: 0 0 8px; }
+  ul { margin: 4px 0 0; padding-left: 15px; }
+  li { margin-bottom: 3px; }
+  .muted { color: {{ theme.muted }}; }
+  .accent-bar { height: 3px; background: {{ theme.accent }}; margin-bottom: 14px; }
+  .contact { font-size: 9pt; color: {{ theme.muted }}; margin-top: 5px; }
+  .contact span:not(:last-child)::after { content: " · "; }
+  .block { break-inside: avoid; page-break-inside: avoid; margin-bottom: 11px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .when { font-size: 9pt; color: {{ theme.muted }}; white-space: nowrap; }
+  .tags { font-size: 9.5pt; }
+  {% block extra_css %}{% endblock %}
+</style>
+</head>
+<body>
+{% if theme.is_branded %}<div class="accent-bar"></div>{% endif %}
+{% block content %}{% endblock %}
+</body>
+</html>

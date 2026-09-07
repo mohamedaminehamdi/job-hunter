@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% import "_issues.html" as widgets %}
+{% block content %}
+<h1>Jobs</h1>
+<p class="sub">Add a job, then tailor your CV and cover letter to it.</p>
+
+{% if model_problem %}
+<div class="flash bad">{{ model_problem }}</div>
+{% endif %}
+
+<div class="cols wide">
+  <div>
+    <div class="panel">
+      <h2>Add a job</h2>
+      <form method="post" action="/jobs" class="stack">
+        <div>
+          <label for="url">Job URL</label>
+          <input type="text" id="url" name="url" placeholder="https://boards.greenhouse.io/...">
+        </div>
+        <details>
+          <summary>Or paste the description text</summary>
+          <div style="margin-top:10px">
+            <textarea name="text" rows="7" placeholder="Paste the job description here if the page is behind a login."></textarea>
+          </div>
+        </details>
+        <div class="row end"><button class="primary" type="submit">Add job</button></div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Saved jobs</h2>
+      {% if jobs %}
+      <ul class="plain">
+        {% for job in jobs %}
+        <li>
+          <div class="row">
+            <div>
+              <h3><a href="/jobs/{{ job.slug }}">{{ job.label }}</a></h3>
+              <div class="muted small">
+                {{ [job.location, job.workplace, job.employment_type] | select | join(' · ') }}
+                {% if not job.is_usable %}<span class="tag warning">thin</span>{% endif %}
+              </div>
+            </div>
+            <form method="post" action="/jobs/{{ job.slug }}/delete" style="margin-left:auto">
+              <button class="danger" type="submit">Remove</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted small">No jobs yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Profile</h2>
+      {% if profile.personal.full_name %}
+      <h3>{{ profile.personal.full_name }}</h3>
+      <p class="muted small">
+        {{ profile.experience | length }} role(s) · {{ profile.education | length }} degree(s)
+        · {{ profile.skills | length }} skill(s)
+      </p>
+      {% else %}
+      <p class="muted small">No profile yet. Import your CV to start.</p>
+      {% endif %}
+      <form method="post" action="/profile/import" enctype="multipart/form-data" class="stack">
+        <div>
+          <label for="file">Import a CV (pdf, docx, txt, md, yaml)</label>
+          <input type="file" id="file" name="file" required>
+        </div>
+        <div class="row end">
+          <a class="button" href="/profile">Edit profile</a>
+          <button class="primary" type="submit">Import</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Before you send anything</h2>
+      {{ widgets.checklist(issues, empty="Your profile has no problems.") }}
+    </div>
+
+    <div class="panel small muted">
+      <dl class="kv">
+        <dt>Model</dt><dd>{{ settings.model }}</dd>
+        <dt>Home</dt><dd>{{ settings.home }}</dd>
+        <dt>Output</dt><dd>{{ settings.output_dir }}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+{% endblock %}

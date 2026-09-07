@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block title %}{{ job.label }} · Job Hunter{% endblock %}
+{% block content %}
+<h1>{{ job.title or "Untitled role" }}</h1>
+<p class="sub">
+  {{ [job.company, job.location, job.workplace, job.employment_type, job.salary] | select | join(' · ') }}
+  {% if job.url %}· <a href="{{ job.url }}" target="_blank" rel="noreferrer">original posting</a>{% endif %}
+</p>
+
+{% if not job.is_usable %}
+<div class="flash bad">{{ job.missing() }}</div>
+{% endif %}
+
+<div class="cols wide">
+  <div>
+    <div class="panel">
+      <h2>The posting, as read</h2>
+      {% if job.description %}<p>{{ job.description }}</p>{% endif %}
+      {% for name, lines in [("Requirements", job.requirements),
+                             ("Responsibilities", job.responsibilities),
+                             ("Nice to have", job.nice_to_have)] %}
+        {% if lines %}
+        <h2 style="margin-top:14px">{{ name }}</h2>
+        <ul class="plain small">{% for line in lines %}<li>{{ line }}</li>{% endfor %}</ul>
+        {% endif %}
+      {% endfor %}
+      {% if job.keywords %}
+      <p class="small muted" style="margin-top:14px">Keywords: {{ job.keywords | join(', ') }}</p>
+      {% endif %}
+      <details style="margin-top:12px">
+        <summary>What the model actually read</summary>
+        <p class="small muted" style="margin-top:8px">
+          <a href="/jobs/{{ job.slug }}/source" target="_blank">Open the scraped page text</a>
+          — worth a look if anything above seems wrong.
+        </p>
+      </details>
+    </div>
+
+    <div class="panel">
+      <h2>Application answers</h2>
+      <form method="post" action="/jobs/{{ job.slug }}/answers" class="stack">
+        <div>
+          <label for="question">A question from the form</label>
+          <input type="text" id="question" name="question"
+                 placeholder="Why do you want to work here?">
+        </div>
+        <div class="row end">
+          <label for="words" class="small" style="margin:0">words</label>
+          <input type="number" id="words" name="words" value="150" min="20" max="600"
+                 style="width:90px">
+          <button type="submit">Draft an answer</button>
+        </div>
+      </form>
+      {% if answers %}
+      <ul class="plain" style="margin-top:8px">
+        {% for item in answers %}
+        <li>
+          <h3>{{ item.question }}</h3>
+          <p class="small">{{ item.text }}</p>
+          {% if item.caveat %}<p class="small" style="color:var(--warning)">{{ item.caveat }}</p>{% endif %}
+          <div class="muted small">{{ item.word_count }} words</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Documents</h2>
+      <div class="stack">
+        <div class="row">
+          <form method="post" action="/jobs/{{ job.slug }}/cv">
+            <button class="primary" type="submit">
+              {{ "Re-tailor CV" if cv else "Tailor CV" }}
+            </button>
+          </form>
+          {% if cv %}<a class="button" href="/jobs/{{ job.slug }}/cv">Review</a>{% endif %}
+        </div>
+        <div class="row">
+          <form method="post" action="/jobs/{{ job.slug }}/letter">
+            <button class="primary" type="submit">
+              {{ "Rewrite letter" if letter else "Write cover letter" }}
+            </button>
+          </form>
+          {% if letter %}<a class="button" href="/jobs/{{ job.slug }}/letter">Review</a>{% endif %}
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:12px">
+        Nothing becomes a PDF until you have read it.
+      </p>
+    </div>
+
+    {% if job.brand_color %}
+    <div class="panel small">
+      <h2>Company colour</h2>
+      <div class="row">
+        <span style="width:22px;height:22px;border-radius:5px;display:inline-block;
+                     background:{{ job.brand_color }}"></span>
+        <span class="path">{{ job.brand_color }}</span>
+      </div>
+      <p class="muted" style="margin-top:8px">Read off the page. Usable for the letter.</p>
+    </div>
+    {% endif %}
+
+    <div class="panel small muted">
+      <dl class="kv">
+        <dt>Slug</dt><dd class="path">{{ job.slug }}</dd>
+        <dt>Fetched</dt><dd>{{ job.fetched_at or "by hand" }}</dd>
+        {% if job.language %}<dt>Language</dt><dd>{{ job.language }}</dd>{% endif %}
+      </dl>
+    </div>
+  </div>
+</div>
+{% endblock %}

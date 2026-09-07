@@ -1,0 +1,36 @@
+{% extends "base.html.j2" %}
+{% block extra_css %}
+  body { font-size: 11pt; line-height: 1.55; }
+  .sender { text-align: right; font-size: 9.5pt; color: {{ theme.muted }}; }
+  .sender .who { font-size: 13pt; color: {{ theme.ink }}; font-weight: 600; }
+  .meta { margin: 22px 0 20px; font-size: 9.5pt; color: {{ theme.muted }}; }
+  .greeting { margin-bottom: 12px; }
+  .closing { margin-top: 18px; }
+  .signature { font-weight: 600; }
+  .subject { font-weight: 600; color: {{ theme.accent }}; margin-bottom: 16px; }
+{% endblock %}
+{% block content %}
+{% set p = letter.personal %}
+<div class="sender">
+  <div class="who">{{ p.full_name }}</div>
+  {{ [p.email, p.phone] | select | join(' · ') }}
+  {% if p.city or p.country %}<br>{{ [p.city, p.country] | select | join(', ') }}{% endif %}
+</div>
+
+<div class="meta">
+  {% if letter.company %}{{ letter.company }}<br>{% endif %}
+  {{ letter.written_on | long_date }}
+</div>
+
+{% if letter.role %}<div class="subject">Application: {{ letter.role }}</div>{% endif %}
+
+<div class="greeting">{{ letter.greeting }}</div>
+{% for paragraph in letter.paragraphs %}
+<p>{{ paragraph }}</p>
+{% endfor %}
+
+<div class="closing">
+  {{ letter.closing }}<br><br>
+  <span class="signature">{{ letter.signature }}</span>
+</div>
+{% endblock %}
