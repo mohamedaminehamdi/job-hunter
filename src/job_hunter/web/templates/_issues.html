@@ -1,0 +1,15 @@
+{% macro checklist(issues, empty="Nothing to flag.") %}
+{% if issues %}
+<ul class="issues">
+  {% for issue in issues %}
+  {% set style, word = marks[issue.severity] %}
+  <li>
+    <span class="tag {{ style }}">{{ word }}</span>
+    <span><span class="path">{{ issue.path }}</span> — {{ issue.message }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted small">{{ empty }}</p>
+{% endif %}
+{% endmacro %}

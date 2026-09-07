@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Job Hunter{% endblock %}</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #fff; --ink: #16191d; --muted: #6b7480;
+    --line: #e4e6e9; --accent: #1f6feb; --blocking: #c02b2b; --warning: #a86200;
+    --info: #4a5560; --ok: #1c7c4a;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a; --panel: #1c1f23; --ink: #e8eaed; --muted: #9aa4b0;
+      --line: #2c3138; --accent: #5b9bff; --blocking: #ff7b72; --warning: #e3b341;
+      --info: #9aa4b0; --ok: #56d364;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font);
+         font-size: 14.5px; line-height: 1.5; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header.top { border-bottom: 1px solid var(--line); background: var(--panel); }
+  header.top .inner, main { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  header.top .inner { display: flex; align-items: center; gap: 18px; height: 52px; }
+  header.top strong { font-size: 15px; letter-spacing: -0.2px; }
+  header.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 13.5px; }
+  main { padding: 22px 20px 60px; }
+  h1 { font-size: 21px; margin: 0 0 4px; letter-spacing: -0.3px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px;
+       color: var(--muted); margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 0 0 2px; }
+  p { margin: 0 0 10px; }
+  .sub { color: var(--muted); margin-bottom: 18px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 16px 18px; margin-bottom: 16px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .cols.wide { grid-template-columns: 1.6fr 1fr; }
+  @media (max-width: 820px) { .cols, .cols.wide { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], input[type=url], input[type=number], textarea, select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--bg); color: var(--ink); font-family: inherit; font-size: 14px;
+  }
+  textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; resize: vertical; }
+  button, .button { font: inherit; font-size: 13.5px; padding: 8px 14px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    cursor: pointer; display: inline-block; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--blocking); }
+  button:hover { filter: brightness(1.06); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row.end { justify-content: flex-end; }
+  .stack > * + * { margin-top: 12px; }
+  .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px;
+           border: 1px solid var(--line); background: var(--panel); }
+  .flash.bad { border-color: var(--blocking); color: var(--blocking); }
+  .flash.good { border-color: var(--ok); color: var(--ok); }
+  ul.issues { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+  ul.issues li { padding: 7px 0; border-bottom: 1px solid var(--line); display: flex; gap: 9px; }
+  ul.issues li:last-child { border-bottom: 0; }
+  .tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px;
+         padding: 2px 6px; border-radius: 4px; border: 1px solid currentColor;
+         white-space: nowrap; height: fit-content; margin-top: 1px; }
+  .tag.blocking { color: var(--blocking); }
+  .tag.warning { color: var(--warning); }
+  .tag.info { color: var(--info); }
+  .path { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 9px 0; border-bottom: 1px solid var(--line); }
+  ul.plain li:last-child { border-bottom: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  iframe.preview { width: 100%; height: 78vh; border: 1px solid var(--line);
+                   border-radius: 8px; background: #fff; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre.source { white-space: pre-wrap; font-family: var(--mono); font-size: 12px;
+               max-height: 320px; overflow: auto; color: var(--muted); }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13.5px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="inner">
+    <strong><a href="/" style="color:inherit">Job Hunter</a></strong>
+    <nav>
+      <a href="/">Jobs</a>
+      <a href="/profile">Profile</a>
+    </nav>
+  </div>
+</header>
+<main>
+  {% if error %}<div class="flash bad">{{ error }}</div>{% endif %}
+  {% if note %}<div class="flash good">{{ note }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

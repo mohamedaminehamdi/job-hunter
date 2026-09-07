@@ -40,6 +40,33 @@ class Issue(BaseModel):
         return f"[{self.severity.value}] {self.path}: {self.message}"
 
 
+def placeholder_issues(value: object, path: str = "") -> list[Issue]:
+    """Every string inside `value` that is still template text, e.g. '[Your Name]'.
+
+    This is the failure that silently reached a real PDF in the tool this one
+    replaces, so it is checked explicitly rather than hoped about - on profiles,
+    and on everything a generator writes.
+    """
+    found: list[Issue] = []
+
+    def walk(current: object, at: str) -> None:
+        if isinstance(current, str):
+            if current and _PLACEHOLDER.search(current):
+                found.append(Issue(path=at or "text", severity=Severity.BLOCKING,
+                                   message=f"Unfilled placeholder text: {current[:40]!r}"))
+        elif isinstance(current, Issue):
+            pass  # diagnostics describe content; they are not content
+        elif isinstance(current, BaseModel):
+            for name in type(current).model_fields:
+                walk(getattr(current, name), f"{at}.{name}" if at else name)
+        elif isinstance(current, (list, tuple)):
+            for i, item in enumerate(current):
+                walk(item, f"{at}[{i}]")
+
+    walk(value, path)
+    return found
+
+
 class Personal(BaseModel):
     name: str = ""
     surname: str = ""
@@ -86,6 +113,12 @@ class Education(BaseModel):
     location: str = ""
     #: Named courses. Empty means "omit the section" - never "invent some".
     courses: list[str] = Field(default_factory=list)
+
+    @property
+    def period(self) -> str:
+        if self.start and self.end:
+            return f"{self.start} - {self.end}"
+        return self.start or self.end
 
 
 class Project(BaseModel):
@@ -167,27 +200,7 @@ class Profile(BaseModel):
         return sorted(issues, key=lambda i: order[i.severity])
 
     def _placeholder_issues(self) -> list[Issue]:
-        """Catch template text left unfilled, e.g. '[Your Name]'.
-
-        This is the failure that silently reached a real PDF in the tool this
-        one replaces, so it is checked explicitly rather than hoped about.
-        """
-        found: list[Issue] = []
-
-        def walk(value: object, path: str) -> None:
-            if isinstance(value, str):
-                if value and _PLACEHOLDER.search(value):
-                    found.append(Issue(path=path, severity=Severity.BLOCKING,
-                                       message=f"Unfilled placeholder text: {value[:40]!r}"))
-            elif isinstance(value, BaseModel):
-                for name in type(value).model_fields:
-                    walk(getattr(value, name), f"{path}.{name}" if path else name)
-            elif isinstance(value, list):
-                for i, item in enumerate(value):
-                    walk(item, f"{path}[{i}]")
-
-        walk(self, "")
-        return found
+        return placeholder_issues(self)
 
     @property
     def is_renderable(self) -> bool:

@@ -1,0 +1,94 @@
+{% extends "base.html.j2" %}
+{% block extra_css %}
+  header { margin-bottom: 4px; }
+  .headline { font-size: 10.5pt; color: {{ theme.muted }}; margin-top: 2px; }
+  .summary { margin-top: 10px; }
+  .role-company { font-weight: 600; }
+  .edu-line { font-weight: 600; }
+{% endblock %}
+{% block content %}
+{% set p = doc.personal %}
+<header>
+  <h1>{{ p.full_name }}</h1>
+  {% if p.headline %}<div class="headline">{{ p.headline }}</div>{% endif %}
+  <div class="contact">
+    {% if p.email %}<span>{{ p.email }}</span>{% endif %}
+    {% if p.phone %}<span>{{ p.phone }}</span>{% endif %}
+    {% if p.city or p.country %}<span>{{ [p.city, p.country] | select | join(', ') }}</span>{% endif %}
+    {% if p.linkedin %}<span><a href="{{ p.linkedin }}">{{ p.linkedin | strip_scheme }}</a></span>{% endif %}
+    {% if p.github %}<span><a href="{{ p.github }}">{{ p.github | strip_scheme }}</a></span>{% endif %}
+    {% if p.website %}<span><a href="{{ p.website }}">{{ p.website | strip_scheme }}</a></span>{% endif %}
+  </div>
+</header>
+
+{% if doc.summary %}
+<div class="summary">{{ doc.summary }}</div>
+{% endif %}
+
+{% if doc.experience %}
+<h2>Experience</h2>
+{% for role in doc.experience %}
+<div class="block">
+  <div class="row">
+    <h3><span class="role-company">{{ role.position }}</span>{% if role.company %}, {{ role.company }}{% endif %}</h3>
+    {% if role.period %}<span class="when">{{ role.period }}</span>{% endif %}
+  </div>
+  {% if role.location %}<div class="muted" style="font-size:9pt">{{ role.location }}</div>{% endif %}
+  {% if role.bullets %}
+  <ul>{% for bullet in role.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if doc.projects %}
+<h2>Projects</h2>
+{% for project in doc.projects %}
+<div class="block">
+  <div class="row">
+    <h3>{% if project.link %}<a href="{{ project.link }}">{{ project.name }}</a>{% else %}{{ project.name }}{% endif %}</h3>
+    {% if project.tech %}<span class="when">{{ project.tech | join(', ') }}</span>{% endif %}
+  </div>
+  {% if project.description %}<div>{{ project.description }}</div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if doc.education %}
+<h2>Education</h2>
+{% for edu in doc.education %}
+<div class="block">
+  <div class="row">
+    <h3><span class="edu-line">{{ [edu.level, edu.field_of_study] | select | join(', ') }}</span></h3>
+    {% if edu.period %}<span class="when">{{ edu.period }}</span>{% endif %}
+  </div>
+  <div class="muted" style="font-size:9.5pt">{{ [edu.institution, edu.location, edu.grade] | select | join(' · ') }}</div>
+  {% if edu.courses %}<div class="tags muted">{{ edu.courses | join(', ') }}</div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if doc.skills %}
+<h2>Skills</h2>
+<div class="tags">{{ doc.skills | join(' · ') }}</div>
+{% endif %}
+
+{% if doc.certifications %}
+<h2>Certifications</h2>
+{% for cert in doc.certifications %}
+<div class="row">
+  <div>{{ cert.name }}{% if cert.issuer %} <span class="muted">— {{ cert.issuer }}</span>{% endif %}</div>
+  {% if cert.year %}<span class="when">{{ cert.year }}</span>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if doc.languages %}
+<h2>Languages</h2>
+<div class="tags">
+  {%- for lang in doc.languages -%}
+    {{ lang.name }}{% if lang.level %} <span class="muted">({{ lang.level }})</span>{% endif %}{% if not loop.last %} · {% endif %}
+  {%- endfor -%}
+</div>
+{% endif %}
+{% endblock %}
