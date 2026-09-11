@@ -60,6 +60,10 @@ class Criteria(BaseModel):
     #: other page, so whatever renders in Chrome can be searched.
     pages: list[str] = Field(default_factory=list)
 
+    #: Off by default: their terms prohibit automated access, and the risk is
+    #: to your own account. `indeed` additionally serves an anti-bot challenge
+    #: to a headless browser nearly every time - it is implemented, it reports
+    #: the block clearly, and it will mostly return nothing.
     linkedin: bool = False
     indeed: bool = False
 

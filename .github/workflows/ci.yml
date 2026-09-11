@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.11 is the floor declared in pyproject.toml. Development happens on
+        # 3.12, so without this matrix the floor is a claim nobody checks.
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the project
+        run: uv pip install --system -e ".[dev]"
+
+      # The renderer and the job fetcher drive a real browser, so the tests that
+      # cover them need one. Cached because it is a ~150MB download.
+      - name: Cache Chromium
+        id: chromium-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+
+      - name: Install Chromium
+        if: steps.chromium-cache.outputs.cache-hit != 'true'
+        run: playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.chromium-cache.outputs.cache-hit == 'true'
+        run: playwright install-deps chromium
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Test
+        run: pytest -q
+
+  package:
+    # A wheel that builds is not the same as a wheel that runs: the Jinja
+    # templates are package data, and an editable install hides it when they
+    # are missing.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: uv build
+
+      - name: Install the wheel somewhere with no source tree
+        run: |
+          mkdir -p /tmp/clean && cd /tmp/clean
+          uv venv --python 3.12
+          uv pip install --python /tmp/clean/.venv "$GITHUB_WORKSPACE"/dist/*.whl
+
+      - name: Every template must have shipped
+        run: |
+          cd /tmp/clean
+          ./.venv/bin/python - <<'PY'
+          from importlib.resources import files
+          for package, expected in (("job_hunter.render", 3), ("job_hunter.web", 8)):
+              found = sorted(p.name for p in files(package).joinpath("templates").iterdir()
+                             if p.name.endswith((".j2", ".html")))
+              print(f"{package}: {len(found)} templates -> {found}")
+              assert len(found) == expected, f"{package} shipped {len(found)}, expected {expected}"
+          PY
+
+      - name: The console script must run
+        run: JOB_HUNTER_HOME=/tmp/clean/home /tmp/clean/.venv/bin/job-hunter --json jobs

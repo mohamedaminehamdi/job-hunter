@@ -198,7 +198,9 @@ colour off the page for the letter.
 If the posting is behind a login, paste the text instead:
 
 ```bash
-pbpaste | job-hunter job -              # or: job-hunter job --text "..."
+job-hunter job --text "Senior Backend Engineer at ..."   # or pipe it in:
+pbpaste | job-hunter job -                               # macOS
+xclip -o | job-hunter job -                              # Linux
 ```
 
 `job-hunter jobs` lists what you have saved, with the slug each command wants.
@@ -232,7 +234,7 @@ lever: [acme]
 ashby: [ramp]
 pages: [https://example.com/careers]        # any page that lists jobs
 linkedin: false                             # see the warning below
-indeed: false
+indeed: false                               # usually blocked, see below
 ```
 
 The board slug is the last part of the board's own URL —
@@ -302,6 +304,10 @@ dismissed, because identity is the URL with its click-tracking stripped off.
 Run `search` as often as you like. Decisions are never overwritten; scores and
 listing details are refreshed underneath them.
 
+> **Indeed rarely works, and that is not a bug you can fix.** It serves an
+> anti-bot challenge to a headless browser nearly every time. The adapter says
+> so plainly and the rest of the search carries on, but treat it as off.
+>
 > **Before you turn on `linkedin` or `indeed`.** Both prohibit automated access
 > in their terms, and the risk is to your own account — that is why they default
 > to false. In practice LinkedIn's logged-out search works and returns fewer
@@ -373,9 +379,14 @@ will not stop you; they are there to be read.
 | `cv <slug> [--export] [--theme T]` | Tailored CV |
 | `letter <slug> [--export] [--theme T] [--branded]` | Cover letter |
 | `answer <slug> <question\|-> [--words N]` | One application answer |
-| `serve [--host H] [--port P]` | The browser UI |
+| `serve [--host H] [--port P]` | The browser UI (see the warning below) |
 
 `--json` works on every command, for scripting.
+
+> **The web UI has no authentication.** It binds to `127.0.0.1` for that reason.
+> Anyone who can reach it can read and rewrite your profile, make it fetch any
+> URL, and spend your model credits — so do not put it on `0.0.0.0`, a shared
+> machine, or a public port without putting something in front of it.
 
 ### When something goes wrong
 
