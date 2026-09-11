@@ -75,16 +75,26 @@ jobs:
           uv venv --python 3.12 /tmp/clean/.venv
           uv pip install --python /tmp/clean/.venv "$GITHUB_WORKSPACE"/dist/*.whl
 
+      # Compared against the source tree rather than a hardcoded count, so
+      # adding a template is not a CI failure - only losing one is.
       - name: Every template must have shipped
         run: |
           cd /tmp/clean
-          ./.venv/bin/python - <<'PY'
+          SOURCE="$GITHUB_WORKSPACE/src/job_hunter" ./.venv/bin/python - <<'PY'
+          import os
           from importlib.resources import files
-          for package, expected in (("job_hunter.render", 3), ("job_hunter.web", 8)):
-              found = sorted(p.name for p in files(package).joinpath("templates").iterdir()
-                             if p.name.endswith((".j2", ".html")))
-              print(f"{package}: {len(found)} templates -> {found}")
-              assert len(found) == expected, f"{package} shipped {len(found)}, expected {expected}"
+          from pathlib import Path
+
+          source = Path(os.environ["SOURCE"])
+          missing = []
+          for directory in sorted(source.glob("*/templates")):
+              package = f"job_hunter.{directory.parent.name}"
+              want = {p.name for p in directory.iterdir()
+                      if p.name.endswith((".j2", ".html"))}
+              shipped = {p.name for p in files(package).joinpath("templates").iterdir()}
+              print(f"{package}: {len(want & shipped)}/{len(want)} shipped")
+              missing += [f"{package}/{name}" for name in sorted(want - shipped)]
+          assert not missing, f"these templates did not ship: {missing}"
           PY
 
       - name: The console script must run
