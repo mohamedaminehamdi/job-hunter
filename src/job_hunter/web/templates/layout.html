@@ -83,6 +83,13 @@
   .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13.5px; }
   .kv dt { color: var(--muted); }
   .kv dd { margin: 0; }
+  /* The score sits at the end of a card's header row and must never be the
+     thing that shrinks when the title is long. */
+  /* A card inside a list is still a card: the list's own row padding is more
+     specific than .panel's, and would otherwise flatten it against the edge. */
+  ul.plain li.panel { padding: 16px 18px; border-bottom: 0; }
+  .score { margin-left: auto; text-align: right; flex: 0 0 auto; padding-left: 12px; }
+  .score .value { font-size: 20px; font-weight: 600; line-height: 1.2; }
 </style>
 </head>
 <body>
@@ -91,6 +98,7 @@
     <strong><a href="/" style="color:inherit">Job Hunter</a></strong>
     <nav>
       <a href="/">Jobs</a>
+      <a href="/queue">Queue</a>
       <a href="/profile">Profile</a>
     </nav>
   </div>

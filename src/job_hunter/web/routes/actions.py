@@ -18,6 +18,9 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 from ... import render
 from ...config import Settings, load_settings
+from ...discover import criteria as criteria_mod
+from ...discover import search as run_search
+from ...discover import store as queue_store
 from ...generate import answers as answers_mod
 from ...generate import cover_letter as letter_mod
 from ...generate import cv as cv_mod
@@ -83,6 +86,82 @@ def save_profile(yaml_text: Annotated[str, Form()] = ""):
     profile_store.save(profile_store.from_dict(raw),
                        profile_store.profile_path(settings.home))
     return _back("/profile", note="Saved.")
+
+
+@router.post("/search/criteria")
+def save_criteria(yaml_text: Annotated[str, Form()] = ""):
+    """Save the hand-edited search YAML. Same contract as the profile editor."""
+    settings = load_settings()
+    try:
+        raw = yaml.safe_load(yaml_text) or {}
+    except yaml.YAMLError as exc:
+        return _back("/queue", error=f"That is not valid YAML: {exc}")
+    if not isinstance(raw, dict):
+        return _back("/queue", error="The search must be a mapping at the top level.")
+
+    criteria_mod.save(criteria_mod.from_dict(raw), settings.home)
+    return _back("/queue", note="Saved.")
+
+
+@router.post("/search")
+def search(source: Annotated[str, Form()] = ""):
+    """Run every configured source and queue what scores well enough.
+
+    Synchronous, like every other action here: a search over a handful of boards
+    is seconds, and a background job would need a status page nobody asked for.
+    Turning on LinkedIn or a long list of pages makes it a browser run per
+    source, so it can take a minute.
+    """
+    settings = load_settings()
+    criteria = criteria_mod.load(settings.home)
+    if not criteria.is_searchable:
+        blocking = "; ".join(i.message for i in criteria.report())
+        return _back("/queue", error=f"The search is not ready. {blocking}")
+
+    try:
+        report = run_search(_profile(settings), criteria, settings.home,
+                            only=(source,) if source else ())
+    except USER_ERRORS as exc:
+        return _back("/queue", error=str(exc))
+
+    failed = "; ".join(f"{o.label}: {o.error}" for o in report.errors)
+    return _back("/queue", note=report.summary(), error=failed)
+
+
+@router.post("/queue/{candidate_id}/pick")
+def pick(candidate_id: str):
+    """Fetch and parse the posting behind a queued listing, then open it."""
+    settings = load_settings()
+    candidate = queue_store.get(candidate_id, settings.home)
+    if candidate is None:
+        return _back("/queue", error="That listing is no longer in the queue.")
+
+    try:
+        job = job_parse.from_url(candidate.listing.url, settings=settings)
+    except USER_ERRORS as exc:
+        return _back("/queue", error=f"{candidate.listing.label}: {exc}")
+
+    job_store.save(job, settings.home)
+    queue_store.set_status(candidate_id, queue_store.PICKED, settings.home,
+                           job_slug=job.slug)
+    return _back(f"/jobs/{job.slug}", note="Picked from the queue.",
+                 error=job.missing() or "")
+
+
+@router.post("/queue/{candidate_id}/dismiss")
+def dismiss(candidate_id: str):
+    settings = load_settings()
+    if queue_store.set_status(candidate_id, queue_store.DISMISSED, settings.home) is None:
+        return _back("/queue", error="That listing is no longer in the queue.")
+    return _back("/queue", note="Dismissed. Later searches will not bring it back.")
+
+
+@router.post("/queue/clear")
+def clear_queue(status: Annotated[str, Form()] = ""):
+    """Empty the queue, or just one state of it."""
+    settings = load_settings()
+    gone = queue_store.clear(settings.home, status=status)
+    return _back("/queue", note=f"Cleared {gone} listing(s).")
 
 
 @router.post("/jobs")

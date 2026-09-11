@@ -105,5 +105,10 @@ def answer(profile: Profile, job: Job, question: str, *, words: int = DEFAULT_WO
         caveat=(caveat or "").strip(),
         job_label=job.label,
         job_slug=job.slug,
-        issues=guard.check((text or "").strip(), support, path="answer"),
+        # The question's own words still count as unsupported - a "yes, I have
+        # used X" must be flagged - but they are asked about rather than
+        # volunteered, so they are told apart to be worded differently.
+        issues=guard.check((text or "").strip(), support, path="answer",
+                           asked=guard.Support.wording_of(question),
+                           language=job.language),
     )

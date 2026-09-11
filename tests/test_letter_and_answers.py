@@ -116,6 +116,25 @@ def test_an_invented_answer_is_flagged(profile, job, stub_llm):
     assert "Terraform" in messages and "30" in messages
 
 
+def test_a_question_term_is_flagged_as_asked_not_volunteered(profile, job, stub_llm):
+    """The honest no still names the tool, so "remove it" is the wrong advice."""
+    stub_llm(json.dumps({"answer": "No. I have never used Workday.", "unsupported": ""}))
+    drafted = answers_mod.answer(profile, job, "Have you used Workday?")
+    flagged = [i.message for i in drafted.all_issues if "Workday" in i.message]
+
+    assert flagged, "the term is still surfaced"
+    assert "the question's own term" in flagged[0]
+    assert "Remove it" not in flagged[0]
+
+
+def test_a_claimed_question_term_is_still_flagged(profile, job, stub_llm):
+    """Wording it differently must not become excusing it."""
+    stub_llm(json.dumps({"answer": "Yes, I have used Workday for three years.",
+                         "unsupported": ""}))
+    drafted = answers_mod.answer(profile, job, "Have you used Workday?")
+    assert any("Workday" in i.message for i in drafted.all_issues)
+
+
 def test_word_limit_reaches_the_prompt(profile, job, stub_llm):
     calls = stub_llm(json.dumps({"answer": "Short.", "unsupported": ""}))
     answers_mod.answer(profile, job, "Why us?", words=40)

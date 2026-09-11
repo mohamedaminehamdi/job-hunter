@@ -87,9 +87,26 @@ def test_the_prompt_states_the_rules(profile, job, stub_llm):
 
 # --- assembly ------------------------------------------------------------
 
-def test_roles_take_the_model_order(profile, job):
+def test_roles_keep_the_profile_order_not_the_model_s(profile, job):
+    """Ranked by relevance, a past role lands above the current one."""
     document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 1}, {"index": 0}]})
-    assert [r.company for r in document.experience] == ["Beta", "Acme"]
+    assert [r.company for r in document.experience] == ["Acme", "Beta"]
+
+
+def test_the_model_still_chooses_which_roles_appear(profile, job):
+    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 1}]})
+    assert [r.company for r in document.experience] == ["Beta"]
+
+
+def test_a_dropped_role_is_reported(profile, job):
+    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0}]})
+    left_out = [i for i in document.all_issues if "Left off" in i.message]
+    assert left_out and "Beta" in left_out[0].message
+
+
+def test_nothing_is_reported_when_every_role_is_kept(profile, job):
+    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0}, {"index": 1}]})
+    assert not any("Left off" in i.message for i in document.all_issues)
 
 
 def test_a_role_with_no_bullets_falls_back_to_the_profile(profile, job):

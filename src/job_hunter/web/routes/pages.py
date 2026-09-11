@@ -7,6 +7,8 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from ... import render
 from ...config import load_settings
+from ...discover import criteria as criteria_mod
+from ...discover import store as queue_store
 from ...generate import store as doc_store
 from ...jobs import store as job_store
 from ...profile import store as profile_store
@@ -29,7 +31,39 @@ def dashboard(request: Request, error: str = "", note: str = ""):
         "profile": profile,
         "issues": profile.report(),
         "jobs": jobs,
+        "queue_counts": queue_store.counts(settings.home),
         "settings": settings,
+        "model_problem": settings.missing(),
+        "error": error,
+        "note": note,
+    })
+
+
+@router.get("/queue", response_class=HTMLResponse)
+def queue_page(request: Request, show: str = "new", error: str = "", note: str = ""):
+    """What the searches found, and the criteria that found it.
+
+    The criteria editor lives on this page rather than its own: a queue full of
+    the wrong jobs is fixed by editing the search, and the two should not be a
+    navigation apart.
+    """
+    settings, profile = _profile()
+    candidates = queue_store.load(settings.home)
+    shown = ([c for c in candidates if c.status == show]
+             if show in queue_store.STATUSES else candidates)
+    path = criteria_mod.criteria_path(settings.home)
+    criteria = criteria_mod.load(settings.home)
+    return templates.TemplateResponse(request, "queue.html", {
+        "candidates": shown,
+        "show": show,
+        "counts": queue_store.counts(settings.home),
+        "criteria": criteria,
+        "issues": criteria.report(),
+        "path": path,
+        "yaml_text": (path.read_text(encoding="utf-8") if path.exists()
+                      else criteria_mod.example()),
+        "sources": criteria.sources_enabled,
+        "profile_ready": bool(profile.personal.full_name or profile.experience),
         "model_problem": settings.missing(),
         "error": error,
         "note": note,

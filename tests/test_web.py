@@ -11,6 +11,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from job_hunter import render
+from job_hunter.discover import criteria as criteria_mod
+from job_hunter.discover import sources
+from job_hunter.discover import store as queue_store
+from job_hunter.discover.criteria import Criteria
+from job_hunter.discover.models import Listing
 from job_hunter.generate import cover_letter, cv
 from job_hunter.generate import store as doc_store
 from job_hunter.jobs import parse as job_parse
@@ -172,9 +177,120 @@ def test_drafting_an_answer(populated, home, stub_llm):
     assert "No, I have not used Terraform." in populated.get(f"/jobs/{SLUG}").text
 
 
+def test_the_job_page_shows_what_the_guard_found_in_an_answer(populated, stub_llm):
+    """The findings were computed and saved, but only the CLI was showing them."""
+    stub_llm(json.dumps({"answer": "Yes, I ran Kubernetes for 9 years.",
+                         "unsupported": "The profile shows no Kubernetes experience."}))
+    populated.post(f"/jobs/{SLUG}/answers", data={"question": "Kubernetes?", "words": "80"})
+
+    page = populated.get(f"/jobs/{SLUG}").text
+    assert "Kubernetes" in page
+    assert "The figure &#39;9&#39; is not in your profile" in page
+    assert "flagged a gap" in page
+
+
 def test_an_empty_question_is_refused(populated):
     response = populated.post(f"/jobs/{SLUG}/answers", data={"question": "  "})
     assert "error=Type+the+question" in response.headers["location"]
+
+
+# --- discovery ------------------------------------------------------------
+
+SEARCH = Criteria(titles=["Data Engineer"], locations=["Berlin"],
+                  greenhouse=["acme"], min_score=30)
+
+
+@pytest.fixture
+def searchable(populated, home, monkeypatch):
+    criteria_mod.save(SEARCH, home)
+    monkeypatch.setattr(sources, "run", lambda *a, **k: [
+        Listing(url="https://boards.example.com/jobs/1", title="Data Engineer",
+                company="Acme", location="Berlin", source="greenhouse"),
+    ])
+    return populated
+
+
+def test_the_queue_page_renders_empty(client):
+    response = client.get("/queue")
+    assert response.status_code == 200
+    assert "Nothing here yet" in response.text
+
+
+def test_an_unconfigured_search_is_refused_with_a_reason(populated):
+    response = populated.post("/search")
+    assert "error=" in response.headers["location"]
+    assert "title" in response.headers["location"]
+
+
+def test_searching_fills_the_queue_and_says_so(searchable, home):
+    response = searchable.post("/search")
+    assert response.status_code == 303
+    assert "note=" in response.headers["location"]
+    assert len(queue_store.load(home)) == 1
+
+    page = searchable.get("/queue").text
+    assert "Data Engineer" in page
+    assert "Title matches" in page  # the score explains itself on the page
+
+
+def test_a_failing_source_shows_its_message(populated, home, monkeypatch):
+    criteria_mod.save(SEARCH, home)
+    monkeypatch.setattr(sources, "run", lambda *a, **k: (_ for _ in ()).throw(
+        sources.SourceError("No board found - check the slug.")))
+    response = populated.post("/search")
+    assert "check+the+slug" in response.headers["location"]
+
+
+def test_picking_saves_the_job_and_goes_to_it(searchable, home, monkeypatch, job):
+    searchable.post("/search")
+    candidate_id = queue_store.load(home)[0].id
+    monkeypatch.setattr(job_parse, "from_url", lambda *a, **k: job)
+
+    response = searchable.post(f"/queue/{candidate_id}/pick")
+    assert response.headers["location"].startswith(f"/jobs/{job.slug}")
+    assert queue_store.get(candidate_id, home).status == queue_store.PICKED
+
+
+def test_a_posting_that_will_not_load_leaves_it_in_the_queue(searchable, home, monkeypatch):
+    searchable.post("/search")
+    candidate_id = queue_store.load(home)[0].id
+    monkeypatch.setattr(job_parse, "from_url", lambda *a, **k: (_ for _ in ()).throw(
+        FetchError("The page did not finish loading in time.")))
+
+    response = searchable.post(f"/queue/{candidate_id}/pick")
+    assert "error=" in response.headers["location"]
+    assert queue_store.get(candidate_id, home).status == queue_store.NEW
+
+
+def test_dismissing_from_the_page(searchable, home):
+    searchable.post("/search")
+    candidate_id = queue_store.load(home)[0].id
+    assert searchable.post(f"/queue/{candidate_id}/dismiss").status_code == 303
+    assert queue_store.get(candidate_id, home).status == queue_store.DISMISSED
+
+
+def test_deciding_on_a_listing_that_is_gone_is_a_message_not_a_crash(populated):
+    response = populated.post("/queue/no-such-listing/dismiss")
+    assert response.status_code == 303
+    assert "no+longer+in+the+queue" in response.headers["location"]
+
+
+def test_saving_the_search_yaml(populated, home):
+    response = populated.post("/search/criteria",
+                              data={"yaml_text": "titles:\n  - Platform Engineer\n"})
+    assert response.status_code == 303
+    assert criteria_mod.load(home).titles == ["Platform Engineer"]
+
+
+def test_saving_invalid_search_yaml_is_refused(populated):
+    response = populated.post("/search/criteria", data={"yaml_text": "titles: [unclosed"})
+    assert "not+valid+YAML" in response.headers["location"]
+
+
+def test_clearing_the_queue(searchable, home):
+    searchable.post("/search")
+    assert searchable.post("/queue/clear", data={"status": ""}).status_code == 303
+    assert queue_store.load(home) == []
 
 
 def test_exporting_writes_the_pdf_and_offers_it(populated, home, profile, job,

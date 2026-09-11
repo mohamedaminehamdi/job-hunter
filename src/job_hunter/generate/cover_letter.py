@@ -67,6 +67,10 @@ class CoverLetter(BaseModel):
     #: Written under the closing. Always the profile's name.
     signature: str = ""
     written_on: str = ""
+    #: The posting's language, which the letter is written in. Drives the date
+    #: format and the subject label - an English "Application:" over French
+    #: prose is the sort of detail that says nobody read this before sending.
+    language: str = ""
     company: str = ""
     role: str = ""
     job_label: str = ""
@@ -142,7 +146,7 @@ def assemble(profile: Profile, job: Job, data: dict) -> CoverLetter:
     # Only the body is guarded. A greeting is a salutation, not a claim, and the
     # one thing that can go wrong in it - "Dear [Hiring Manager]," - is caught by
     # the placeholder check instead.
-    issues = guard.check_all({"paragraphs": paragraphs}, support)
+    issues = guard.check_all({"paragraphs": paragraphs}, support, language=job.language)
 
     return CoverLetter(
         personal=profile.personal,
@@ -151,6 +155,7 @@ def assemble(profile: Profile, job: Job, data: dict) -> CoverLetter:
         closing=closing,
         signature=profile.personal.full_name,
         written_on=date.today().isoformat(),
+        language=job.language,
         company=job.company,
         role=job.title,
         job_label=job.label,

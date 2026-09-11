@@ -9,6 +9,10 @@ import json
 import pytest
 
 from job_hunter import cli, render
+from job_hunter.discover import criteria as criteria_mod
+from job_hunter.discover import sources
+from job_hunter.discover import store as queue_store
+from job_hunter.discover.models import Listing
 from job_hunter.generate import store as doc_store
 from job_hunter.jobs import parse as job_parse
 from job_hunter.jobs import store as job_store
@@ -227,6 +231,96 @@ def test_answer_drafts_and_saves(saved, capsys, stub_llm):
     assert "No. I have not used Terraform." in out
     assert "flagged a gap" in out
     assert len(doc_store.load_answers("zeta-senior-data-engineer", saved)) == 1
+
+
+def test_answer_does_not_advertise_a_flag_it_lacks(saved, capsys, stub_llm):
+    """`answer` writes no PDF, so the export hint would name a flag that errors."""
+    stub_llm(json.dumps({"answer": "No. I have not used Terraform.", "unsupported": ""}))
+    run("answer", "zeta-senior-data-engineer", "Terraform experience?")
+    assert "--export" not in capsys.readouterr().out
+
+
+# --- discovery ------------------------------------------------------------
+
+SEARCH = criteria_mod.Criteria(titles=["Data Engineer"], locations=["Berlin"],
+                               greenhouse=["acme"], min_score=30)
+
+
+@pytest.fixture
+def searchable(saved, monkeypatch):
+    """A home ready to search, with one board that always returns one job."""
+    criteria_mod.save(SEARCH, saved)
+    monkeypatch.setattr(sources, "run", lambda *a, **k: [
+        Listing(url="https://boards.example.com/jobs/1", title="Data Engineer",
+                company="Acme", location="Berlin", source="greenhouse"),
+    ])
+    return saved
+
+
+def test_search_without_criteria_says_what_to_write(home, capsys):
+    assert run("search") == 1
+    out = capsys.readouterr().out
+    assert "titles" in out
+    assert "Backend Engineer" in out  # the example it prints to start from
+
+
+def test_search_queues_what_it_finds(searchable, capsys):
+    assert run("search") == 0
+    assert "1 found" in capsys.readouterr().out
+    assert len(queue_store.load(searchable)) == 1
+
+
+def test_a_failing_source_is_reported_and_the_command_still_succeeds(saved, monkeypatch, capsys):
+    criteria_mod.save(SEARCH, saved)
+    monkeypatch.setattr(sources, "run", lambda *a, **k: (_ for _ in ()).throw(
+        sources.SourceError("No board found - check the slug.")))
+    assert run("search") == 0
+    assert "check the slug" in capsys.readouterr().out
+
+
+def test_queue_lists_what_is_waiting_and_why(searchable, capsys):
+    run("search")
+    run("queue", "--why")
+    out = capsys.readouterr().out
+    assert "Data Engineer" in out
+    assert "Title matches" in out
+
+
+def test_queue_is_empty_before_a_search(home, capsys):
+    assert run("queue") == 0
+    assert "job-hunter search" in capsys.readouterr().out
+
+
+def test_picking_fetches_the_posting_and_marks_the_candidate(searchable, monkeypatch,
+                                                             capsys, job):
+    run("search")
+    candidate_id = queue_store.load(searchable)[0].id
+    monkeypatch.setattr(job_parse, "from_url", lambda *a, **k: job)
+
+    assert run("pick", candidate_id) == 0
+    assert queue_store.get(candidate_id, searchable).status == queue_store.PICKED
+    assert queue_store.get(candidate_id, searchable).job_slug == job.slug
+    assert job_store.load(job.slug, searchable) is not None
+
+
+def test_dismissing_keeps_it_out_of_the_next_search(searchable):
+    run("search")
+    candidate_id = queue_store.load(searchable)[0].id
+    run("dismiss", candidate_id)
+
+    run("search")
+    assert queue_store.get(candidate_id, searchable).status == queue_store.DISMISSED
+
+
+def test_picking_something_that_is_not_queued_is_one_line(home, capsys):
+    assert run("pick", "no-such-listing") == 1
+
+
+def test_search_json_output_is_machine_readable(searchable, capsys):
+    run("--json", "search")
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["found"] == 1
+    assert payload["outcomes"][0]["source"] == "greenhouse"
 
 
 def test_cv_json_output_is_machine_readable(saved, capsys, stub_llm):

@@ -32,6 +32,10 @@ FULL = {
     ("<https://example.com/jobs/1>", "https://example.com/jobs/1"),
     ("https://example.com/jobs/1.", "https://example.com/jobs/1"),
     ("http://example.com/x", "http://example.com/x"),
+    # No dot in the host, but not a typo: this is how you fetch a page you are
+    # serving yourself.
+    ("http://localhost:8000/jobs/1", "http://localhost:8000/jobs/1"),
+    ("http://127.0.0.1:8000/jobs/1", "http://127.0.0.1:8000/jobs/1"),
 ])
 def test_urls_normalised(given, expected):
     assert fetch.normalise_url(given) == expected
@@ -44,6 +48,8 @@ def test_urls_normalised(given, expected):
     ("javascript:alert(1)", "http and https"),
     ("mailto:jobs@acme.com", "http and https"),
     ("just some words", "does not look like"),
+    ("notaurl", "does not look like"),
+    ("http://notaurl:8000/jobs", "does not look like"),  # a port is not a host
 ])
 def test_bad_urls_rejected(given, message):
     with pytest.raises(FetchError, match=message):
