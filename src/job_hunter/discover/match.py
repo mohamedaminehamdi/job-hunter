@@ -125,12 +125,30 @@ def _skill_score(listing: Listing, profile: Profile) -> tuple[int, list[str]]:
     return points, [f"Names your {shown}{more}."]
 
 
+def _place_matches(wanted: str, where: str) -> bool:
+    """Whether a listing's location is the place you asked for.
+
+    Compared part by part rather than as one string, because boards name a
+    place more fully than a person does: "Munich, Germany" has to match
+    "Munich, Bavaria, Germany", and it does not as a substring. Qualifying a
+    city with its country is what the search engines need to resolve it at all,
+    so it must not cost points here.
+
+    The reverse still counts too - a job listed for "Germany" satisfies someone
+    who asked for "Munich, Germany".
+    """
+    parts = [part.strip().lower() for part in wanted.split(",") if part.strip()]
+    if not parts or not where.strip():
+        return False
+    return all(part in where for part in parts) or where.strip() in wanted.lower()
+
+
 def _location_score(listing: Listing, criteria: Criteria) -> tuple[int, list[str]]:
     where = f"{listing.location} {listing.workplace}".lower()
     if criteria.remote and "remote" in where:
         return LOCATION_POINTS, ["Remote."]
     for wanted in criteria.locations:
-        if wanted.lower() in where or (where and where in wanted.lower()):
+        if _place_matches(wanted, where):
             return LOCATION_POINTS, [f"In {wanted}."]
     if not criteria.locations:
         return LOCATION_POINTS // 2, []

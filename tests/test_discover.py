@@ -417,3 +417,29 @@ def test_only_searches_the_source_you_named(monkeypatch):
 def test_the_summary_says_what_happened(home, profile, monkeypatch):
     monkeypatch.setattr(sources, "run", lambda *a, **k: [listing(title="Backend Engineer")])
     assert "1 found" in discover.search(profile, CRITERIA, home).summary()
+
+
+# --- a place is named more fully by a board than by a person ----------------
+
+@pytest.mark.parametrize("wanted, where", [
+    ("Munich, Germany", "Munich, Bavaria, Germany"),
+    ("Zurich, Switzerland", "Zurich, Zurich, Switzerland"),
+    ("Paris, France", "Paris, Ile-de-France, France"),
+    ("Germany", "Munich, Bavaria, Germany"),
+    ("Munich, Germany", "Germany"),
+])
+def test_a_qualified_city_still_matches_the_place(profile, wanted, where):
+    """The search engines need 'Munich, Germany' to resolve it; scoring must
+    not then charge you for writing it that way."""
+    criteria = CRITERIA.model_copy(update={"locations": [wanted]})
+    result = match_mod.score(listing(title="Backend Engineer", location=where),
+                             profile, criteria)
+    assert any(f"In {wanted}" in reason for reason in result.reasons)
+
+
+@pytest.mark.parametrize("where", ["Berlin, Germany", "Solna, Stockholm County, Sweden"])
+def test_a_different_city_is_still_a_different_city(profile, where):
+    criteria = CRITERIA.model_copy(update={"locations": ["Munich, Germany"]})
+    result = match_mod.score(listing(title="Backend Engineer", location=where),
+                             profile, criteria)
+    assert any("not one you asked for" in reason for reason in result.reasons)
