@@ -9,8 +9,21 @@ build/
 .ruff_cache/
 .coverage
 htmlcov/
-# never commit a user's CV, key, or generated documents
+
+# Never commit a user's key, CV, or anything generated from them. This is the
+# shape of JOB_HUNTER_HOME, which lives at ~/.job-hunter by default - but
+# pointing it inside a clone is the first thing a curious person tries, so the
+# same shape is ignored here too.
+#
+# The directory rules match the YAML inside them rather than the directory
+# itself, deliberately: a bare `jobs/` would also match the source package
+# src/job_hunter/jobs/ and silently ignore new code added to it.
 .env
 profile.yaml
-output/
+search.yaml
+queue.yaml
+llm_calls.jsonl
+**/jobs/*.yaml
+**/documents/*.yaml
+**/applications/*.yaml
 *.pdf
