@@ -5,22 +5,34 @@
 ```bash
 uv venv --python 3.12 && source .venv/bin/activate
 uv pip install -e ".[dev]"
+playwright install chromium   # the renderer and the job fetcher drive a real browser
 pytest
 ```
 
+CI runs `ruff check src tests` and `pytest` on 3.11 and 3.12, and separately
+builds a wheel and installs it somewhere with no source tree — the Jinja
+templates are package data, and an editable install hides it when they go
+missing.
+
 ## Architecture
 
-Four packages with one job each. Keep the boundaries:
+Five packages with one job each. Keep the boundaries:
 
 | Package | Owns | May not |
 |---|---|---|
 | `profile/` | The user's facts, validation, YAML storage | know about jobs or rendering |
+| `discover/` | Searching sources, scoring hits, the queue | call a model, or fetch a posting |
 | `jobs/` | Fetching and modelling a job posting | touch the profile |
 | `generate/` | Every model call, via `generate/llm.py` | render HTML or PDF |
 | `render/` | Jinja → HTML → PDF, themes | call a model |
 
-Each package persists what it owns: `profile/store.py`, `jobs/store.py`,
-`generate/store.py`. `render/` owns one piece of policy — a document with a
+`discover/` is deliberately the cheap half: its scoring is lexical, so a sweep
+of twenty boards costs nothing and the order does not shuffle between runs. The
+expensive work — a page load and a model call — happens once, when a listing is
+picked. A source that fails is recorded against itself and the search carries on.
+
+Each package persists what it owns: `profile/store.py`, `discover/store.py`,
+`jobs/store.py`, `generate/store.py`. `render/` owns one piece of policy — a document with a
 blocking issue does not become a file, enforced in `render.export` so no caller
 can skip it.
 
