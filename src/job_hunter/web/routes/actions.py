@@ -17,6 +17,8 @@ from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 
 from ... import render
+from ...apply import models as apply_models
+from ...apply import store as apply_store
 from ...config import Settings, load_settings
 from ...discover import criteria as criteria_mod
 from ...discover import search as run_search
@@ -39,8 +41,17 @@ router = APIRouter()
 #: Everything the library raises on purpose; all carry a message for the user.
 USER_ERRORS = (
     intake.IntakeError, FetchError, job_parse.ParseError, GenerationError,
-    LLMError, render.ExportBlocked, render.PdfError,
+    LLMError, render.ExportBlocked, render.PdfError, apply_models.ApplyError,
 )
+
+
+def _own_path(path: str, fallback: str = "/applications") -> str:
+    """A redirect target this app owns.
+
+    `back` arrives from a form, and a Location header built from form input is
+    an open redirect the moment it can carry a scheme or a host.
+    """
+    return path if path.startswith("/") and not path.startswith("//") else fallback
 
 
 def _back(path: str, *, error: str = "", note: str = "") -> RedirectResponse:
@@ -179,6 +190,51 @@ def add_job(url: Annotated[str, Form()] = "", text: Annotated[str, Form()] = "")
     job_store.save(job, settings.home)
     problem = job.missing()
     return _back(f"/jobs/{job.slug}", error=problem or "", note="" if problem else "Added.")
+
+
+@router.post("/jobs/{slug}/applied")
+def mark_applied(slug: str, on: Annotated[str, Form()] = "",
+                 channel: Annotated[str, Form()] = "",
+                 sent: Annotated[list[str], Form()] = (),
+                 contact: Annotated[str, Form()] = "",
+                 note: Annotated[str, Form()] = ""):
+    """Record that this one went out."""
+    settings = load_settings()
+    job = job_store.load(slug, settings.home)
+    if job is None:
+        return _back("/", error=f"There is no saved job called {slug!r}.")
+
+    kinds = [k for k in sent if k in apply_models.SENT_KINDS]
+    apply_store.record(job, on=on, channel=channel, sent=kinds, contact=contact,
+                       note=note, home=settings.home)
+    return _back(f"/jobs/{slug}", note="Recorded. Good luck.")
+
+
+@router.post("/applications/{slug}/mark")
+def move_application(slug: str, status: Annotated[str, Form()] = "",
+                     on: Annotated[str, Form()] = "",
+                     note: Annotated[str, Form()] = "",
+                     back: Annotated[str, Form()] = ""):
+    settings = load_settings()
+    target = _own_path(back)
+    before = apply_store.load(slug, settings.home)
+    if before is None:
+        return _back(target, error="No application recorded for that job.")
+    if apply_store.mark(slug, status, on=on, note=note, home=settings.home) is None:
+        allowed = ", ".join(before.next_states) or "nothing - it is closed"
+        return _back(target, error=f"{before.label} is {before.status}; from there "
+                                   f"you can go to {allowed}.")
+    return _back(target, note=f"{before.label} is now {status}.")
+
+
+@router.post("/applications/{slug}/note")
+def note_application(slug: str, text: Annotated[str, Form()] = "",
+                     back: Annotated[str, Form()] = ""):
+    settings = load_settings()
+    target = _own_path(back)
+    if apply_store.add_note(slug, text, settings.home) is None:
+        return _back(target, error="Nothing to note - no application, or an empty note.")
+    return _back(target, note="Noted.")
 
 
 @router.post("/jobs/{slug}/delete")

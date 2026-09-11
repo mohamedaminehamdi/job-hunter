@@ -55,6 +55,8 @@
   button:hover { filter: brightness(1.06); }
   .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .row.end { justify-content: flex-end; }
+  /* A control and its button are one thing: let the outer row wrap, not them. */
+  .row.nowrap { flex-wrap: nowrap; }
   .stack > * + * { margin-top: 12px; }
   .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13.5px;
            border: 1px solid var(--line); background: var(--panel); }
@@ -99,6 +101,7 @@
     <nav>
       <a href="/">Jobs</a>
       <a href="/queue">Queue</a>
+      <a href="/applications">Applications</a>
       <a href="/profile">Profile</a>
     </nav>
   </div>

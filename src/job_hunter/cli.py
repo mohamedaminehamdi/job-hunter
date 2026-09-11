@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any
 
 from . import discover, render
+from .apply import models as apply_models
+from .apply import store as apply_store
 from .config import Settings, load_settings
 from .discover import criteria as criteria_mod
 from .discover import store as queue_store
@@ -37,7 +39,7 @@ from .profile.models import Profile, Severity
 #: Everything the library raises on purpose. All of these carry a user-facing message.
 USER_ERRORS = (
     intake.IntakeError, FetchError, job_parse.ParseError, GenerationError,
-    LLMError, render.ExportBlocked, render.PdfError,
+    LLMError, render.ExportBlocked, render.PdfError, apply_models.ApplyError,
 )
 
 
@@ -79,6 +81,8 @@ def cmd_doctor(args: argparse.Namespace, settings: Settings) -> int:
         "profile_exists": profile_store.profile_path(settings.home).exists(),
         "profile_ready": not blocking,
         "jobs_saved": len(job_store.all_jobs(settings.home)),
+        "applications_open": apply_store.counts(settings.home)["open"],
+        "applications_quiet": apply_store.counts(settings.home)["quiet"],
     }
     if _emit(payload, args.json):
         return 0
@@ -91,6 +95,8 @@ def cmd_doctor(args: argparse.Namespace, settings: Settings) -> int:
          f"({profile_store.profile_path(settings.home)})")
     _issues(blocking)
     _out(f"jobs      {payload['jobs_saved']} saved")
+    _out(f"sent      {payload['applications_open']} open, "
+         f"{payload['applications_quiet']} with no reply")
     return 0
 
 
@@ -391,6 +397,134 @@ def cmd_dismiss(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+# --- what you actually sent -------------------------------------------------
+
+#: One mark per state, in the spirit of the queue's. A blank for the common
+#: case, so the exceptions are what catches the eye.
+_APPLY_MARKS = {
+    apply_models.APPLIED: " ", apply_models.INTERVIEWING: ">",
+    apply_models.OFFER: "*", apply_models.REJECTED: "x",
+    apply_models.WITHDRAWN: "-",
+}
+
+
+def _application_line(application) -> str:
+    quiet = application.days_quiet
+    age = f"{quiet}d" if quiet is not None else "-"
+    return (f"{_APPLY_MARKS.get(application.status, '?')} "
+            f"{application.applied_on or '?':<10}  {application.job_slug:<38} "
+            f"{application.label[:44]:<46} {application.status:<13} {age:>5}")
+
+
+def cmd_applied(args: argparse.Namespace, settings: Settings) -> int:
+    """Record that you sent an application."""
+    job = _require(args.slug, settings)
+    application = apply_store.record(
+        job, on=args.on or "", channel=args.channel or "", sent=args.sent,
+        contact=args.contact or "", note=args.note or "", home=settings.home)
+    saved = apply_store.application_path(job.slug, settings.home)
+
+    payload = {"slug": job.slug, "saved_to": str(saved),
+               "application": application.model_dump(mode="json")}
+    if _emit(payload, args.json):
+        return 0
+
+    _out(f"Applied to {application.label}  [{job.slug}]")
+    details = [application.applied_on, application.channel]
+    if application.sent:
+        details.append(f"sent {', '.join(application.sent)}")
+    _out(" · ".join(d for d in details if d))
+    _out(f"saved to {saved}")
+
+    # The documents on disk are a guess at what you attached, never a record of
+    # it, so this hints and does not fill anything in.
+    if not application.sent:
+        have = [kind for kind in apply_models.SENT_KINDS
+                if doc_store.load(job.slug, kind, settings.home) is not None]
+        if have:
+            flags = " ".join(f"--with {kind}" for kind in have)
+            _out(f"\n! You have a tailored {' and a '.join(have)} for this job. "
+                 f"If you sent them:\n  job-hunter applied {job.slug} {flags}")
+    _out(f"\nNothing back in {apply_models.FOLLOW_UP_DAYS} days? "
+         f"job-hunter note {job.slug} \"chased them\"")
+    return 0
+
+
+def cmd_mark(args: argparse.Namespace, settings: Settings) -> int:
+    """Move an application on: they replied, or they did not."""
+    before = apply_store.load(args.slug, settings.home)
+    if before is None:
+        raise apply_models.ApplyError(
+            f"No application recorded for {args.slug!r}. "
+            f"Record one first: job-hunter applied {args.slug}"
+        )
+    moved = apply_store.mark(args.slug, args.state, on=args.on or "",
+                             note=args.note or "", home=settings.home)
+    if moved is None:
+        allowed = ", ".join(before.next_states) or "nothing - it is closed"
+        raise apply_models.ApplyError(
+            f"{before.label} is {before.status}; from there you can go to "
+            f"{allowed}. Edit {apply_store.application_path(args.slug, settings.home)} "
+            "if you need to re-open it."
+        )
+
+    if _emit({"slug": args.slug, "application": moved.model_dump(mode="json")}, args.json):
+        return 0
+    out = 0 if (days := before.days_quiet) is None else days
+    _out(f"{moved.label}: {before.status} -> {moved.status}  ({out} days out)")
+    if args.note:
+        _out(args.note)
+    return 0
+
+
+def cmd_note(args: argparse.Namespace, settings: Settings) -> int:
+    """Add a dated note, which also stops it showing as gone quiet."""
+    text = sys.stdin.read() if args.text == "-" else args.text
+    noted = apply_store.add_note(args.slug, text, settings.home)
+    if noted is None:
+        raise apply_models.ApplyError(
+            f"Nothing to note against {args.slug!r} - no application recorded, "
+            "or the note was empty."
+        )
+    if _emit({"slug": args.slug, "application": noted.model_dump(mode="json")}, args.json):
+        return 0
+    _out(f"{noted.label}: {noted.history[-1].note}")
+    return 0
+
+
+def cmd_applications(args: argparse.Namespace, settings: Settings) -> int:
+    """What you have sent, and what is still outstanding."""
+    quiet_for = args.stale if args.stale is not None else apply_models.FOLLOW_UP_DAYS
+    if args.stale is not None:
+        shown = apply_store.outstanding(settings.home, quiet_for=quiet_for)
+    else:
+        shown = apply_store.all_applications(settings.home)
+        if args.status:
+            shown = [a for a in shown if a.status == args.status]
+        elif not args.all:
+            shown = [a for a in shown if a.is_open]
+
+    counts = apply_store.counts(settings.home)
+    if _emit({"counts": counts,
+              "applications": [a.model_dump(mode="json") for a in shown]}, args.json):
+        return 0
+
+    if not shown:
+        _out("Nothing recorded yet. After you send one: job-hunter applied <slug>")
+        return 0
+    for application in shown:
+        _out(_application_line(application))
+
+    _out(f"\n{counts['open']} out ({counts[apply_models.APPLIED]} applied, "
+         f"{counts[apply_models.INTERVIEWING]} interviewing), "
+         f"{counts[apply_models.OFFER]} offer(s), "
+         f"{counts['total'] - counts['open']} closed.")
+    if args.stale is None and counts["quiet"]:
+        _out(f"{counts['quiet']} heard nothing for {quiet_for}+ days: "
+             "job-hunter applications --stale")
+    return 0
+
+
 def _maybe_export(args: argparse.Namespace, document, job, stem: str,
                   settings: Settings) -> Path | None:
     """Write the PDF if asked. `--export` on a blocked document is an error."""
@@ -476,6 +610,36 @@ def build_parser() -> argparse.ArgumentParser:
     dismissed = subparsers.add_parser("dismiss", help="drop a queued listing for good")
     dismissed.add_argument("id", help="an id from 'job-hunter queue'")
 
+    # `applied`, not `apply`: this records a fact, it does not submit anything,
+    # and `apply` belongs to the assisted-application work that would.
+    applied = subparsers.add_parser("applied", help="record that you sent an application")
+    applied.add_argument("slug", help="a job slug from 'job-hunter jobs'")
+    applied.add_argument("--on", help="the date you sent it (default: today)")
+    applied.add_argument("--channel", help="how it went out, e.g. 'company form'")
+    applied.add_argument("--with", dest="sent", action="append",
+                         choices=sorted(apply_models.SENT_KINDS),
+                         help="a document you sent (repeatable)")
+    applied.add_argument("--contact", help="who you are dealing with")
+    applied.add_argument("--note", help="anything worth remembering")
+
+    marked = subparsers.add_parser("mark", help="move an application on")
+    marked.add_argument("slug")
+    marked.add_argument("state", choices=sorted(apply_models.STATES))
+    marked.add_argument("--on", help="when it happened (default: now)")
+    marked.add_argument("--note")
+
+    noted = subparsers.add_parser("note", help="add a dated note to an application")
+    noted.add_argument("slug")
+    noted.add_argument("text", help="the note, or - to read it from stdin")
+
+    applications = subparsers.add_parser("applications",
+                                         help="what you have sent, and what is outstanding")
+    applications.add_argument("--all", action="store_true", help="including closed ones")
+    applications.add_argument("--status", choices=sorted(apply_models.STATES))
+    applications.add_argument("--stale", nargs="?", type=int,
+                              const=apply_models.FOLLOW_UP_DAYS, default=None,
+                              metavar="DAYS", help="only the ones gone quiet")
+
     for name, help_text in (("cv", "tailor your CV to a saved job"),
                             ("letter", "write a cover letter for a saved job")):
         command = subparsers.add_parser(name, help=help_text)
@@ -505,6 +669,8 @@ COMMANDS = {
     "job": cmd_job, "jobs": cmd_jobs, "cv": cmd_cv, "letter": cmd_letter,
     "answer": cmd_answer, "serve": cmd_serve,
     "search": cmd_search, "queue": cmd_queue, "pick": cmd_pick, "dismiss": cmd_dismiss,
+    "applied": cmd_applied, "mark": cmd_mark, "note": cmd_note,
+    "applications": cmd_applications,
 }
 
 

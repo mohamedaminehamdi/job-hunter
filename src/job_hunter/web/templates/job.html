@@ -93,6 +93,96 @@
       </p>
     </div>
 
+    <div class="panel">
+      <h2>{{ "Application" if application else "Did you send it?" }}</h2>
+      {% if application %}
+      <h3>{{ application.status }}{% if application.applied_on %} · sent {{ application.applied_on }}{% endif %}</h3>
+      <div class="muted small">
+        {% if application.channel %}{{ application.channel }}{% endif %}
+        {% if application.sent %}
+        · sent
+        {% for kind in application.sent %}
+        <a href="/download/{{ job.slug }}-{{ kind }}.pdf">{{ kind }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% if application.contact %}· {{ application.contact }}{% endif %}
+        {% if application.is_open and application.days_quiet is not none %}
+        · {{ application.days_quiet }} days quiet
+        {% endif %}
+      </div>
+
+      {% if application.history %}
+      <ul class="issues" style="margin-top:10px">
+        {% for event in application.history %}
+        <li>
+          <span class="path">{{ event.at[:10] }}</span>
+          <span>{{ event.status or 'note' }}{% if event.note %} — {{ event.note }}{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <div class="row end" style="margin-top:10px">
+        <form method="post" action="/applications/{{ job.slug }}/note" class="row nowrap">
+          <input type="hidden" name="back" value="/jobs/{{ job.slug }}">
+          <input type="text" name="text" placeholder="Chased them…" style="width:190px">
+          <button type="submit">Note</button>
+        </form>
+        {% if application.next_states %}
+        <form method="post" action="/applications/{{ job.slug }}/mark" class="row nowrap">
+          <input type="hidden" name="back" value="/jobs/{{ job.slug }}">
+          <select name="status" aria-label="Move this application to">
+            {% for state in application.next_states %}
+            <option value="{{ state }}">{{ state }}</option>
+            {% endfor %}
+          </select>
+          <button class="primary" type="submit">Update</button>
+        </form>
+        {% endif %}
+      </div>
+      <p class="muted small" style="margin:10px 0 0">
+        <a href="/applications">All your applications</a>
+      </p>
+
+      {% else %}
+      <form method="post" action="/jobs/{{ job.slug }}/applied" class="stack">
+        <div class="row">
+          <div style="flex:1">
+            <label for="on">When</label>
+            <input type="date" id="on" name="on" value="{{ today }}">
+          </div>
+          <div style="flex:1">
+            <label for="channel">How</label>
+            <input type="text" id="channel" name="channel" placeholder="company form">
+          </div>
+        </div>
+        <div>
+          <label>What you sent</label>
+          <div class="row small">
+            {% for kind in sent_kinds %}
+            <label style="display:flex; gap:6px; align-items:center; color:var(--ink)">
+              <input type="checkbox" name="sent" value="{{ kind }}"
+                     {% if (kind == "cv" and cv) or (kind == "letter" and letter) %}checked{% endif %}>
+              {{ kind }}
+            </label>
+            {% endfor %}
+          </div>
+          <p class="muted small" style="margin:6px 0 0">
+            Ticked because the document exists, not because the tool saw you
+            attach it. Untick what you did not send.
+          </p>
+        </div>
+        <div>
+          <label for="contact">Who (optional)</label>
+          <input type="text" id="contact" name="contact" placeholder="Nadia, talent partner">
+        </div>
+        <div class="row end">
+          <button class="primary" type="submit">Mark as applied</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+
     {% if job.brand_color %}
     <div class="panel small">
       <h2>Company colour</h2>

@@ -25,6 +25,7 @@ Five packages with one job each. Keep the boundaries:
 | `jobs/` | Fetching and modelling a job posting | touch the profile |
 | `generate/` | Every model call, via `generate/llm.py` | render HTML or PDF |
 | `render/` | Jinja → HTML → PDF, themes | call a model |
+| `apply/` | What you sent, when, and what came back | call a model, render, or read a document |
 
 `discover/` is deliberately the cheap half: its scoring is lexical, so a sweep
 of twenty boards costs nothing and the order does not shuffle between runs. The

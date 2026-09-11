@@ -55,6 +55,9 @@
               {% if candidate.status != "new" %}
               <span class="tag warning">{{ candidate.status }}</span>
               {% endif %}
+              {% if candidate.job_slug and candidate.job_slug in applied %}
+              <span class="tag info">applied {{ applied[candidate.job_slug].applied_on }}</span>
+              {% endif %}
             </div>
           </div>
           <div class="score">

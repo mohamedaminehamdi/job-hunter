@@ -9,6 +9,8 @@ import json
 import pytest
 
 from job_hunter import cli, render
+from job_hunter.apply import models as apply_models
+from job_hunter.apply import store as apply_store
 from job_hunter.discover import criteria as criteria_mod
 from job_hunter.discover import sources
 from job_hunter.discover import store as queue_store
@@ -321,6 +323,93 @@ def test_search_json_output_is_machine_readable(searchable, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert payload["found"] == 1
     assert payload["outcomes"][0]["source"] == "greenhouse"
+
+
+# --- what you actually sent -----------------------------------------------
+
+def test_recording_an_application_saves_it_and_says_where(saved, capsys):
+    assert run("applied", "zeta-senior-data-engineer", "--channel", "company form") == 0
+    out = capsys.readouterr().out
+    assert "Applied to" in out and "company form" in out
+    assert apply_store.load("zeta-senior-data-engineer", saved) is not None
+
+
+def test_applying_to_a_job_that_is_not_saved_is_one_line(home, capsys):
+    assert run("applied", "no-such-job") == 1
+    assert "No saved job" in capsys.readouterr().err
+
+
+def test_it_names_the_documents_you_have_but_does_not_record_them(saved, capsys, stub_llm):
+    """What you attached is a fact the tool cannot observe, so it asks."""
+    stub_llm(json.dumps(CV_REPLY))
+    run("cv", "zeta-senior-data-engineer")
+    capsys.readouterr()
+
+    run("applied", "zeta-senior-data-engineer")
+    assert "--with cv" in capsys.readouterr().out
+    assert apply_store.load("zeta-senior-data-engineer", saved).sent == []
+
+
+def test_what_you_say_you_sent_is_recorded(saved):
+    run("applied", "zeta-senior-data-engineer", "--with", "cv", "--with", "letter")
+    assert apply_store.load("zeta-senior-data-engineer", saved).sent == ["cv", "letter"]
+
+
+def test_marking_an_application_that_does_not_exist_is_one_line(saved, capsys):
+    assert run("mark", "zeta-senior-data-engineer", "rejected") == 1
+    assert "Record one first" in capsys.readouterr().err
+
+
+def test_an_illegal_move_names_the_file_you_can_edit(saved, capsys):
+    run("applied", "zeta-senior-data-engineer")
+    run("mark", "zeta-senior-data-engineer", "rejected")
+    capsys.readouterr()
+
+    assert run("mark", "zeta-senior-data-engineer", "interviewing") == 1
+    assert "applications/zeta-senior-data-engineer.yaml" in capsys.readouterr().err
+
+
+def test_a_note_is_dated_and_kept(saved, capsys):
+    run("applied", "zeta-senior-data-engineer")
+    assert run("note", "zeta-senior-data-engineer", "chased the recruiter") == 0
+
+    history = apply_store.load("zeta-senior-data-engineer", saved).history
+    assert history[-1].note == "chased the recruiter" and history[-1].at
+
+
+def test_the_listing_says_what_has_gone_quiet(saved, capsys, job):
+    run("applied", "zeta-senior-data-engineer", "--on", "2020-01-01")
+    capsys.readouterr()
+    run("applications")
+    assert f"{apply_models.FOLLOW_UP_DAYS}+ days" in capsys.readouterr().out
+
+
+def test_stale_shows_only_what_is_outstanding(saved, capsys):
+    run("applied", "zeta-senior-data-engineer", "--on", "2020-01-01")
+    capsys.readouterr()
+    assert run("applications", "--stale") == 0
+    assert "zeta-senior-data-engineer" in capsys.readouterr().out
+
+
+def test_applications_is_empty_before_you_send_anything(home, capsys):
+    assert run("applications") == 0
+    assert "job-hunter applied" in capsys.readouterr().out
+
+
+def test_applications_json_is_machine_readable(saved, capsys):
+    run("applied", "zeta-senior-data-engineer")
+    capsys.readouterr()
+    run("--json", "applications")
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["counts"]["open"] == 1
+    assert payload["applications"][0]["job_slug"] == "zeta-senior-data-engineer"
+
+
+def test_doctor_reports_what_is_outstanding(saved, capsys):
+    run("applied", "zeta-senior-data-engineer")
+    capsys.readouterr()
+    run("doctor")
+    assert "1 open" in capsys.readouterr().out
 
 
 def test_cv_json_output_is_machine_readable(saved, capsys, stub_llm):

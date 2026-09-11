@@ -77,6 +77,7 @@ Everything lives in one directory you can read, edit and back up:
 | `~/.job-hunter/queue.yaml` | Search results, their scores, and what you decided |
 | `~/.job-hunter/jobs/*.yaml` | Postings you saved, as parsed |
 | `~/.job-hunter/documents/*.yaml` | Generated CVs, letters and answers, before export |
+| `~/.job-hunter/applications/*.yaml` | What you sent, when, and what came back |
 | `~/.job-hunter/output/*.pdf` | The finished PDFs |
 | `~/.job-hunter/llm_calls.jsonl` | Every model call, with tokens and cost |
 
@@ -363,6 +364,46 @@ PDFs land in `~/.job-hunter/output/`. A document with a blocking issue — an
 unfilled placeholder, a missing name — will not export until it is fixed. Warnings
 will not stop you; they are there to be read.
 
+### 5. Record what you sent
+
+Everything above can be rebuilt by running it again. This cannot, which is why
+it lives in its own files and why a cleared queue never touches it.
+
+```bash
+job-hunter applied bwi-senior-devops --channel "company form" --with cv --with letter
+job-hunter mark bwi-senior-devops interviewing --note "screen on the 18th"
+job-hunter note bwi-senior-devops "chased the recruiter"
+job-hunter applications
+```
+
+```
+> 2026-08-12  bwi-senior-devops    Senior DevOps Engineer at BWI    interviewing     2d
+  2026-08-24  zeta-data-engineer   Senior Data Engineer at Zeta     applied         19d
+
+2 out (1 applied, 1 interviewing), 0 offer(s), 3 closed.
+1 heard nothing for 14+ days: job-hunter applications --stale
+```
+
+In the browser it is a panel on the job's own page — the page you are already
+on when you finish exporting — and an **Applications** tab for the whole list.
+
+An application goes `applied → interviewing → offer`, with `rejected` and
+`withdrawn` ending it. Note that `rejected` means *they* passed on you, which is
+a different fact from `dismissed` on the queue, where *you* passed on them. A
+job hunt is largely the business of telling those apart.
+
+**Nothing here runs in the background**, so "no reply" is not a state — it is
+time spent waiting, counted from the last thing that happened. Chase them, note
+that you did, and it stops showing as quiet:
+
+```bash
+job-hunter applications --stale     # only what has gone quiet
+```
+
+What you sent is recorded from what you say you sent. The tool hints when a
+tailored CV exists, but it cannot see what you attached to a form and will not
+write down a guess.
+
 ### Command reference
 
 | Command | What it does |
@@ -379,6 +420,10 @@ will not stop you; they are there to be read.
 | `cv <slug> [--export] [--theme T]` | Tailored CV |
 | `letter <slug> [--export] [--theme T] [--branded]` | Cover letter |
 | `answer <slug> <question\|-> [--words N]` | One application answer |
+| `applied <slug> [--on D] [--channel C] [--with KIND]... [--contact C] [--note N]` | Record that you sent it |
+| `mark <slug> <state> [--on D] [--note N]` | applied → interviewing → offer, or rejected / withdrawn |
+| `note <slug> <text\|->` | A dated note, which also resets the quiet clock |
+| `applications [--all] [--status S] [--stale [DAYS]]` | What you sent, and what is outstanding |
 | `serve [--host H] [--port P]` | The browser UI (see the warning below) |
 
 `--json` works on every command, for scripting.
@@ -467,6 +512,7 @@ directory is listed [above](#use).
 - [x] Web UI, with the review step at its centre
 - [x] Job discovery — multi-source search, scoring, and a review queue
 - [x] English and French throughout — letters, answers, dates, the invention guard
+- [x] Application tracking — what you sent, when, and what came back
 - [ ] Assisted application — filling a posting's form from the tailored
       documents, with the submit button still yours to press
 
