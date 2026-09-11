@@ -27,6 +27,7 @@ dependencies = [
   "pydantic>=2.7",
   "pyyaml>=6.0",
   "litellm>=1.55",             # one interface, ~100 providers, incl. local Ollama
+  "httpx>=0.27",               # the ATS boards' JSON endpoints
   "playwright>=1.47",          # HTML -> PDF, and job-page fetching
   "pypdf>=5.0",                # CV intake
   "python-docx>=1.1",          # CV intake

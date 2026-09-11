@@ -19,10 +19,12 @@
 
 <div class="meta">
   {% if letter.company %}{{ letter.company }}<br>{% endif %}
-  {{ letter.written_on | long_date }}
+  {{ letter.written_on | long_date(letter.language) }}
 </div>
 
-{% if letter.role %}<div class="subject">Application: {{ letter.role }}</div>{% endif %}
+{% if letter.role %}
+<div class="subject">{{ letter.language | subject_label }} {{ letter.role }}</div>
+{% endif %}
 
 <div class="greeting">{{ letter.greeting }}</div>
 {% for paragraph in letter.paragraphs %}

@@ -17,8 +17,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import render
+from . import discover, render
 from .config import Settings, load_settings
+from .discover import criteria as criteria_mod
+from .discover import store as queue_store
 from .generate import answers as answers_mod
 from .generate import cover_letter as letter_mod
 from .generate import cv as cv_mod
@@ -277,7 +279,116 @@ def cmd_answer(args: argparse.Namespace, settings: Settings) -> int:
     _out(f"Q: {drafted.question}")
     _out(f"\n{drafted.text}\n")
     _out(f"({drafted.word_count} words, saved to {saved})")
-    return _finish(drafted, None)
+    return _finish(drafted, None, exportable=False)
+
+
+def cmd_search(args: argparse.Namespace, settings: Settings) -> int:
+    """Search every configured source and queue what scores well enough."""
+    criteria = criteria_mod.load(settings.home)
+    if not criteria.is_searchable:
+        _out(f"Nothing to search yet. Edit {criteria_mod.criteria_path(settings.home)}:")
+        _issues(criteria.report())
+        _out("\nA starting point:\n")
+        _out(criteria_mod.example())
+        return 1
+
+    report = discover.search(_require_profile(settings), criteria, settings.home,
+                             timeout=args.timeout, only=tuple(args.source or ()))
+    payload = {**report.model_dump(mode="json"), "summary": report.summary()}
+    if _emit(payload, args.json):
+        return 0
+
+    _out(report.summary())
+    for outcome in report.outcomes:
+        mark = "!" if outcome.error else " "
+        detail = outcome.error or f"{outcome.found} listing(s)"
+        _out(f"{mark} {outcome.label:<28} {detail}")
+    if report.added:
+        _out(f"\n{report.added} new to look at: job-hunter queue")
+    return 0
+
+
+#: A decided candidate is only ever shown alongside undecided ones, so the mark
+#: is the whole difference between them on the line.
+_MARKS = {queue_store.NEW: " ", queue_store.PICKED: "+", queue_store.DISMISSED: "-"}
+
+
+def _queue_line(candidate) -> str:
+    listing = candidate.listing
+    where = listing.location or listing.workplace or "-"
+    return (f"{_MARKS.get(candidate.status, '?')} {candidate.match.score:>3}  "
+            f"{candidate.id:<46} {listing.label[:50]:<52} {where[:22]}")
+
+
+def cmd_queue(args: argparse.Namespace, settings: Settings) -> int:
+    """Show what the searches turned up and what you decided about it."""
+    candidates = queue_store.load(settings.home)
+    if args.status:
+        candidates = [c for c in candidates if c.status == args.status]
+    elif not args.all:
+        candidates = [c for c in candidates if c.status == queue_store.NEW]
+
+    if _emit({"counts": queue_store.counts(settings.home),
+              "candidates": [c.model_dump(mode="json") for c in candidates]}, args.json):
+        return 0
+
+    if not candidates:
+        _out("Nothing waiting. Run 'job-hunter search' to fill the queue.")
+        return 0
+    for candidate in candidates:
+        _out(_queue_line(candidate))
+        if args.why:
+            for reason in candidate.match.reasons:
+                _out(f"       - {reason}")
+    counts = queue_store.counts(settings.home)
+    _out(f"\n{counts['new']} waiting, {counts['picked']} picked, "
+         f"{counts['dismissed']} dismissed.")
+    _out("Pick one: job-hunter pick <id>")
+    return 0
+
+
+def _require_candidate(candidate_id: str, settings: Settings):
+    candidate = queue_store.get(candidate_id, settings.home)
+    if candidate is None:
+        raise GenerationError(
+            f"No queued job with id {candidate_id!r}. Run 'job-hunter queue' to see them."
+        )
+    return candidate
+
+
+def cmd_pick(args: argparse.Namespace, settings: Settings) -> int:
+    """Promote a queued listing to a saved job: fetch the posting and parse it.
+
+    This is the only point in discovery that costs a page load and a model call,
+    which is why it happens per job you chose rather than per search hit.
+    """
+    candidate = _require_candidate(args.id, settings)
+    job = job_parse.from_url(candidate.listing.url, timeout=args.timeout, settings=settings)
+    saved = job_store.save(job, settings.home)
+    queue_store.set_status(candidate.id, queue_store.PICKED, settings.home,
+                           job_slug=job.slug)
+
+    payload = {"id": candidate.id, "slug": job.slug, "saved_to": str(saved),
+               "usable": job.is_usable, "problem": job.missing()}
+    if _emit(payload, args.json):
+        return 0
+
+    _out(f"{job.label}  [{job.slug}]")
+    _out(f"saved to {saved}")
+    if (problem := job.missing()) is not None:
+        _out(f"\n! {problem}")
+    _out(f"\nTailor to it: job-hunter cv {job.slug}")
+    return 0
+
+
+def cmd_dismiss(args: argparse.Namespace, settings: Settings) -> int:
+    """Drop a listing, for good. Later searches will not re-queue it."""
+    candidate = _require_candidate(args.id, settings)
+    queue_store.set_status(candidate.id, queue_store.DISMISSED, settings.home)
+    if _emit({"id": candidate.id, "status": queue_store.DISMISSED}, args.json):
+        return 0
+    _out(f"Dismissed {candidate.listing.label}.")
+    return 0
 
 
 def _maybe_export(args: argparse.Namespace, document, job, stem: str,
@@ -291,7 +402,13 @@ def _maybe_export(args: argparse.Namespace, document, job, stem: str,
     return render.export(document, settings.output_dir / f"{stem}.pdf", theme=theme)
 
 
-def _finish(document, exported: Path | None) -> int:
+def _finish(document, exported: Path | None, *, exportable: bool = True) -> int:
+    """Print the issues, then say what can be done next.
+
+    `exportable` is False for a document with no PDF to write - an application
+    answer is pasted into a form - so the hint does not name a flag that command
+    does not have.
+    """
     issues = document.all_issues
     if issues:
         _out(f"\n{len(issues)} thing(s) to check before you send this:")
@@ -300,7 +417,7 @@ def _finish(document, exported: Path | None) -> int:
         _out(f"\nPDF: {exported}")
     elif getattr(document, "blocking", None):
         _out("\nThis will not export until the blocking items above are fixed.")
-    else:
+    elif exportable:
         _out("\nRe-run with --export to write the PDF.")
     return 0
 
@@ -341,6 +458,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("jobs", help="list saved jobs")
 
+    search = subparsers.add_parser("search", help="search your sources and fill the queue")
+    search.add_argument("--source", action="append", choices=sorted(discover.sources.ALL),
+                        help="only this source (repeatable)")
+    search.add_argument("--timeout", type=int, default=30,
+                        help="per-source timeout, seconds")
+
+    queue = subparsers.add_parser("queue", help="show what the searches found")
+    queue.add_argument("--all", action="store_true", help="including decided ones")
+    queue.add_argument("--status", choices=queue_store.STATUSES, help="only this state")
+    queue.add_argument("--why", action="store_true", help="show the scoring reasons")
+
+    pick = subparsers.add_parser("pick", help="turn a queued listing into a saved job")
+    pick.add_argument("id", help="an id from 'job-hunter queue'")
+    pick.add_argument("--timeout", type=int, default=30)
+
+    dismissed = subparsers.add_parser("dismiss", help="drop a queued listing for good")
+    dismissed.add_argument("id", help="an id from 'job-hunter queue'")
+
     for name, help_text in (("cv", "tailor your CV to a saved job"),
                             ("letter", "write a cover letter for a saved job")):
         command = subparsers.add_parser(name, help=help_text)
@@ -369,6 +504,7 @@ COMMANDS = {
     "doctor": cmd_doctor, "import": cmd_import, "profile": cmd_profile,
     "job": cmd_job, "jobs": cmd_jobs, "cv": cmd_cv, "letter": cmd_letter,
     "answer": cmd_answer, "serve": cmd_serve,
+    "search": cmd_search, "queue": cmd_queue, "pick": cmd_pick, "dismiss": cmd_dismiss,
 }
 
 

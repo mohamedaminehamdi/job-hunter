@@ -21,12 +21,16 @@ from urllib.parse import urlparse
 #: Any scheme, with or without the slashes - `javascript:` must not become a host.
 _HAS_SCHEME = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.IGNORECASE)
 
+#: A host with no dot in it is a typo - "notaurl" - with these exceptions, which
+#: are how you point the tool at a page served on your own machine.
+_LOCAL_HOSTS = frozenset({"localhost", "::1"})
+
 #: Below this, whatever we scraped is a cookie banner or a login wall.
 MIN_TEXT = 400
 DEFAULT_TIMEOUT = 30
 
 #: Boards serve a stripped page to anything that announces itself as a bot.
-_USER_AGENT = (
+USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
@@ -121,7 +125,8 @@ def normalise_url(url: str) -> str:
     parsed = urlparse(candidate)
     if parsed.scheme not in ("http", "https"):
         raise FetchError(f"Only http and https URLs can be fetched, not {parsed.scheme!r}.")
-    if not parsed.netloc or "." not in parsed.netloc:
+    host = (parsed.hostname or "").lower()
+    if not parsed.netloc or ("." not in host and host not in _LOCAL_HOSTS):
         raise FetchError(f"{url!r} does not look like a web address.")
     return candidate
 
@@ -155,7 +160,7 @@ def _render(url: str, timeout: int) -> tuple[str, str, str]:
                     "Could not start Chromium. Run: playwright install chromium"
                 ) from exc
             try:
-                page = browser.new_page(user_agent=_USER_AGENT, locale="en-US")
+                page = browser.new_page(user_agent=USER_AGENT, locale="en-US")
                 page.set_default_timeout(timeout * 1000)
                 page.goto(url, wait_until="domcontentloaded")
                 # Client-rendered boards fill the description in after load, and

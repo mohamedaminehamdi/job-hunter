@@ -9,6 +9,7 @@ import pytest
 from job_hunter import render
 from job_hunter.generate import cover_letter, cv
 from job_hunter.profile.models import Profile
+from job_hunter.render import html
 
 CV_REPLY = {
     "summary": "Data engineer with production pipeline experience.",
@@ -115,6 +116,16 @@ def test_export_refuses_a_blocked_document(profile, job, tmp_path):
     assert not (tmp_path / "cv.pdf").exists()  # nothing was written
 
 
+def test_export_refuses_a_plain_profile_with_a_placeholder(profile, tmp_path):
+    """A Profile declares no `blocking` list, and must still be checked."""
+    unfinished = profile.model_copy(deep=True)
+    unfinished.personal.name = "[Your Name]"
+
+    with pytest.raises(render.ExportBlocked):
+        render.export(unfinished, tmp_path / "cv.pdf")
+    assert not (tmp_path / "cv.pdf").exists()
+
+
 def test_export_of_a_clean_document_reaches_the_pdf_step(document, tmp_path, monkeypatch):
     """The blocking check passes and the renderer is handed real HTML."""
     seen = {}
@@ -128,3 +139,34 @@ def test_export_of_a_clean_document_reaches_the_pdf_step(document, tmp_path, mon
     result = render.export(document, tmp_path / "cv.pdf")
     assert result.exists()
     assert "Ada Lovelace" in seen["html"]
+
+
+# --- a letter is written in one language, including its furniture ----------
+
+@pytest.mark.parametrize("language, expected", [
+    ("en", "7 September 2026"),
+    ("fr", "7 septembre 2026"),
+    ("de", "7 September 2026"),   # no words for it: falls back to English
+    ("", "7 September 2026"),
+])
+def test_the_date_is_written_in_the_letter_s_language(language, expected):
+    assert html._long_date("2026-09-07", language) == expected
+
+
+def test_the_french_first_of_the_month_is_ordinal():
+    assert html._long_date("2026-09-01", "fr") == "1er septembre 2026"
+    assert html._long_date("2026-09-01", "en") == "1 September 2026"
+
+
+def test_something_that_is_not_a_date_passes_through():
+    assert html._long_date("whenever", "fr") == "whenever"
+
+
+def test_the_subject_line_is_written_in_the_letter_s_language(letter):
+    french = letter.model_copy(update={"language": "fr", "role": "Ingénieur DevOps"})
+    page = render.letter_html(french)
+    assert "Objet&#32;:" in page or "Objet :" in page
+    assert "Application:" not in page
+
+    english = letter.model_copy(update={"language": "en", "role": "Data Engineer"})
+    assert "Application:" in render.letter_html(english)

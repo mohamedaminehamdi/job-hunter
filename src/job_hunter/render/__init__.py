@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..profile.models import Issue
+from ..profile.models import Issue, Severity
 from .html import cv_html, environment, letter_html
 from .pdf import PdfError, write_pdf
 from .themes import CLASSIC, NEUTRAL, THEMES, Theme, branded, resolve
@@ -34,9 +34,24 @@ def export(document: object, path: Path, *, theme: Theme = NEUTRAL) -> Path:
     Raises `ExportBlocked` if the document reports a blocking issue - which is
     how "nothing becomes a PDF until it is fit to send" is actually kept.
     """
-    if blocking := list(getattr(document, "blocking", []) or []):
+    if blocking := blocking_issues(document):
         raise ExportBlocked(blocking)
     return write_pdf(to_html(document, theme=theme), Path(path))
+
+
+def blocking_issues(document: object) -> list[Issue]:
+    """What stops this document becoming a file.
+
+    A tailored CV and a letter each publish their own `blocking` list. A plain
+    `Profile` publishes none, and would otherwise walk through the door
+    unchecked - carrying the '[Your Name]' this whole rule exists to stop - so
+    it is validated here instead. The door is one place, for every document.
+    """
+    if (declared := getattr(document, "blocking", None)) is not None:
+        return list(declared)
+    report = getattr(document, "report", None)
+    found = report() if callable(report) else []
+    return [issue for issue in found if issue.severity is Severity.BLOCKING]
 
 
 def to_html(document: object, *, theme: Theme = NEUTRAL) -> str:
@@ -47,7 +62,7 @@ def to_html(document: object, *, theme: Theme = NEUTRAL) -> str:
 
 
 __all__ = [
-    "export", "to_html", "cv_html", "letter_html", "write_pdf", "environment",
+    "export", "to_html", "blocking_issues", "cv_html", "letter_html", "write_pdf", "environment",
     "Theme", "NEUTRAL", "CLASSIC", "THEMES", "branded", "resolve",
     "ExportBlocked", "PdfError",
 ]

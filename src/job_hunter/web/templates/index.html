@@ -79,6 +79,20 @@
     </div>
 
     <div class="panel">
+      <h2>Queue</h2>
+      {% if queue_counts.total %}
+      <p class="small">
+        <a href="/queue">{{ queue_counts.new }} listing(s) waiting</a> ·
+        {{ queue_counts.picked }} picked · {{ queue_counts.dismissed }} dismissed
+      </p>
+      {% else %}
+      <p class="muted small">
+        Nothing found yet. <a href="/queue">Set up a search</a> to have jobs come to you.
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
       <h2>Before you send anything</h2>
       {{ widgets.checklist(issues, empty="Your profile has no problems.") }}
     </div>

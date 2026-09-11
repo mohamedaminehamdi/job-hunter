@@ -22,13 +22,42 @@ def _strip_scheme(url: str) -> str:
     return str(url).removeprefix("https://").removeprefix("http://").rstrip("/")
 
 
-def _long_date(value: str) -> str:
-    """An ISO date as '7 September 2026'. Anything else passes through."""
+#: Month names for the languages the tool writes in. `strftime` would follow the
+#: machine's locale, which has nothing to do with the posting's language.
+_MONTHS = {
+    "en": ("January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"),
+    "fr": ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+           "août", "septembre", "octobre", "novembre", "décembre"),
+}
+
+#: What a letter calls the line naming the job. French business letters use
+#: "Objet :", with the space before the colon that French typography wants.
+_SUBJECT = {"en": "Application:", "fr": "Objet :"}
+
+
+def _key(language: str) -> str:
+    """The language to render in. Anything we have no words for reads as English."""
+    code = (language or "").strip().lower()[:2]
+    return code if code in _MONTHS else "en"
+
+
+def _long_date(value: str, language: str = "") -> str:
+    """An ISO date as '7 September 2026', or '7 septembre 2026'.
+
+    Anything that is not an ISO date passes through untouched.
+    """
     try:
         parsed = date.fromisoformat(str(value))
     except ValueError:
         return str(value)
-    return f"{parsed.day} {parsed.strftime('%B %Y')}"
+    code = _key(language)
+    day = "1er" if parsed.day == 1 and code == "fr" else str(parsed.day)
+    return f"{day} {_MONTHS[code][parsed.month - 1]} {parsed.year}"
+
+
+def _subject(language: str = "") -> str:
+    return _SUBJECT[_key(language)]
 
 
 def environment() -> Environment:
@@ -43,6 +72,7 @@ def environment() -> Environment:
     )
     env.filters["strip_scheme"] = _strip_scheme
     env.filters["long_date"] = _long_date
+    env.filters["subject_label"] = _subject
     return env
 
 

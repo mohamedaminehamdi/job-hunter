@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+{% import "_issues.html" as widgets %}
+{% block title %}Queue · Job Hunter{% endblock %}
+{% block content %}
+<h1>Queue</h1>
+<p class="sub">
+  What your searches found, scored against your profile. Nothing is applied to -
+  picking a listing fetches the full posting so you can tailor to it.
+</p>
+
+{% if model_problem %}<div class="flash bad">{{ model_problem }}</div>{% endif %}
+{% if not profile_ready %}
+<div class="flash bad">No profile yet, so nothing can be scored. Import your CV first.</div>
+{% endif %}
+
+<div class="cols wide">
+  <div>
+    <div class="panel">
+      <div class="row">
+        <h2 style="margin:0">
+          {{ counts.new }} waiting · {{ counts.picked }} picked · {{ counts.dismissed }} dismissed
+        </h2>
+        <form method="post" action="/search" style="margin-left:auto" class="row">
+          <select name="source" aria-label="Source to search">
+            <option value="">All sources{% if sources %} ({{ sources | join(', ') }}){% endif %}</option>
+            {% for name in sources %}<option value="{{ name }}">{{ name }} only</option>{% endfor %}
+          </select>
+          <button class="primary" type="submit">Search now</button>
+        </form>
+      </div>
+      <div class="row small" style="margin-top:10px">
+        {% for name, label in [("new", "Waiting"), ("picked", "Picked"),
+                               ("dismissed", "Dismissed"), ("all", "Everything")] %}
+        <a href="/queue?show={{ name }}"
+           class="button"{% if show == name %} style="border-color:var(--accent);color:var(--accent)"{% endif %}>
+          {{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if candidates %}
+    <ul class="plain">
+      {% for candidate in candidates %}
+      {% set listing = candidate.listing %}
+      <li class="panel">
+        <div class="row">
+          <div style="min-width:0">
+            <h3>
+              <a href="{{ listing.url }}" target="_blank" rel="noopener">{{ listing.title }}</a>
+            </h3>
+            <div class="muted small">
+              {{ [listing.company, listing.location, listing.workplace,
+                  listing.employment_type] | select | join(' · ') }}
+              <span class="tag info">{{ listing.source }}</span>
+              {% if candidate.status != "new" %}
+              <span class="tag warning">{{ candidate.status }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="score">
+            <div class="value">{{ candidate.match.score }}</div>
+            <div class="muted small">score</div>
+          </div>
+        </div>
+
+        {% if candidate.match.reasons %}
+        <p class="muted small" style="margin:8px 0 0">
+          {{ candidate.match.reasons | join(' · ') }}
+        </p>
+        {% endif %}
+
+        <div class="row end" style="margin-top:10px">
+          {% if candidate.job_slug %}
+          <a class="button" href="/jobs/{{ candidate.job_slug }}">Open the saved job</a>
+          {% endif %}
+          {% if candidate.status != "dismissed" %}
+          <form method="post" action="/queue/{{ candidate.id }}/dismiss">
+            <button class="danger" type="submit">Dismiss</button>
+          </form>
+          {% endif %}
+          {% if candidate.status != "picked" %}
+          <form method="post" action="/queue/{{ candidate.id }}/pick">
+            <button class="primary" type="submit">Pick</button>
+          </form>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="panel">
+      <p class="muted small">
+        Nothing here yet. Set up what to look for, then run a search.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>What to look for</h2>
+      {{ widgets.checklist(issues, empty="The search is ready to run.") }}
+      <form method="post" action="/search/criteria" class="stack" style="margin-top:12px">
+        <div>
+          <label for="yaml_text" class="path">{{ path }}</label>
+          <textarea id="yaml_text" name="yaml_text" rows="22">{{ yaml_text }}</textarea>
+        </div>
+        <div class="row end"><button class="primary" type="submit">Save search</button></div>
+      </form>
+    </div>
+
+    <div class="panel small muted">
+      <p>
+        <strong>greenhouse / lever / ashby</strong> take the board slug out of the
+        board's own URL - <span class="path">jobs.lever.co/<b>acme</b></span>. They
+        are plain public APIs.
+      </p>
+      <p>
+        <strong>pages</strong> takes any URL that lists jobs, read with a browser.
+      </p>
+      <p>
+        <strong>locations</strong> are searched one by one. Qualify a city with
+        its country - <span class="path">Zurich, Switzerland</span> - because
+        LinkedIn's guest search resolves a bare city name badly, and quietly
+        answers with a different place.
+      </p>
+      <p>
+        <strong>linkedin / indeed</strong> are off until you set them to true.
+        Both prohibit automated access in their terms, and both may show a wall
+        instead of results - the risk is to your own account.
+      </p>
+    </div>
+
+    {% if counts.total %}
+    <div class="panel">
+      <h2>Tidy up</h2>
+      <form method="post" action="/queue/clear" class="row end">
+        <select name="status" aria-label="What to clear">
+          <option value="dismissed">the dismissed ones</option>
+          <option value="picked">the picked ones</option>
+          <option value="">everything</option>
+        </select>
+        <button class="danger" type="submit">Clear</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% import "_issues.html" as widgets %}
 {% block title %}{{ job.label }} · Job Hunter{% endblock %}
 {% block content %}
 <h1>{{ job.title or "Untitled role" }}</h1>
@@ -57,8 +58,8 @@
         <li>
           <h3>{{ item.question }}</h3>
           <p class="small">{{ item.text }}</p>
-          {% if item.caveat %}<p class="small" style="color:var(--warning)">{{ item.caveat }}</p>{% endif %}
           <div class="muted small">{{ item.word_count }} words</div>
+          {{ widgets.checklist(item.all_issues, empty="") }}
         </li>
         {% endfor %}
       </ul>

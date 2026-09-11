@@ -36,7 +36,7 @@ Rules:
   profile does not show it, leave it out. A missing skill is not your problem to solve.
 - Prefer the profile's own words for an achievement. Shorten rather than embellish.
 - Keep each bullet one sentence, starting with a verb, with any figure copied exactly.
-- Order roles by relevance to this job, most relevant first.
+- Choose which roles to show. Their order on the page is not yours to set.
 - Return only JSON matching the requested shape. No prose, no code fences."""
 
 _SHAPE = """{
@@ -48,9 +48,10 @@ _SHAPE = """{
 
 _NOTES = """Field notes:
 - summary: two or three sentences, first person implied, no "I". Only facts from the profile.
-- roles: the roles worth showing, most relevant first, by their index above. Omit a
-  role only if it adds nothing for this job. Bullets are that role's achievements,
-  reworded for this job; keep the strongest three or four.
+- roles: the roles worth showing, by their index above. Omit a role only if it
+  adds nothing for this job - a gap in an employment history is noticed. Bullets
+  are that role's achievements, reworded for this job; keep the strongest three
+  or four.
 - projects: indices of the projects worth showing, most relevant first. May be empty.
 - skills: the profile's skills, ordered by relevance to this job. Use the profile's
   own spelling. Do not add a skill the profile does not list."""
@@ -144,27 +145,45 @@ def assemble(profile: Profile, job: Job, data: dict) -> TailoredCV:
 
     # The company and role may be named in the summary; nothing else new may be.
     support = guard.Support.of(profile) | guard.Support.of(job.company, job.title)
-    issues.extend(guard.check(summary, support, path="summary"))
+    issues.extend(guard.check(summary, support, path="summary", language=job.language))
     for i, role in enumerate(experience):
         issues.extend(guard.check_all(
-            {f"experience[{i}].bullets": role.bullets}, guard.Support.of(profile)
+            {f"experience[{i}].bullets": role.bullets}, guard.Support.of(profile),
+            language=job.language
         ))
 
     return document.model_copy(update={"issues": issues})
 
 
 def _roles(profile: Profile, raw: object, issues: list[Issue]) -> list:
-    """Selected roles, with the model's bullets and the profile's identity."""
-    chosen: list = []
-    seen: set[int] = set()
+    """Selected roles, with the model's bullets and the profile's identity.
+
+    The model chooses *which* roles appear; it does not choose the order they
+    appear in. Left to rank them by relevance it puts a past role above the
+    current one, which reads as a mistake on a CV whatever its reasoning. So the
+    profile's own order - the order you wrote your CV in - is kept.
+    """
+    picked: dict[int, list[str]] = {}
     for entry in raw if isinstance(raw, list) else []:
         index = _index(entry)
-        if index is None or not 0 <= index < len(profile.experience) or index in seen:
+        if index is None or not 0 <= index < len(profile.experience) or index in picked:
             continue
-        seen.add(index)
-        source = profile.experience[index]
-        bullets = _bullets(entry) or source.bullets
-        chosen.append(source.model_copy(update={"bullets": bullets[:MAX_BULLETS]}))
+        picked[index] = _bullets(entry) or profile.experience[index].bullets
+
+    chosen = [profile.experience[i].model_copy(
+                  update={"bullets": picked[i][:MAX_BULLETS]})
+              for i in sorted(picked)]
+
+    # Dropping a role is allowed - it is the point of tailoring - but doing it
+    # without saying so lets a whole job disappear off your CV unnoticed.
+    if chosen and (left_out := [profile.experience[i].company or f"role {i + 1}"
+                                for i in range(len(profile.experience))
+                                if i not in picked]):
+        issues.append(Issue(
+            path="experience", severity=Severity.WARNING,
+            message=f"Left off as not relevant to this job: {', '.join(left_out)}. "
+                    "Add them back by editing the document if you disagree.",
+        ))
 
     if not chosen and profile.experience:
         issues.append(Issue(
