@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from job_hunter import render
+from job_hunter.apply import store as apply_store
 from job_hunter.discover import criteria as criteria_mod
 from job_hunter.discover import sources
 from job_hunter.discover import store as queue_store
@@ -291,6 +292,101 @@ def test_clearing_the_queue(searchable, home):
     searchable.post("/search")
     assert searchable.post("/queue/clear", data={"status": ""}).status_code == 303
     assert queue_store.load(home) == []
+
+
+# --- what you actually sent -----------------------------------------------
+
+def test_the_job_page_offers_to_mark_it_applied(populated):
+    page = populated.get(f"/jobs/{SLUG}").text
+    assert "Mark as applied" in page
+    assert f"/jobs/{SLUG}/applied" in page
+
+
+def test_marking_applied_from_the_job_page(populated, home):
+    response = populated.post(f"/jobs/{SLUG}/applied",
+                              data={"on": "2026-08-24", "channel": "company form",
+                                    "sent": ["cv"], "contact": "Nadia"})
+    assert response.status_code == 303
+    application = apply_store.load(SLUG, home)
+    assert application.applied_on == "2026-08-24"
+    assert application.sent == ["cv"]
+
+
+def test_the_job_page_then_shows_what_you_sent_and_when(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied",
+                   data={"on": "2026-08-24", "channel": "company form"})
+    page = populated.get(f"/jobs/{SLUG}").text
+    assert "2026-08-24" in page and "company form" in page
+    assert "Mark as applied" not in page
+
+
+def test_applying_to_a_job_that_is_gone_is_a_message_not_a_crash(client):
+    response = client.post("/jobs/no-such-job/applied", data={})
+    assert response.status_code == 303
+    assert "no+saved+job" in response.headers["location"].lower()
+
+
+def test_the_applications_page_renders_empty(client):
+    response = client.get("/applications")
+    assert response.status_code == 200
+    assert "Nothing here" in response.text
+
+
+def test_the_applications_page_lists_what_you_sent(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied", data={"channel": "referral"})
+    page = populated.get("/applications").text
+    assert "referral" in page and SLUG in page
+
+
+def test_moving_an_application_on_from_the_page(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied", data={})
+    response = populated.post(f"/applications/{SLUG}/mark",
+                              data={"status": "interviewing", "back": "/applications"})
+    assert response.status_code == 303
+    assert apply_store.load(SLUG, home).status == "interviewing"
+
+
+def test_an_illegal_move_is_a_message_not_a_crash(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied", data={})
+    populated.post(f"/applications/{SLUG}/mark", data={"status": "rejected"})
+    response = populated.post(f"/applications/{SLUG}/mark", data={"status": "applied"})
+    assert "error=" in response.headers["location"]
+    assert apply_store.load(SLUG, home).status == "rejected"
+
+
+def test_noting_something_resets_the_quiet_clock(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied", data={"on": "2020-01-01"})
+    assert apply_store.load(SLUG, home).is_quiet()
+
+    populated.post(f"/applications/{SLUG}/note", data={"text": "chased them"})
+    assert not apply_store.load(SLUG, home).is_quiet()
+
+
+@pytest.mark.parametrize("back", ["https://evil.example/steal", "//evil.example",
+                                  "javascript:alert(1)"])
+def test_a_form_cannot_redirect_off_this_site(populated, back):
+    """`back` is form input reaching a Location header."""
+    populated.post(f"/jobs/{SLUG}/applied", data={})
+    response = populated.post(f"/applications/{SLUG}/note",
+                              data={"text": "hi", "back": back})
+    assert response.headers["location"].startswith("/applications")
+
+
+def test_the_queue_shows_that_a_picked_listing_was_applied_to(searchable, home, job,
+                                                              monkeypatch):
+    searchable.post("/search")
+    candidate_id = queue_store.load(home)[0].id
+    monkeypatch.setattr(job_parse, "from_url", lambda *a, **k: job)
+    searchable.post(f"/queue/{candidate_id}/pick")
+    searchable.post(f"/jobs/{job.slug}/applied", data={"on": "2026-08-24"})
+
+    assert "applied 2026-08-24" in searchable.get("/queue?show=all").text
+
+
+def test_the_dashboard_counts_what_is_outstanding(populated, home):
+    populated.post(f"/jobs/{SLUG}/applied", data={"on": "2020-01-01"})
+    page = populated.get("/").text
+    assert "1 out" in page and "no reply" in page
 
 
 def test_exporting_writes_the_pdf_and_offers_it(populated, home, profile, job,

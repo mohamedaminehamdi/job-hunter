@@ -6,6 +6,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
 from ... import render
+from ...apply import models as apply_models
+from ...apply import store as apply_store
 from ...config import load_settings
 from ...discover import criteria as criteria_mod
 from ...discover import store as queue_store
@@ -32,6 +34,7 @@ def dashboard(request: Request, error: str = "", note: str = ""):
         "issues": profile.report(),
         "jobs": jobs,
         "queue_counts": queue_store.counts(settings.home),
+        "application_counts": apply_store.counts(settings.home),
         "settings": settings,
         "model_problem": settings.missing(),
         "error": error,
@@ -55,6 +58,8 @@ def queue_page(request: Request, show: str = "new", error: str = "", note: str =
     criteria = criteria_mod.load(settings.home)
     return templates.TemplateResponse(request, "queue.html", {
         "candidates": shown,
+        "applied": {a.job_slug: a for a in apply_store.all_applications(settings.home)
+                    if a.job_slug},
         "show": show,
         "counts": queue_store.counts(settings.home),
         "criteria": criteria,
@@ -65,6 +70,31 @@ def queue_page(request: Request, show: str = "new", error: str = "", note: str =
         "sources": criteria.sources_enabled,
         "profile_ready": bool(profile.personal.full_name or profile.experience),
         "model_problem": settings.missing(),
+        "error": error,
+        "note": note,
+    })
+
+
+@router.get("/applications", response_class=HTMLResponse)
+def applications_page(request: Request, show: str = "open", error: str = "",
+                      note: str = ""):
+    """What you sent, and what has gone quiet."""
+    settings = load_settings()
+    found = apply_store.all_applications(settings.home)
+    if show == "quiet":
+        shown = apply_store.outstanding(settings.home)
+    elif show in apply_models.STATES:
+        shown = [a for a in found if a.status == show]
+    elif show == "all":
+        shown = found
+    else:
+        shown = [a for a in found if a.is_open]
+
+    return templates.TemplateResponse(request, "applications.html", {
+        "applications": shown,
+        "show": show,
+        "counts": apply_store.counts(settings.home),
+        "follow_up_days": apply_models.FOLLOW_UP_DAYS,
         "error": error,
         "note": note,
     })
@@ -100,6 +130,9 @@ def job_page(request: Request, slug: str, error: str = "", note: str = ""):
         "cv": doc_store.load(slug, "cv", settings.home),
         "letter": doc_store.load(slug, "letter", settings.home),
         "answers": doc_store.load_answers(slug, settings.home),
+        "application": apply_store.load(slug, settings.home),
+        "today": apply_models.today(),
+        "sent_kinds": apply_models.SENT_KINDS,
         "themes": sorted(render.THEMES),
         "error": error,
         "note": note,

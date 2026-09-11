@@ -93,6 +93,26 @@
     </div>
 
     <div class="panel">
+      <h2>Applications</h2>
+      {% if application_counts.total %}
+      <p class="small">
+        <a href="/applications">{{ application_counts.open }} out</a> ·
+        {{ application_counts.interviewing }} interviewing ·
+        {{ application_counts.offer }} offer(s)
+        {% if application_counts.quiet %}
+        <br><a href="/applications?show=quiet" style="color:var(--warning)">
+          {{ application_counts.quiet }} with no reply</a>
+        {% endif %}
+      </p>
+      {% else %}
+      <p class="muted small">
+        Nothing sent yet. When you do, mark it on the job's page so you can
+        see what is outstanding.
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
       <h2>Before you send anything</h2>
       {{ widgets.checklist(issues, empty="Your profile has no problems.") }}
     </div>
