@@ -23,12 +23,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # A venv, not --system: the runner's interpreters are externally managed
-      # and uv refuses to write to them. Putting it on PATH means the later
-      # steps call ruff, pytest and playwright without a prefix.
+      # Into the venv setup-uv already made, not --system: the runner's
+      # interpreters are externally managed and uv refuses to write to them.
+      # Putting it on PATH means the later steps call ruff, pytest and
+      # playwright without a prefix.
       - name: Install the project
         run: |
-          uv venv
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
           uv pip install -e ".[dev]"
 
