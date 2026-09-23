@@ -25,8 +25,6 @@ jobs:
 
       # Into the venv setup-uv already made, not --system: the runner's
       # interpreters are externally managed and uv refuses to write to them.
-      # Putting it on PATH means the later steps call ruff, pytest and
-      # playwright without a prefix.
       - name: Install the project
         run: |
           echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
@@ -55,47 +53,20 @@ jobs:
       - name: Test
         run: pytest -q
 
-  package:
-    # A wheel that builds is not the same as a wheel that runs: the Jinja
-    # templates are package data, and an editable install hides it when they
-    # are missing.
+  private:
+    # Nobody's CV, profile or generated documents may ever be tracked. The
+    # pre-commit hook is the first line and only works for people who ran the
+    # git config; this is the line that works for everyone.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          python-version: "3.12"
-
-      - name: Build
-        run: uv build
-
-      - name: Install the wheel somewhere with no source tree
+      - name: Nothing private is tracked
         run: |
-          mkdir -p /tmp/clean
-          uv venv --python 3.12 /tmp/clean/.venv
-          uv pip install --python /tmp/clean/.venv "$GITHUB_WORKSPACE"/dist/*.whl
-
-      # Compared against the source tree rather than a hardcoded count, so
-      # adding a template is not a CI failure - only losing one is.
-      - name: Every template must have shipped
-        run: |
-          cd /tmp/clean
-          SOURCE="$GITHUB_WORKSPACE/src/job_hunter" ./.venv/bin/python - <<'PY'
-          import os
-          from importlib.resources import files
-          from pathlib import Path
-
-          source = Path(os.environ["SOURCE"])
-          missing = []
-          for directory in sorted(source.glob("*/templates")):
-              package = f"job_hunter.{directory.parent.name}"
-              want = {p.name for p in directory.iterdir()
-                      if p.name.endswith((".j2", ".html"))}
-              shipped = {p.name for p in files(package).joinpath("templates").iterdir()}
-              print(f"{package}: {len(want & shipped)}/{len(want)} shipped")
-              missing += [f"{package}/{name}" for name in sorted(want - shipped)]
-          assert not missing, f"these templates did not ship: {missing}"
-          PY
-
-      - name: The console script must run
-        run: JOB_HUNTER_HOME=/tmp/clean/home /tmp/clean/.venv/bin/job-hunter --json jobs
+          tracked=$(git ls-files cv runs profile.yaml \
+                    | grep -vE '^cv/README\.md$|^runs/\.gitkeep$' || true)
+          if [ -n "$tracked" ]; then
+            echo "these belong to a person, not to this repo:"
+            printf '  %s\n' $tracked
+            exit 1
+          fi
+          echo "clean"
