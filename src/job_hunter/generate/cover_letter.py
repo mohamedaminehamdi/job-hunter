@@ -15,42 +15,13 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
-from ..config import Settings
 from ..jobs.models import Job
 from ..profile.models import Issue, Personal, Profile, Severity, placeholder_issues
-from . import guard, llm, parsing
+from . import guard
 from .errors import GenerationError
-from .facts import profile_block
 
 #: A letter longer than this stops being read.
 MAX_PARAGRAPHS = 4
-
-_SYSTEM = """You write a cover letter from a candidate's profile and one job posting.
-
-Rules:
-- Every claim about the candidate must already be in the profile. Never add one.
-- Never claim a requirement the profile does not support, and never apologise for
-  one it lacks. Write about what is there.
-- No flattery about the company, no "I am thrilled", no restating the job advert.
-- Say what the candidate has done that bears on this job, concretely, using the
-  profile's own figures where it has them.
-- Three short paragraphs at most. Plain, direct, first person.
-- Write in the language of the posting.
-- Never write a placeholder. If you do not know a name, address the team.
-- Return only JSON matching the requested shape. No prose, no code fences."""
-
-_SHAPE = """{
-  "greeting": "",
-  "paragraphs": ["", ""],
-  "closing": ""
-}"""
-
-_NOTES = """Field notes:
-- greeting: e.g. "Dear Hiring Team," - a real greeting, never a bracketed placeholder.
-- paragraphs: two or three. First: what the candidate does and why this role. Then:
-  the specific evidence. Last (optional): a plain closing sentence.
-- closing: e.g. "Kind regards," - the name is added afterwards, do not write it."""
-
 
 class LetterError(GenerationError):
     """The cover letter could not be produced."""
@@ -108,28 +79,6 @@ def _spaced(paragraphs: list[str]) -> list[str]:
     for paragraph in paragraphs:
         out.extend([paragraph, ""])
     return out
-
-
-def write(profile: Profile, job: Job, *, settings: Settings | None = None) -> CoverLetter:
-    """Write a letter for this job. Raises `LetterError` if it cannot be read back."""
-    if not profile.personal.full_name:
-        raise LetterError("Add your name to your profile before writing a letter.")
-    if (missing := job.missing()) is not None:
-        raise LetterError(missing)
-
-    prompt = (
-        f"Write a cover letter.\n\nReturn exactly this JSON shape:\n\n{_SHAPE}\n\n"
-        f"{_NOTES}\n\n"
-        f"=== PROFILE (the only facts you may use) ===\n{profile_block(profile)}\n\n"
-        f"=== JOB ===\n{job.brief()}"
-    )
-    try:
-        response = llm.complete(prompt, system=_SYSTEM, settings=settings)
-        data = parsing.parse_json(response.text, hint="Try generating again.")
-    except parsing.ParseError as exc:
-        raise LetterError(str(exc)) from exc
-
-    return assemble(profile, job, data)
 
 
 def assemble(profile: Profile, job: Job, data: dict) -> CoverLetter:

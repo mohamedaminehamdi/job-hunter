@@ -1,25 +1,15 @@
-"""A job posting: fetching one, and what one is.
+"""A job posting: fetching the page, and modelling what is on it.
 
-Knows nothing about the profile - `generate/` is where the two meet.
+Nothing here calls a model. `fetch` gets the text; Claude Code reads it and
+writes `job.json`; `models.from_dict` validates that, overriding the URL and
+the fetch time with what was actually observed.
 """
 
-from . import fetch as fetch_module
-from . import models, parse
-from .fetch import FetchError, PageSource, normalise_url
-from .fetch import fetch as fetch_page
-from .models import Job
-from .parse import ParseError, from_text, from_url
+from __future__ import annotations
 
-__all__ = [
-    "Job",
-    "models",
-    "parse",
-    "from_url",
-    "from_text",
-    "fetch_page",
-    "fetch_module",
-    "normalise_url",
-    "PageSource",
-    "FetchError",
-    "ParseError",
-]
+from . import fetch, models
+from .fetch import FetchError, PageSource, normalise_url
+from .models import Job, from_dict, now
+
+__all__ = ["FetchError", "Job", "PageSource", "fetch", "from_dict", "models",
+           "normalise_url", "now"]

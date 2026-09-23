@@ -2,7 +2,7 @@
 
 Deterministic: no model runs here. A headless browser loads the page, the
 obvious page furniture is removed, and the readable text comes back with the
-document title. Whether that text is a job posting is `jobs.parse`'s problem.
+document title. Whether that text is a job posting is for whoever reads it.
 
 A browser rather than an HTTP request because most boards (Greenhouse, Lever,
 Workday, LinkedIn) render the description client-side; plain HTML gets you a
@@ -183,6 +183,27 @@ def _reason(exc: Exception) -> str:
     if "timeout" in text.lower():
         return "the page did not finish loading in time"
     return text
+
+
+#: Postings run long (benefits, legal boilerplate, EEO statements). This keeps
+#: what a reader has to wade through bounded.
+MAX_CHARS = 24_000
+#: Requirements cluster at the end of a posting, so keep both ends, not just the head.
+_TAIL_CHARS = 6_000
+
+
+def trim(text: str, limit: int = MAX_CHARS) -> str:
+    """Cut an over-long posting from the middle, keeping both ends.
+
+    Boilerplate lives in the middle; the role is at the top and the requirements
+    are at the bottom, so dropping the head would lose the job title.
+    """
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    head = text[: limit - _TAIL_CHARS]
+    tail = text[-_TAIL_CHARS:]
+    return f"{head}\n\n[... {len(text) - limit} characters omitted ...]\n\n{tail}"
 
 
 def _check(url: str, text: str) -> None:

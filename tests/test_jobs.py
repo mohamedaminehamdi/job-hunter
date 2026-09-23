@@ -1,10 +1,8 @@
 import pytest
 
-from job_hunter.generate import llm
-from job_hunter.jobs import fetch, models, parse
-from job_hunter.jobs.fetch import FetchError, PageSource
+from job_hunter.jobs import fetch, models
+from job_hunter.jobs.fetch import FetchError
 from job_hunter.jobs.models import Job
-from job_hunter.jobs.parse import ParseError
 
 FULL = {
     "title": "Data Engineer",
@@ -165,91 +163,13 @@ def test_brief_of_empty_job_is_empty_not_a_skeleton():
 # --- trim(): postings run long ---
 
 def test_short_text_untouched():
-    assert parse.trim("Data Engineer at Acme") == "Data Engineer at Acme"
+    assert fetch.trim("Data Engineer at Acme") == "Data Engineer at Acme"
 
 
 def test_long_text_keeps_both_ends():
     text = "TITLE Data Engineer\n" + ("boilerplate " * 5000) + "\nREQUIRED Python"
-    trimmed = parse.trim(text)
+    trimmed = fetch.trim(text)
     assert len(trimmed) < len(text)
     assert "TITLE Data Engineer" in trimmed   # the role is at the top
     assert "REQUIRED Python" in trimmed       # the requirements are at the bottom
     assert "characters omitted" in trimmed
-
-
-# --- from_text: the model boundary, stubbed ---
-
-@pytest.fixture
-def captured(monkeypatch):
-    """Stub the model, returning a canned reply and recording the call."""
-    calls = {}
-
-    def stub(reply):
-        def fake_complete(prompt, *, system="", settings=None, **kwargs):
-            calls["prompt"] = prompt
-            calls["system"] = system
-            return llm.Completion(text=reply)
-
-        monkeypatch.setattr(llm, "complete", fake_complete)
-        return calls
-
-    return stub
-
-
-def test_from_text_parses_and_stamps_what_we_know(captured):
-    import json
-    captured(json.dumps(FULL))
-    job = parse.from_text("Acme is hiring a Data Engineer...", url="https://acme.example/j/1")
-    assert job.title == "Data Engineer"
-    assert job.requirements == FULL["requirements"]
-    assert job.url == "https://acme.example/j/1"
-    assert job.source_text == "Acme is hiring a Data Engineer..."  # untrimmed, for review
-    assert job.fetched_at.endswith("+00:00")
-
-
-def test_from_text_survives_a_fenced_reply(captured):
-    captured('```json\n{"title": "Data Engineer", "company": "Acme"}\n```')
-    assert parse.from_text("...").title == "Data Engineer"
-
-
-def test_from_text_reports_a_truncated_reply_with_advice(captured):
-    captured('{"title": "Data Engineer", "requirements": ["Pyth')
-    with pytest.raises(ParseError, match="cut off"):
-        parse.from_text("...")
-
-
-def test_from_text_reports_a_refusal(captured):
-    captured("I'm sorry, I can't help with that.")
-    with pytest.raises(ParseError, match="did not return JSON"):
-        parse.from_text("...")
-
-
-def test_empty_text_never_reaches_the_model(monkeypatch):
-    def explode(*args, **kwargs):  # pragma: no cover - must not run
-        raise AssertionError("called the model with nothing to parse")
-
-    monkeypatch.setattr(llm, "complete", explode)
-    with pytest.raises(ParseError, match="empty"):
-        parse.from_text("   ")
-
-
-def test_prompt_forbids_invention_and_carries_the_title_hint(captured):
-    calls = captured('{"title": "Data Engineer"}')
-    parse.from_page(PageSource(url="https://acme.example/j/1",
-                               title="Data Engineer - Acme", text="Acme is hiring..."))
-    assert "Never invent" in calls["system"]
-    assert "Do not infer a salary" in calls["system"]
-    assert "Data Engineer - Acme" in calls["prompt"]
-    assert "trust the page text over it" in calls["prompt"]
-
-
-def test_prompt_omits_the_hint_when_there_is_no_page_title(captured):
-    calls = captured('{"title": "Data Engineer"}')
-    parse.from_text("Acme is hiring...")
-    assert "page title" not in calls["prompt"]
-
-
-def test_the_model_never_sees_more_than_the_cap(captured):
-    calls = captured('{"title": "Data Engineer"}')
-    parse.from_text("word " * 20000)
-    assert len(calls["prompt"]) < parse.MAX_CHARS + 2000  # shape and notes only

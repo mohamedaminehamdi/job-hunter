@@ -16,46 +16,13 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ..config import Settings
 from ..jobs.models import Job
 from ..profile.models import Issue, Profile, Severity
-from . import guard, llm, parsing
+from . import guard
 from .errors import GenerationError
-from .facts import profile_block
 
 #: More than this from one role reads as a job description, not a highlight reel.
 MAX_BULLETS = 8
-
-_SYSTEM = """You tailor a CV to one job. You are editing, not writing.
-
-Rules:
-- Every claim must already be in the profile you are given. Select, reorder and
-  reword what is there; never add anything.
-- Do not add employers, titles, dates, degrees, courses, tools or metrics.
-- Never restate a requirement from the job as if the candidate met it. If the
-  profile does not show it, leave it out. A missing skill is not your problem to solve.
-- Prefer the profile's own words for an achievement. Shorten rather than embellish.
-- Keep each bullet one sentence, starting with a verb, with any figure copied exactly.
-- Choose which roles to show. Their order on the page is not yours to set.
-- Return only JSON matching the requested shape. No prose, no code fences."""
-
-_SHAPE = """{
-  "summary": "",
-  "roles": [{"index": 0, "bullets": [""]}],
-  "projects": [0],
-  "skills": [""]
-}"""
-
-_NOTES = """Field notes:
-- summary: two or three sentences, first person implied, no "I". Only facts from the profile.
-- roles: the roles worth showing, by their index above. Omit a role only if it
-  adds nothing for this job - a gap in an employment history is noticed. Bullets
-  are that role's achievements, reworded for this job; keep the strongest three
-  or four.
-- projects: indices of the projects worth showing, most relevant first. May be empty.
-- skills: the profile's skills, ordered by relevance to this job. Use the profile's
-  own spelling. Do not add a skill the profile does not list."""
-
 
 class TailorError(GenerationError):
     """The tailored CV could not be produced."""
@@ -83,36 +50,6 @@ class TailoredCV(Profile):
     def blocking(self) -> list[Issue]:
         """What must be fixed before this may be exported."""
         return [i for i in self.all_issues if i.severity is Severity.BLOCKING]
-
-
-def tailor(profile: Profile, job: Job, *, settings: Settings | None = None) -> TailoredCV:
-    """Rewrite `profile` for `job`.
-
-    Raises `TailorError` when there is nothing to tailor or the model's answer
-    cannot be read. A model that returns a usable document with questionable
-    text does not raise: that arrives as issues on the document.
-    """
-    if not profile.experience and not profile.education:
-        raise TailorError(
-            "Your profile has no roles and no education, so there is nothing to "
-            "tailor. Import your CV first."
-        )
-    if (missing := job.missing()) is not None:
-        raise TailorError(missing)
-
-    prompt = (
-        f"Tailor this CV to the job below.\n\nReturn exactly this JSON shape:\n\n{_SHAPE}\n\n"
-        f"{_NOTES}\n\n"
-        f"=== PROFILE (the only facts you may use) ===\n{profile_block(profile)}\n\n"
-        f"=== JOB ===\n{job.brief()}"
-    )
-    try:
-        response = llm.complete(prompt, system=_SYSTEM, settings=settings)
-        data = parsing.parse_json(response.text, hint="Try generating again.")
-    except parsing.ParseError as exc:
-        raise TailorError(str(exc)) from exc
-
-    return assemble(profile, job, data)
 
 
 def assemble(profile: Profile, job: Job, data: dict) -> TailoredCV:

@@ -19,34 +19,11 @@ from pathlib import Path
 
 import yaml
 
-from ..generate import llm, parsing
+from ..generate import parsing
 from .models import Profile
 from .store import from_dict
 
 SUPPORTED = {".pdf", ".docx", ".txt", ".md", ".yaml", ".yml"}
-
-_SYSTEM = """You extract structured data from CVs.
-
-Rules:
-- Copy facts verbatim wherever possible. Do not rephrase achievements.
-- Never invent. If a field is absent from the CV, leave it empty.
-- Do not add courses, skills, dates or employers that are not written in the text.
-- Return only JSON matching the requested shape. No prose, no code fences."""
-
-_SHAPE = """{
-  "personal": {"name":"","surname":"","headline":"","email":"","phone":"",
-               "city":"","country":"","github":"","linkedin":"","website":""},
-  "summary": "",
-  "experience": [{"position":"","company":"","start":"","end":"","location":"",
-                  "industry":"","bullets":[""],"skills":[""]}],
-  "education": [{"level":"","institution":"","field_of_study":"","start":"",
-                 "end":"","grade":"","location":"","courses":[""]}],
-  "projects": [{"name":"","description":"","link":"","tech":[""]}],
-  "skills": [""],
-  "certifications": [{"name":"","issuer":"","year":"","description":""}],
-  "languages": [{"name":"","level":""}]
-}"""
-
 
 class IntakeError(RuntimeError):
     """The file could not be read at all."""
@@ -61,8 +38,8 @@ class IntakeResult:
     extracted: bool = False
 
 
-def from_file(path: Path, **kwargs) -> IntakeResult:
-    """Load a profile from any supported file type."""
+def from_file(path: Path) -> IntakeResult:
+    """Load a profile from YAML. A CV in any other format is not a profile yet."""
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED:
         supported = ", ".join(sorted(SUPPORTED))
@@ -76,7 +53,14 @@ def from_file(path: Path, **kwargs) -> IntakeResult:
             raise IntakeError("YAML profile must be a mapping at the top level.")
         return IntakeResult(profile=from_dict(raw))
 
-    return from_text(read_text(path), **kwargs)
+    # Anything else is a CV, not a profile, and reading one needs judgement.
+    # `read_text` gets the words out; Claude Code maps them onto the schema and
+    # writes profile.yaml. Splitting it that way is what keeps this module free
+    # of a model.
+    raise IntakeError(
+        f"{path.name} is a CV, not a profile. Run the prep-apply skill, or "
+        f"'python -m job_hunter.skill profile --cv {path}' to extract its text."
+    )
 
 
 def read_text(path: Path) -> str:
@@ -148,22 +132,6 @@ def _restore_scheme(profile: Profile) -> Profile:
     if not fixed:
         return profile
     return profile.model_copy(update={"personal": personal.model_copy(update=fixed)})
-
-
-def from_text(text: str, *, settings=None) -> IntakeResult:
-    """Map free-text CV content onto the schema using a model."""
-    if not text.strip():
-        raise IntakeError("Nothing to extract from - the text is empty.")
-
-    prompt = (
-        f"Extract this CV into exactly this JSON shape:\n\n{_SHAPE}\n\n"
-        "Omit any array entry you would otherwise fill with empty strings.\n\n"
-        f"CV:\n---\n{text}\n---"
-    )
-    result = llm.complete(prompt, system=_SYSTEM, settings=settings)
-    data = parse_json(result.text)
-    return IntakeResult(profile=_restore_scheme(from_dict(data)),
-                        source_text=text, extracted=True)
 
 
 def parse_json(raw: str) -> dict:

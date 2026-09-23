@@ -177,3 +177,30 @@ def test_a_german_letter_under_a_german_posting_is_not_checked():
               "betrieben und die Pipelines dafür aufgebaut.")
     found = check(german, support, path="paragraphs[0]", language="de")
     assert len(found) == 1 and "only reads English and French" in found[0].message
+
+
+# --- `asked`: covered only by the deleted answers tests, so ported here -----
+#
+# These used to go through `answers.answer()` with a stubbed model. Calling
+# `check()` directly is a better test of the same thing: it is the guard's
+# behaviour being pinned, not the answer generator's.
+
+def test_a_term_the_question_introduced_is_worded_for_a_question():
+    """An honest no has to write the word, so "remove it" is wrong advice."""
+    support = Support.of("I ran Kubernetes at Acme.")
+    asked = Support.wording_of("Have you used Workday?")
+    found = check("No. I have never used Workday.", support, path="answer", asked=asked)
+
+    flagged = [i.message for i in found if "Workday" in i.message]
+    assert flagged, "the term is still surfaced"
+    assert "the question's own term" in flagged[0]
+    assert "Remove it" not in flagged[0]
+
+
+def test_wording_it_differently_is_not_excusing_it():
+    support = Support.of("I ran Kubernetes at Acme.")
+    asked = Support.wording_of("Have you used Workday?")
+    found = check("Yes, I have used Workday for three years.", support,
+                  path="answer", asked=asked)
+    assert any("Workday" in i.message for i in found)
+
