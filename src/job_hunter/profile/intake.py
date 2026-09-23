@@ -115,7 +115,7 @@ def _docx_text(path: Path) -> str:
 _BARE_URL = re.compile(r"^(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:/\S*)?$")
 
 
-def _restore_scheme(profile: Profile) -> Profile:
+def restore_scheme(profile: Profile) -> Profile:
     """Put back the https:// a printed CV left out.
 
     `render` strips the scheme so a CV shows "github.com/ada" rather than the

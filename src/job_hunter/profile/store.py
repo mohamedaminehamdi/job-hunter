@@ -1,24 +1,26 @@
 """Reading and writing the profile as human-editable YAML.
 
-Kept outside the repo (``~/.job-hunter/`` by default) so nobody commits their
-CV or an API key by accident.
+It sits at the repo root, beside the CV it was read from - see `paths`. It is
+gitignored and a pre-commit hook refuses to let it be committed, because it is
+somebody's career and their contact details.
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import yaml
 
+from .. import paths
 from .models import Profile
 
-DEFAULT_DIR = Path(os.environ.get("JOB_HUNTER_HOME", Path.home() / ".job-hunter"))
-PROFILE_NAME = "profile.yaml"
+PROFILE_NAME = paths.PROFILE_NAME
 
 
 def profile_path(directory: Path | None = None) -> Path:
-    return (directory or DEFAULT_DIR) / PROFILE_NAME
+    """The profile's path. A directory argument still wins, which is what the
+    tests use to keep a real profile out of the way."""
+    return (directory / PROFILE_NAME) if directory else paths.profile_path()
 
 
 def load(path: Path | None = None) -> Profile:
