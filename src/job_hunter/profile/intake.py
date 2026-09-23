@@ -13,6 +13,7 @@ what the model was looking at.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -125,6 +126,30 @@ def _docx_text(path: Path) -> str:
     return text
 
 
+#: "github.com/ada", "www.ada.dev", "linkedin.com/in/ada" - a host and a path,
+#: with the scheme missing.
+_BARE_URL = re.compile(r"^(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:/\S*)?$")
+
+
+def _restore_scheme(profile: Profile) -> Profile:
+    """Put back the https:// a printed CV left out.
+
+    `render` strips the scheme so a CV shows "github.com/ada" rather than the
+    full URL - which means a CV exported by this tool, printed, and imported
+    back comes in bare, and the profile check then complains about three links
+    that were right all along. Adding the scheme is not a guess: it is the same
+    address, written the way the rest of the tool expects.
+    """
+    personal = profile.personal
+    fixed = {field: f"https://{value}"
+             for field in ("github", "linkedin", "website")
+             if (value := getattr(personal, field, "").strip())
+             and _BARE_URL.match(value)}
+    if not fixed:
+        return profile
+    return profile.model_copy(update={"personal": personal.model_copy(update=fixed)})
+
+
 def from_text(text: str, *, settings=None) -> IntakeResult:
     """Map free-text CV content onto the schema using a model."""
     if not text.strip():
@@ -137,7 +162,8 @@ def from_text(text: str, *, settings=None) -> IntakeResult:
     )
     result = llm.complete(prompt, system=_SYSTEM, settings=settings)
     data = parse_json(result.text)
-    return IntakeResult(profile=from_dict(data), source_text=text, extracted=True)
+    return IntakeResult(profile=_restore_scheme(from_dict(data)),
+                        source_text=text, extracted=True)
 
 
 def parse_json(raw: str) -> dict:

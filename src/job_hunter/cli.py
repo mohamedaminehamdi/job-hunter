@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from . import discover, render
+from . import __version__, discover, render
 from .apply import models as apply_models
 from .apply import store as apply_store
 from .config import Settings, load_settings
@@ -492,6 +492,23 @@ def cmd_note(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _nothing_to_show(args: argparse.Namespace, counts: dict, quiet_for: int) -> str:
+    """Why the list is empty, which is rarely "you have sent nothing".
+
+    An empty list under a filter used to read as an empty record, which told
+    someone with a healthy job hunt that they had not started one.
+    """
+    if not counts["total"]:
+        return "Nothing recorded yet. After you send one: job-hunter applied <slug>"
+    if args.stale is not None:
+        return (f"Nothing has gone quiet - everything still open has had something "
+                f"happen in the last {quiet_for} days.")
+    if args.status:
+        return f"No application is marked {args.status!r}. See them all with --all."
+    return (f"Nothing open. {counts['total']} closed - "
+            "see them with: job-hunter applications --all")
+
+
 def cmd_applications(args: argparse.Namespace, settings: Settings) -> int:
     """What you have sent, and what is still outstanding."""
     quiet_for = args.stale if args.stale is not None else apply_models.FOLLOW_UP_DAYS
@@ -510,7 +527,7 @@ def cmd_applications(args: argparse.Namespace, settings: Settings) -> int:
         return 0
 
     if not shown:
-        _out("Nothing recorded yet. After you send one: job-hunter applied <slug>")
+        _out(_nothing_to_show(args, counts, quiet_for))
         return 0
     for application in shown:
         _out(_application_line(application))
@@ -572,6 +589,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="job-hunter",
         description="Tailor your CV, cover letter and application answers to a job.",
     )
+    parser.add_argument("--version", action="version", version=f"job-hunter {__version__}")
     parser.add_argument("--json", action="store_true",
                         help="machine-readable output instead of prose")
     subparsers = parser.add_subparsers(dest="command", required=True)

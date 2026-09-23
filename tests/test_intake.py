@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from job_hunter.profile import intake
@@ -75,3 +77,39 @@ def test_parse_json_reports_when_no_json_present():
 def test_parse_json_reports_malformed():
     with pytest.raises(IntakeError, match="malformed JSON"):
         intake.parse_json('{"skills": [')
+
+
+# --- a printed CV loses the scheme; importing it must not cost you a warning ---
+
+@pytest.mark.parametrize("written, expected", [
+    ("github.com/ada", "https://github.com/ada"),
+    ("linkedin.com/in/ada", "https://linkedin.com/in/ada"),
+    ("www.ada.dev", "https://www.ada.dev"),
+])
+def test_a_bare_link_from_a_printed_cv_gets_its_scheme_back(stub_llm, written, expected):
+    stub_llm(json.dumps({"personal": {"name": "Ada", "github": written,
+                                      "linkedin": written, "website": written}}))
+    personal = intake.from_text("Ada Lovelace, engineer.").profile.personal
+    assert personal.github == expected
+    assert personal.linkedin == expected
+    assert personal.website == expected
+
+
+def test_a_link_that_already_has_one_is_left_alone(stub_llm):
+    stub_llm(json.dumps({"personal": {"name": "Ada", "github": "https://github.com/ada"}}))
+    assert intake.from_text("Ada.").profile.personal.github == "https://github.com/ada"
+
+
+def test_something_that_is_not_a_link_is_not_made_into_one(stub_llm):
+    stub_llm(json.dumps({"personal": {"name": "Ada", "website": "ask me"}}))
+    assert intake.from_text("Ada.").profile.personal.website == "ask me"
+
+
+def test_an_imported_cv_no_longer_complains_about_its_own_links(stub_llm):
+    """The round trip this tool can cause itself: export, print, re-import."""
+    stub_llm(json.dumps({"personal": {"name": "Ada", "surname": "Lovelace",
+                                      "email": "ada@example.com",
+                                      "github": "github.com/ada"},
+                         "experience": [{"position": "Engineer", "company": "Acme"}]}))
+    issues = intake.from_text("Ada Lovelace.").profile.report()
+    assert not [i for i in issues if "http" in i.message]

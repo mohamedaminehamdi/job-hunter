@@ -432,3 +432,11 @@ def test_every_command_is_wired(capsys):
     subparsers = [a for a in parser._actions if hasattr(a, "choices") and a.choices]
     names = set(subparsers[0].choices)
     assert names == set(cli.COMMANDS)
+
+
+def test_it_can_say_which_version_it_is(capsys):
+    """The first thing anyone types after installing something."""
+    with pytest.raises(SystemExit) as exit_code:
+        run("--version")
+    assert exit_code.value.code == 0
+    assert "job-hunter" in capsys.readouterr().out

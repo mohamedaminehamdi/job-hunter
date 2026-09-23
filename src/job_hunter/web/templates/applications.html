@@ -87,11 +87,12 @@
         </details>
         {% endif %}
 
-        <div class="row end" style="margin-top:10px">
+        <div class="row nowrap" style="margin-top:10px">
           <a class="button" href="/jobs/{{ application.job_slug }}">The job</a>
-          <form method="post" action="/applications/{{ application.job_slug }}/note" class="row nowrap">
+          <form method="post" action="/applications/{{ application.job_slug }}/note"
+                class="row nowrap" style="flex:1; min-width:0">
             <input type="hidden" name="back" value="/applications?show={{ show }}">
-            <input type="text" name="text" placeholder="Chased them, spoke to…" style="width:220px">
+            <input type="text" name="text" placeholder="Chased them, spoke to…" style="min-width:0">
             <button type="submit">Note</button>
           </form>
           {% if application.next_states %}
