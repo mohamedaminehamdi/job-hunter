@@ -226,3 +226,25 @@ def test_the_log_gets_one_line_per_run(run_dir, capsys):
 
     log = paths.log_path().read_text()
     assert log.count("Senior Data Engineer at Zeta") == 1, "re-running is not a new line"
+
+
+# --- found by running it for real -------------------------------------------
+
+@pytest.mark.parametrize("verb, extra", [
+    ("fit", ["--when", "before"]), ("cv", []), ("letter", []),
+    ("outreach", []), ("report", []),
+])
+def test_a_missing_input_says_what_to_run_first(repo, verb, extra, capsys):
+    """A stack trace tells a person nothing they can act on."""
+    empty = paths.runs_dir() / "2026-01-01-nothing-here"
+    empty.mkdir(parents=True)
+    assert main([verb, "--run", str(empty), *extra]) == exits.BLOCKED
+    err = capsys.readouterr().err
+    assert "Traceback" not in err
+    assert "first" in err or "missing" in err
+
+
+def test_the_cv_folders_own_readme_is_not_a_cv(repo, capsys):
+    (repo / paths.CV_DIR / "README.md").write_text("Put your CV here")
+    main(["doctor"])
+    assert read(capsys)["cv_files"] == []

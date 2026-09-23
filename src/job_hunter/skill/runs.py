@@ -64,6 +64,25 @@ def resolve(given: str, base: Path | None = None) -> Path:
     return candidate
 
 
+#: What each file is for, so a missing one can say what to do about it.
+_NEEDED = {
+    "job.yaml": "that run has no parsed posting yet - run `skill job --run <run>` first",
+    "page.txt": "that run has no posting text - run `skill fetch <url>` first",
+    "cv.yaml": "that run has no tailored CV yet - run `skill cv --run <run>` first",
+    "fit-before.json": "score the fit before tailoring first: "
+                       "`skill fit --run <run> --when before`",
+}
+
+
+def require(run: Path, name: str) -> Path:
+    """A file a verb cannot work without, or a sentence saying why not."""
+    target = run / name
+    if not target.exists():
+        why = _NEEDED.get(name, f"{name} is missing from that run")
+        raise FileNotFoundError(f"{run.name}: {why}.")
+    return target
+
+
 def write_json(run: Path, name: str, payload: object) -> Path:
     target = run / name
     target.parent.mkdir(parents=True, exist_ok=True)

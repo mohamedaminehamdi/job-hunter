@@ -34,7 +34,7 @@ VERBS = {
 
 #: Everything the library raises on purpose. All carry a message for a person.
 USER_ERRORS = (IntakeError, FetchError, GenerationError, ParseError,
-               ExportBlocked, PdfError, ValueError)
+               ExportBlocked, PdfError, ValueError, FileNotFoundError)
 
 
 def emit(payload: dict[str, Any]) -> None:

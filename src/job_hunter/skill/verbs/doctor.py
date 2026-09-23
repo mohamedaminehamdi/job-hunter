@@ -28,8 +28,10 @@ def _browser() -> str:
 def run(args) -> int:
     from ..__main__ import emit
 
+    # cv/README.md is the folder's own instructions, not somebody's CV.
     cvs = sorted(p.name for p in paths.cv_dir().glob("*")
-                 if p.suffix.lower() in {".pdf", ".docx", ".txt", ".md", ".yaml", ".yml"})
+                 if p.suffix.lower() in {".pdf", ".docx", ".txt", ".md", ".yaml", ".yml"}
+                 and p.name.lower() != "readme.md")
     path = profile_store.profile_path()
     profile = profile_store.load(path)
     blocking = [i.message for i in profile.report() if i.severity is Severity.BLOCKING]

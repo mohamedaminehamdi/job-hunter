@@ -37,6 +37,8 @@ experience experienced strong solid proven deep good excellent working work
 years year knowledge understanding familiarity familiar ability able skills
 skill background track record hands-on plus bonus ideally preferably must have
 has having is are be been you your we our team environment able comfortable
+significant substantial extensive considerable relevant appropriate suitable
+equivalent similar related various several multiple broad wide
 demonstrated ausgezeichnete gute kenntnisse erfahrung jahre sowie expérience
 connaissance solide maîtrise ans bonne
 """.split())

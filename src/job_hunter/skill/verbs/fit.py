@@ -19,7 +19,7 @@ def add_arguments(parser) -> None:
 
 def _load_job(run_dir):
     return job_models.from_dict(
-        yaml.safe_load((run_dir / "job.yaml").read_text(encoding="utf-8")) or {})
+        yaml.safe_load(runs.require(run_dir, "job.yaml").read_text(encoding="utf-8")) or {})
 
 
 def run(args) -> int:
@@ -31,7 +31,7 @@ def run(args) -> int:
 
     document = None
     if args.when == "after":
-        raw = yaml.safe_load((run_dir / "cv.yaml").read_text(encoding="utf-8")) or {}
+        raw = yaml.safe_load(runs.require(run_dir, "cv.yaml").read_text(encoding="utf-8")) or {}
         document = cv_module.TailoredCV.model_validate(raw)
 
     # Evidence is looked up in the profile in both arms, so `evidenced` cannot
@@ -42,7 +42,7 @@ def run(args) -> int:
 
     written = ""
     if args.when == "after":
-        before_raw = (run_dir / "fit-before.json").read_text(encoding="utf-8")
+        before_raw = runs.require(run_dir, "fit-before.json").read_text(encoding="utf-8")
         before = fit_report.FitReport.model_validate_json(before_raw)
         written = fit_report.delta(before, found)
         runs.write_text(run_dir, "fit-after.md", written)

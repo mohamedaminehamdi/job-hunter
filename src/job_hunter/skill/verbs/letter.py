@@ -24,10 +24,10 @@ def run(args) -> int:
     from ..__main__ import emit
 
     run_dir = runs.resolve(args.run)
-    data = parse_json((run_dir / args.draft).read_text(encoding="utf-8"),
+    data = parse_json(runs.require(run_dir, args.draft).read_text(encoding="utf-8"),
                       hint="Write letter-draft.json again, as plain JSON.")
     job = job_models.from_dict(
-        yaml.safe_load((run_dir / "job.yaml").read_text(encoding="utf-8")) or {})
+        yaml.safe_load(runs.require(run_dir, "job.yaml").read_text(encoding="utf-8")) or {})
     profile = profile_store.load(profile_store.profile_path())
 
     # The model wrote the prose. The name, the contact details, the company and

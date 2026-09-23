@@ -21,10 +21,10 @@ def run(args) -> int:
     from ..__main__ import emit
 
     run_dir = runs.resolve(args.run)
-    raw = parse_json((run_dir / args.plan).read_text(encoding="utf-8"),
+    raw = parse_json(runs.require(run_dir, args.plan).read_text(encoding="utf-8"),
                      hint="Write outreach.json again, as plain JSON.")
     job = job_models.from_dict(
-        yaml.safe_load((run_dir / "job.yaml").read_text(encoding="utf-8")) or {})
+        yaml.safe_load(runs.require(run_dir, "job.yaml").read_text(encoding="utf-8")) or {})
     profile = profile_store.load(profile_store.profile_path())
 
     schools = [e.institution for e in profile.education if e.institution]

@@ -22,7 +22,7 @@ def run(args) -> int:
     from ..__main__ import emit
 
     run_dir = runs.resolve(args.run)
-    raw = parse_json((run_dir / args.parsed).read_text(encoding="utf-8"),
+    raw = parse_json(runs.require(run_dir, args.parsed).read_text(encoding="utf-8"),
                      hint="Write job.json again, as plain JSON.")
 
     page = {}

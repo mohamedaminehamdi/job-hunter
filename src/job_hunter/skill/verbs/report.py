@@ -33,7 +33,7 @@ def run(args) -> int:
 
     run_dir = runs.resolve(args.run)
     job = job_models.from_dict(
-        yaml.safe_load((run_dir / "job.yaml").read_text(encoding="utf-8")) or {})
+        yaml.safe_load(runs.require(run_dir, "job.yaml").read_text(encoding="utf-8")) or {})
 
     present = [(name, what) for name, what in ARTEFACTS if (run_dir / name).exists()]
     lines = [f"# {job.label}", "", f"<{job.url}>" if job.url else "", ""]

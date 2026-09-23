@@ -176,3 +176,12 @@ def test_the_delta_reads_as_a_sentence(profile):
     written = report.delta(before, after)
     assert "unchanged by tailoring" in written
     assert "OpenStack" in written
+
+
+def test_a_quantity_adjective_is_not_a_requirement(profile):
+    """"Significant experience..." asks for experience, not for Significant."""
+    wordy = JOB.model_copy(update={"requirements": [
+        "Significant experience delivering large-scale infrastructure, HPC included"]})
+    found = report.score(wordy, profile)
+    assert "Significant" not in found.gaps
+    assert "HPC" in found.gaps
