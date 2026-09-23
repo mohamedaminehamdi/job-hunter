@@ -19,7 +19,8 @@ Rules:
 - Three short paragraphs at most. Plain, direct, first person.
 - Write in the language of the posting.
 - Never write a placeholder. If you do not know a name, address the team.
-- Return only JSON matching the requested shape. No prose, no code fences.
+- Write only JSON matching the requested shape to the file you are told to.
+  No prose, no code fences.
 
 ## Write exactly this shape
 
