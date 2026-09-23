@@ -1,13 +1,11 @@
-"""Fixtures shared by the generation, CLI and web tests.
+"""Fixtures shared across the suite.
 
-Two things every test here needs: a `home` nobody's real profile lives in, and a
-model that does not exist. `stub_llm` replaces the single function that talks to
-a provider, so no test can accidentally spend money or need a key.
+There is no model to stub any more - Claude Code writes JSON files and Python
+reads them, so every test here runs on real code with fixture input.
 """
 
 import pytest
 
-from job_hunter.generate import llm
 from job_hunter.jobs.models import Job
 from job_hunter.profile.models import (
     Certification,
@@ -70,21 +68,3 @@ def job():
         keywords=["Python", "SQL", "dbt", "Kafka"],
         source_text="Senior Data Engineer at Zeta ...",
     )
-
-
-@pytest.fixture
-def stub_llm(monkeypatch):
-    """Replace the model with a canned reply, and record what it was asked."""
-    calls: dict = {}
-
-    def stub(reply: str):
-        def fake_complete(prompt, *, system="", settings=None, **kwargs):
-            calls["prompt"] = prompt
-            calls["system"] = system
-            calls["settings"] = settings
-            return llm.Completion(text=reply, model="test/model")
-
-        monkeypatch.setattr(llm, "complete", fake_complete)
-        return calls
-
-    return stub

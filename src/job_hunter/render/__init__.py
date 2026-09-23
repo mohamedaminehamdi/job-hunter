@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..profile.models import Issue, Severity
 from .html import cv_html, environment, letter_html
+from .markdown import cv_markdown, letter_markdown
 from .pdf import PdfError, write_pdf
 from .themes import CLASSIC, NEUTRAL, THEMES, Theme, branded, resolve
 
@@ -54,6 +55,17 @@ def blocking_issues(document: object) -> list[Issue]:
     return [issue for issue in found if issue.severity is Severity.BLOCKING]
 
 
+def to_markdown(document: object) -> str:
+    """Whichever kind of document this is, as markdown.
+
+    Always written before the PDF is attempted, so a machine with no browser
+    still gets a document a person can read and send.
+    """
+    if hasattr(document, "paragraphs"):
+        return letter_markdown(document)  # type: ignore[arg-type]
+    return cv_markdown(document)  # type: ignore[arg-type]
+
+
 def to_html(document: object, *, theme: Theme = NEUTRAL) -> str:
     """Render whichever kind of document this is."""
     if hasattr(document, "paragraphs"):
@@ -62,7 +74,8 @@ def to_html(document: object, *, theme: Theme = NEUTRAL) -> str:
 
 
 __all__ = [
-    "export", "to_html", "blocking_issues", "cv_html", "letter_html", "write_pdf", "environment",
+    "export", "to_html", "to_markdown", "blocking_issues", "cv_markdown",
+    "letter_markdown", "cv_html", "letter_html", "write_pdf", "environment",
     "Theme", "NEUTRAL", "CLASSIC", "THEMES", "branded", "resolve",
     "ExportBlocked", "PdfError",
 ]

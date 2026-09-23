@@ -54,10 +54,20 @@ lundi mardi mercredi jeudi vendredi samedi dimanche
 """.split())
 
 
-def _norm(word: str) -> str:
+def norm(word: str) -> str:
     """Fold a word to its comparison form: lowercase, no possessive, no plural 's'."""
     word = word.lower().strip(".,;:!?()[]{}\"'’«»").removesuffix("'s")
     return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+def words(text: str) -> list[str]:
+    """Every word in `text`, in order, as written.
+
+    Public because `fit` reads requirements with it. One tokeniser in this repo
+    and not two: this one already keeps C++, CI/CD and .NET whole and survives
+    accents, and that behaviour is tested here.
+    """
+    return [m.group() for m in _WORD.finditer(text)]
 
 
 def _digits(figure: str) -> str:
@@ -96,7 +106,7 @@ class Support:
         """Build support from models, strings, or any mix of the two."""
         text = "\n".join(_strings(source) for source in sources)
         return cls(
-            terms=frozenset(_norm(m.group()) for m in _WORD.finditer(text)),
+            terms=frozenset(norm(m.group()) for m in _WORD.finditer(text)),
             figures=frozenset(
                 d for m in _FIGURE.finditer(text) if (d := _digits(m.group()))
             ),
@@ -114,7 +124,7 @@ class Support:
         return cls(terms=cls.of(*sources).terms)
 
     def backs_term(self, word: str) -> bool:
-        normalised = _norm(word)
+        normalised = norm(word)
         return not normalised or normalised in self.terms
 
     def backs_figure(self, figure: str) -> bool:
@@ -148,7 +158,7 @@ i my we our that this these those it its not but or into over under across
 
 
 def _looks_english(text: str) -> bool:
-    words = [_norm(m.group()) for m in _WORD.finditer(text)]
+    words = [norm(m.group()) for m in _WORD.finditer(text)]
     if len(words) < 8:  # too short to tell, and too short to be worth guessing
         return False
     return sum(word in _ENGLISH for word in words) / len(words) >= 0.10
@@ -229,7 +239,7 @@ def _unsupported_terms(text: str, support: Support) -> set[str]:
         words = list(_WORD.finditer(sentence))
         for position, match in enumerate(words):
             word = match.group()
-            if len(word) < 2 or _norm(word) in _HARMLESS:
+            if len(word) < 2 or norm(word) in _HARMLESS:
                 continue
             acronym = word.isupper()
             proper = word[0].isupper() and position > 0

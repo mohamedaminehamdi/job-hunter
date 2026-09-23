@@ -10,20 +10,17 @@ build/
 .coverage
 htmlcov/
 
-# Never commit a user's key, CV, or anything generated from them. This is the
-# shape of JOB_HUNTER_HOME, which lives at ~/.job-hunter by default - but
-# pointing it inside a clone is the first thing a curious person tries, so the
-# same shape is ignored here too.
+# Your CV, your profile, and everything built from them. None of it belongs to
+# this repo and none of it should ever reach a fork of it.
 #
-# The directory rules match the YAML inside them rather than the directory
-# itself, deliberately: a bare `jobs/` would also match the source package
-# src/job_hunter/jobs/ and silently ignore new code added to it.
+# This is the first of three layers, and the weakest: .gitignore is advisory,
+# so .githooks/pre-commit refuses the commit and CI checks the tracked file
+# list. Across ten forks one `git add -f` is inevitable.
+/cv/*
+!/cv/README.md
+/runs/*
+!/runs/.gitkeep
+/profile.yaml
 .env
-profile.yaml
-search.yaml
-queue.yaml
-llm_calls.jsonl
-**/jobs/*.yaml
-**/documents/*.yaml
-**/applications/*.yaml
 *.pdf
+*.docx
