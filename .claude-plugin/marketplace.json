@@ -1,0 +1,21 @@
+{
+  "name": "jobhunt",
+  "owner": {
+    "name": "Mohamed Amine Hamdi",
+    "url": "https://github.com/mohamedaminehamdi"
+  },
+  "metadata": {
+    "description": "Job application skills that cannot invent a job you never had.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "jobhunt",
+      "source": "./plugins/jobhunt",
+      "description": "Read a posting, score how well your CV answers it, tailor the CV, write the letter, check every claim against your profile, render the PDFs, and work out who to message. Applies to nothing. No API key.",
+      "version": "1.0.0",
+      "category": "productivity",
+      "keywords": ["cv", "resume", "cover-letter", "job-search", "application"]
+    }
+  ]
+}
