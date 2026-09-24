@@ -5,7 +5,7 @@ from job_hunter.profile.models import Education, Personal, Profile, Role, Severi
 
 
 def blocking(profile: Profile) -> list[str]:
-    return [i.path for i in profile.report() if i.severity is Severity.BLOCKING]
+    return [i.path for i in profile.report() if i.severity == Severity.BLOCKING]
 
 
 def messages(profile: Profile) -> str:

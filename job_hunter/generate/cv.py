@@ -49,7 +49,7 @@ class TailoredCV(Profile):
     @property
     def blocking(self) -> list[Issue]:
         """What must be fixed before this may be exported."""
-        return [i for i in self.all_issues if i.severity is Severity.BLOCKING]
+        return [i for i in self.all_issues if i.severity == Severity.BLOCKING]
 
 
 def assemble(profile: Profile, job: Job, data: dict) -> TailoredCV:

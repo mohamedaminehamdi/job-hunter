@@ -52,7 +52,7 @@ def blocking_issues(document: object) -> list[Issue]:
         return list(declared)
     report = getattr(document, "report", None)
     found = report() if callable(report) else []
-    return [issue for issue in found if issue.severity is Severity.BLOCKING]
+    return [issue for issue in found if issue.severity == Severity.BLOCKING]
 
 
 def to_markdown(document: object) -> str:

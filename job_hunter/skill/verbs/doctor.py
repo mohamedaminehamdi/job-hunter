@@ -34,7 +34,7 @@ def run(args) -> int:
                  and p.name.lower() != "readme.md")
     path = profile_store.profile_path()
     profile = profile_store.load(path)
-    blocking = [i.message for i in profile.report() if i.severity is Severity.BLOCKING]
+    blocking = [i.message for i in profile.report() if i.severity == Severity.BLOCKING]
     browser = _browser()
 
     emit({

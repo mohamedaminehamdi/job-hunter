@@ -65,7 +65,7 @@ class CoverLetter(BaseModel):
 
     @property
     def blocking(self) -> list[Issue]:
-        return [i for i in self.all_issues if i.severity is Severity.BLOCKING]
+        return [i for i in self.all_issues if i.severity == Severity.BLOCKING]
 
     @property
     def body(self) -> str:

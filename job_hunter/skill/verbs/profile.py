@@ -47,7 +47,7 @@ def run(args) -> int:
 
     profile = profile_store.load(path)
     issues = _report(profile)
-    blocking = [i for i in issues if i.severity is Severity.BLOCKING]
+    blocking = [i for i in issues if i.severity == Severity.BLOCKING]
     emit({
         "profile": str(path),
         "exists": path.exists(),

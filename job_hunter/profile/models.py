@@ -205,4 +205,4 @@ class Profile(BaseModel):
     @property
     def is_renderable(self) -> bool:
         """True when nothing blocking remains."""
-        return not any(i.severity is Severity.BLOCKING for i in self.report())
+        return not any(i.severity == Severity.BLOCKING for i in self.report())

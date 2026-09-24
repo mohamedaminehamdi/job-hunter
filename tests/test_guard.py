@@ -19,7 +19,7 @@ def test_invented_tool_is_flagged(profile):
     issues = check("Led the migration to Kubernetes.", support_for(profile), path="x")
     assert len(issues) == 1
     assert "Kubernetes" in issues[0].message
-    assert issues[0].severity is Severity.WARNING
+    assert issues[0].severity == Severity.WARNING
 
 
 def test_invented_figure_is_flagged(profile):
