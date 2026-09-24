@@ -134,6 +134,31 @@ def test_the_plugin_and_the_marketplace_agree_on_the_version():
     assert market["plugins"][0]["version"] == plugin["version"]
 
 
+def test_both_vendors_get_a_manifest():
+    """Claude Code reads .claude-plugin, Codex reads .codex-plugin.
+
+    Same folder, two names. Checked against a real installed Codex plugin
+    rather than guessed at.
+    """
+    plugin = ROOT / "plugins" / "jobhunt"
+    for vendor in (".claude-plugin", ".codex-plugin"):
+        assert (plugin / vendor / "plugin.json").exists(), vendor
+
+
+def test_the_two_manifests_agree():
+    plugin = ROOT / "plugins" / "jobhunt"
+    claude = json.loads((plugin / ".claude-plugin" / "plugin.json").read_text())
+    codex = json.loads((plugin / ".codex-plugin" / "plugin.json").read_text())
+    for field in ("name", "version", "license", "repository", "homepage"):
+        assert claude[field] == codex[field], field
+
+
+def test_the_codex_manifest_points_at_the_skills():
+    codex = json.loads((ROOT / "plugins" / "jobhunt" / ".codex-plugin"
+                        / "plugin.json").read_text())
+    assert (ROOT / "plugins" / "jobhunt" / codex["skills"]).resolve() == SKILLS
+
+
 def test_the_plugin_version_matches_the_library():
     sys.path.insert(0, str(ROOT / "core"))
     import jobhunt as jh

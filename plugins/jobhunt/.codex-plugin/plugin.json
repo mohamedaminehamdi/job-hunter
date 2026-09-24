@@ -1,0 +1,35 @@
+{
+  "name": "jobhunt",
+  "version": "1.0.0",
+  "description": "Prepare job applications that cannot claim anything your CV does not back. Read a posting, score the fit, tailor the CV, write the letter, render the PDFs, and work out who to message.",
+  "author": {
+    "name": "Mohamed Amine Hamdi",
+    "url": "https://github.com/mohamedaminehamdi"
+  },
+  "homepage": "https://github.com/mohamedaminehamdi/job-hunter",
+  "repository": "https://github.com/mohamedaminehamdi/job-hunter",
+  "license": "MIT",
+  "keywords": [
+    "cv", "resume", "cover-letter", "job-search", "job-application",
+    "interview", "linkedin", "career"
+  ],
+  "skills": "./skills/",
+  "requires_local_executor": true,
+  "interface": {
+    "displayName": "Job Hunt",
+    "shortDescription": "Applications your CV can actually back",
+    "longDescription": "Eleven skills for preparing one job application: read the posting, score how well your CV answers it before and after tailoring, write a tailored CV and cover letter as PDF, check every sentence against your own profile, and work out who is worth messaging. It never applies to anything, never scrapes LinkedIn, and cannot state an employer you did not work for. No API key and nothing to install - it runs on the Python and the browser already on your machine.",
+    "developerName": "Mohamed Amine Hamdi",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/mohamedaminehamdi/job-hunter",
+    "defaultPrompt": [
+      "Prepare an application for https://boards.greenhouse.io/acme/jobs/42",
+      "Read my CV in jobhunt/cv/ into a profile and tell me what is missing from it",
+      "How well does my CV answer this job, and what would tailoring actually buy?",
+      "Check this cover letter against my profile - does it claim anything I cannot back?"
+    ],
+    "brandColor": "#1f2933",
+    "screenshots": []
+  }
+}
