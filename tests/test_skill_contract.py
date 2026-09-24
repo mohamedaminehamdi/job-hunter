@@ -142,3 +142,74 @@ def test_the_prohibition_that_holds_the_guarantee_up_is_stated():
     """If a model writes cv.md, the employers and dates come back to it."""
     body = SKILL.read_text(encoding="utf-8")
     assert "Never writes `cv.md` or `letter.md` yourself" in body
+
+
+# --- the vendor-neutral entry points ----------------------------------------
+#
+# Four documents now describe the same thing to different audiences, which is
+# four chances for them to disagree. These are what keep them honest.
+
+AGENTS = Path("AGENTS.md")
+CLAUDE = Path("CLAUDE.md")
+COPILOT = Path(".github/copilot-instructions.md")
+
+
+def test_every_entry_point_exists():
+    for path in (AGENTS, CLAUDE, COPILOT, SKILL):
+        assert path.exists(), f"{path} is how a whole class of agent finds this repo"
+
+
+def test_agents_md_points_at_files_that_are_really_there():
+    body = AGENTS.read_text(encoding="utf-8")
+    named = set(re.findall(r"`?\.claude/skills/prep-apply/[\w/.-]+`?", body))
+    missing = [n for n in (x.strip("`") for x in named) if not Path(n).exists()]
+    assert not missing, f"AGENTS.md points at files that are not there: {missing}"
+
+
+def test_agents_md_runs_only_verbs_that_exist():
+    used = set(re.findall(r"`(\w+) --run|^\| \d+ \| `(\w+)",
+                          AGENTS.read_text(encoding="utf-8"), re.M))
+    named = {v for pair in used for v in pair if v}
+    assert named <= set(dispatcher.VERBS), \
+        f"AGENTS.md runs verbs that do not exist: {named - set(dispatcher.VERBS)}"
+
+
+def test_the_exit_codes_agree_across_both_entry_points():
+    """A harness acting on the wrong code retries what will never work."""
+    from job_hunter.skill import exits
+    for code in (exits.OK, exits.BLOCKED, exits.UNFIT, exits.UNREADABLE):
+        assert f"| {code} |" in AGENTS.read_text(encoding="utf-8")
+        assert f"| {code} |" in SKILL.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("path", [AGENTS, COPILOT])
+def test_the_prohibition_that_holds_the_guarantee_up_is_everywhere(path):
+    """If any harness writes cv.md itself, the employers go back to a model."""
+    assert "cv.md" in path.read_text(encoding="utf-8")
+
+
+def test_no_entry_point_promises_an_api_key_is_needed():
+    """The whole point for this audience: the harness is the model."""
+    assert "no API key" in AGENTS.read_text(encoding="utf-8").lower() \
+        or "There is **no API key**" in AGENTS.read_text(encoding="utf-8")
+
+
+def test_the_cross_links_between_them_resolve():
+    pairs = [(CLAUDE, "AGENTS.md"), (COPILOT, "AGENTS.md"),
+             (AGENTS, "CLAUDE.md")]
+    for source, target in pairs:
+        assert target in source.read_text(encoding="utf-8"), \
+            f"{source} should send readers to {target}"
+    # Copilot's file sits in .github/, so its link has to climb out.
+    assert "../AGENTS.md" in COPILOT.read_text(encoding="utf-8")
+
+
+def test_the_skill_body_holds_no_harness_specific_tool_call():
+    """Another agent reads SKILL.md too, so it must not assume Claude's tools.
+
+    The frontmatter may - it is Claude-only and AGENTS.md says to skip it.
+    """
+    body = SKILL.read_text(encoding="utf-8")
+    body = body[body.index("---", 3) + 3:]          # drop the frontmatter
+    for tool in ("WebFetch(", "Bash(", "Glob("):
+        assert tool not in body, f"the procedure calls {tool} directly"

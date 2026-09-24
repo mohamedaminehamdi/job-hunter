@@ -33,6 +33,24 @@ runs/2026-09-23-acme-senior-data-engineer/
 └── job.yaml          the posting, as read
 ```
 
+## Works in any coding agent
+
+Claude Code gets a slash command. Everything else reads
+[AGENTS.md](AGENTS.md), which is the same procedure without the
+Claude-specific bits:
+
+| | |
+|---|---|
+| **Claude Code** | `/prep-apply <url>` |
+| **OpenAI Codex, Cursor, Cline, Aider, Gemini CLI, Windsurf** | read `AGENTS.md` from the project root automatically — just ask for a URL to be prepared |
+| **GitHub Copilot** | reads `.github/copilot-instructions.md` |
+
+That works because the exact half of this is a plain command-line program —
+`python -m job_hunter.skill <verb>`, argv in, JSON out, no model and no vendor
+inside it. The agent supplies judgement as four JSON files; everything that must
+be reproducible is the program's job. Porting to a new harness is a paragraph in
+`AGENTS.md`, not a rewrite.
+
 ## Setup
 
 Four commands, once.
