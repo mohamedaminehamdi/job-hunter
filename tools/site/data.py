@@ -23,27 +23,25 @@ BRANDS = json.loads((HERE / "brands.json").read_text(encoding="utf-8"))
 
 # --- the hero ---------------------------------------------------------------
 
-HEADLINE = ["Stop rewriting your CV", "for every single job."]
-SUB = ("Keep everything you have ever done in one place. Paste a job link and "
-       "get a CV built for it, the recruiters worth messaging, and the message "
-       "to send them — in about a minute.")
+#: The headline retypes itself between these two. Same complaint, twice, and
+#: the second one is the reason the first one is a problem.
+HEADLINE_FIXED = "Stop "
+HEADLINE_SWAP = ["rewriting your CV", "sending the same CV"]
+HEADLINE_TAIL = "for every single job."
 
-#: Boards it is regularly pointed at. It takes any job URL - these are the ones
-#: worth naming because they are the ones people paste.
+#: Boards it is regularly pointed at, doubled in the markup so the row can
+#: slide without a seam. It takes any job URL.
 BOARDS = ["linkedin", "indeed", "greenhouse", "glassdoor", "upwork"]
 
 # --- the two CVs ------------------------------------------------------------
 #
-# The centrepiece. Same person, same facts, same profile - the difference is
-# which of them a reader meets first. That is the whole argument for tailoring
-# and it is the one thing a screenshot can actually show.
+# The centrepiece. Both cards are the same six lines out of the same profile,
+# in a different order, and each shows the four a reader gets through before
+# deciding. That is the argument the page makes, so the example has to be
+# literally true - a test fails if the two lists stop being permutations.
 
 JOB = "Senior Data Engineer · Zeta"
 
-#: Both cards are the same six lines out of the same profile, in a different
-#: order, and each shows the four a reader gets through before deciding. That
-#: is the argument the page makes, so the example has to be literally true -
-#: a test fails if the two lists stop being permutations of each other.
 POOL = [
     ("Cut ETL runtime 35% by rewriting the dbt models", True),
     ("Own the ingestion pipelines and the on-call rota", True),
@@ -57,12 +55,11 @@ POOL = [
 SCREENFUL = 4
 
 GENERIC = {
-    "label": "The one CV you send everywhere",
+    "label": "The one you send everywhere",
     "summary": "Experienced software professional with a strong background in "
                "technology, seeking a challenging new role.",
     "order": [3, 4, 5, 0, 1, 2],
-    "note": "Your three strongest lines are below the fold. Most readers never "
-            "reach them.",
+    "note": "Your three strongest lines are below the fold.",
 }
 
 TAILORED = {
@@ -70,7 +67,7 @@ TAILORED = {
     "summary": "Data engineer who cut ETL runtime 35% by rewriting a dbt "
                "warehouse, and owns the ingestion pipelines behind it.",
     "order": [0, 1, 2, 3, 4, 5],
-    "note": "The same six lines. The three this job asks about now come first.",
+    "note": "The same six lines, in the order this job cares about.",
 }
 
 
@@ -81,54 +78,48 @@ def cv_lines(cv):
     return lines, hits, sum(1 for _, hit in POOL if hit)
 
 
-COMPARE_NOTE = ("Nothing was written for you. Both cards hold the same six "
-                "lines from your own profile — only the order and the summary "
-                "changed.")
+COMPARE_NOTE = ("Same six lines from your own profile. Only the order and the "
+                "summary changed.")
 
-# --- what it takes off your plate -------------------------------------------
+# --- the day it costs you ----------------------------------------------------
 
-REASONS = [
-    {"icon": "folder-simple",
-     "title": "Everything you have done, in one place",
-     "body": "One profile holds every role, project and side thing across every "
-             "field you have worked in. You write it once. Each application "
-             "draws from it."},
-    {"icon": "cursor-click",
-     "title": "A CV per job, without the evening",
-     "body": "It picks which of your work answers this posting and leads with "
-             "it. The rewriting that used to cost you an hour a job costs you "
-             "a paste."},
-    {"icon": "paper-plane-tilt",
-     "title": "The message, already written",
-     "body": "It works out who at the company is worth contacting and drafts "
-             "something specific enough to get a reply. You press send."},
+DAY_TITLE = "Ten applications is a day of your life."
+DAY_SUB = ("Read the posting, rewrite the CV, find who to message, write the "
+           "message. Then again. And again.")
+
+#: The clock runs through these while the counter climbs. Real tasks, in the
+#: order you actually do them.
+DAY_TASKS = [
+    "Reading the posting",
+    "Rewriting your summary",
+    "Reordering your bullets",
+    "Hunting for the hiring manager",
+    "Writing the message",
 ]
 
-# --- outreach ----------------------------------------------------------------
+DAY_BY_HAND = {"label": "By hand", "count": 10, "unit": "applications",
+               "time": "8 hours", "note": "One evening, gone."}
+DAY_WITH = {"label": "With jobhunt", "count": 10, "unit": "applications",
+            "time": "12 minutes", "note": "You read them before sending."}
 
-OUTREACH_TARGETS = [
-    {"tier": "Same university", "title": "Alumni at Zeta",
-     "why": "By far the best odds — a cold message is ignored, a shared "
-            "university is answered."},
-    {"tier": "Would be your colleague", "title": "Data Engineer",
-     "why": "They reply. People two rungs up do not."},
-    {"tier": "Probably the hiring manager", "title": "Head of Data",
-     "why": "Worth one message, after the other two."},
+# --- the network -------------------------------------------------------------
+
+NET_TITLE = "One message beats ten applications."
+NET_SUB = "It finds who, and writes the first one."
+
+#: Three people between you and the job. The alumni edge is drawn strongest
+#: because that is the one that actually gets answered.
+NET_PEOPLE = [
+    {"who": "Alumni", "role": "Same university, works there", "best": True},
+    {"who": "Peer", "role": "Would be your colleague", "best": False},
+    {"who": "Manager", "role": "Probably hiring for it", "best": False},
 ]
 
 OUTREACH_MESSAGE = ("I rewrote the dbt models at Acme and cut ETL runtime 35%, "
-                    "so the ingestion work in your Senior Data Engineer posting "
-                    "caught my eye. How does Zeta split ownership of the "
-                    "warehouse day to day?")
+                    "so the ingestion work in your posting caught my eye. How "
+                    "does Zeta split ownership of the warehouse?")
 
-OUTREACH_NOTE = ("It never logs in and never sends. It works out who is worth "
-                 "writing to, builds the search that finds them, and drafts "
-                 "the message — you run it and press send.")
-
-#: It will not write you a career you do not have. No longer the headline,
-#: but still the reason the tailoring can be trusted at all.
-FLAG = {"claim": "Led the OpenStack migration, cutting costs 73%.",
-        "finding": "Neither '73%' nor 'OpenStack' is anywhere in your profile."}
+OUTREACH_NOTE = "It never logs in and never sends. You press send."
 
 # --- how it works ------------------------------------------------------------
 
@@ -147,7 +138,14 @@ STEPS = [
              "draft specific enough to answer."},
 ]
 
+#: It will not write you a career you do not have. No longer the headline,
+#: but still the reason the tailoring can be trusted at all.
+FLAG = {"claim": "Led the OpenStack migration, cutting costs 73%.",
+        "finding": "Neither '73%' nor 'OpenStack' is anywhere in your profile."}
+
 # --- coming soon --------------------------------------------------------------
+
+SOON_TITLE = "What's next."
 
 SOON = [
     {"icon": "cursor-click", "title": "One-click apply",
@@ -158,10 +156,9 @@ SOON = [
      "body": "What you sent, when, and what came back — in one list."},
 ]
 
-SOON_NOTE = ("Not built yet. Today it prepares the application and hands it to "
-             "you; the sending is still yours.")
+SOON_NOTE = "Not built yet. Today it prepares the application; you send it."
 
-# --- the skills ---# --- the skills -------------------------------------------------------------
+# --- the skills -------------------------------------------------------------
 
 ORDER = [
     "jobhunt", "jobhunt-profile", "jobhunt-posting", "jobhunt-fit",

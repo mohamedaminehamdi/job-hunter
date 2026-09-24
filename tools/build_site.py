@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "site"))
 import data  # noqa: E402
+import logo  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs"
@@ -72,6 +73,54 @@ def cv_card(cv, best):
         f'<p class="cv-note">{e(cv["note"])}</p></div></article>')
 
 
+def network():
+    """You, three people, the job - and the edge that actually gets answered.
+
+    Hand-drawn SVG rather than a diagram library: it is five circles and four
+    curves, and the whole page is meant to be one file with nothing to fetch.
+    """
+    people = data.NET_PEOPLE
+    # Tall enough that a node's caption clears the next node's circle: rows
+    # are height/(n+1) apart, the caption sits 42 below its centre, and the
+    # circle is 24 in radius.
+    width, height = 540, 350
+    left, right = 46, width - 46
+    middle = width / 2
+    rows = [height * (i + 1) / (len(people) + 1) for i in range(len(people))]
+    centre = height / 2
+
+    def curve(x1, y1, x2, y2):
+        """A flat S between two points, so edges never overlap the labels."""
+        bend = (x2 - x1) * 0.45
+        return f"M{x1},{y1} C{x1 + bend},{y1} {x2 - bend},{y2} {x2},{y2}"
+
+    edges, nodes, sparks = [], [], []
+    for person, y in zip(people, rows):
+        best = " best" if person["best"] else ""
+        into = curve(left + 30, centre, middle - 30, y)
+        out = curve(middle + 30, y, right - 34, centre)
+        edges.append(f'<path class="edge{best}" d="{into}"/>'
+                     f'<path class="edge{best}" d="{out}"/>')
+        if person["best"]:
+            # One pulse, along the one edge worth drawing attention to.
+            sparks.append(f'<path class="spark" d="{into}"/>'
+                          f'<path class="spark" d="{out}"/>')
+        nodes.append(
+            f'<g class="node{best}"><circle cx="{middle}" cy="{y}" r="24"/>'
+            f'<text x="{middle}" y="{y + 4}">{e(person["who"])}</text>'
+            f'<text class="sub" x="{middle}" y="{y + 42}">'
+            f'{e(person["role"])}</text></g>')
+
+    nodes.append(f'<g class="node you"><circle cx="{left}" cy="{centre}" r="26"/>'
+                 f'<text x="{left}" y="{centre + 4}">You</text></g>')
+    nodes.append(f'<g class="node job"><circle cx="{right}" cy="{centre}" r="30"/>'
+                 f'<text x="{right}" y="{centre + 4}">Job</text></g>')
+
+    return (f'<svg viewBox="0 0 {width} {height}" role="img" '
+            f'aria-label="You, three people at the company, and the job">'
+            + "".join(edges) + "".join(sparks) + "".join(nodes) + "</svg>")
+
+
 def routes(agent):
     """Every way of installing, for one agent, easiest first."""
     out, n = [], 0
@@ -126,25 +175,25 @@ def build():
     css = (SITE / "style.css").read_text(encoding="utf-8")
     js = (SITE / "app.js").read_text(encoding="utf-8")
 
-    headline = "".join(f"<span>{e(line)}</span>" for line in data.HEADLINE)
+    # The swapped half is sized by the longest option so nothing below it
+    # jumps as characters land.
+    longest = max(data.HEADLINE_SWAP, key=len)
+    headline = (
+        f'{e(data.HEADLINE_FIXED)}<span class="type" '
+        f'data-swap="{e("|".join(data.HEADLINE_SWAP))}">'
+        f'<span class="ghost">{e(longest)}</span>'
+        f'<span class="live" aria-hidden="true"></span>'
+        f'<i class="caret" aria-hidden="true"></i></span> '
+        f"{e(data.HEADLINE_TAIL)}")
 
-    boards = "".join(brand(key) for key in data.BOARDS)
-    boards += '<span class="board-more">…or any job URL</span>'
-
-    three = "".join(
-        f'<article class="card"><div class="badge">{icon(r["icon"])}</div>'
-        f'<h3>{e(r["title"])}</h3><p>{e(r["body"])}</p></article>'
-        for r in data.REASONS)
+    # Doubled, so the track can translate half its width and start over with
+    # no visible seam.
+    one = "".join(brand(key) for key in data.BOARDS)
+    boards = one + one
 
     cv_plain = cv_card(data.GENERIC, best=False)
     cv_best = cv_card(data.TAILORED, best=True)
-
-    who = "".join(
-        f'<div class="who-row glass"><span class="n">{i + 1}</span><div>'
-        f'<span class="tier">{e(target["tier"])}</span>'
-        f'<h4>{e(target["title"])}</h4><p>{e(target["why"])}</p>'
-        "</div></div>"
-        for i, target in enumerate(data.OUTREACH_TARGETS))
+    graph = network()
 
     soon = "".join(
         f'<article class="soon-card"><div class="badge">{icon(s["icon"])}</div>'
@@ -191,10 +240,12 @@ def build():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jobhunt — job applications you can stand behind</title>
-<meta name="description" content="{e(data.SUB)}">
+<meta name="description"
+      content="{e(data.NET_TITLE)} {e(data.DAY_SUB)}">
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="jobhunt">
-<meta property="og:description" content="{e(' '.join(data.HEADLINE))}">
+<meta property="og:description"
+      content="{e(data.HEADLINE_FIXED + data.HEADLINE_SWAP[0])} {e(data.HEADLINE_TAIL)}">
 <meta property="og:type" content="website">
 <link rel="icon" href="{FAVICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -219,7 +270,7 @@ def build():
 <header class="bar">
   <div class="wrap">
     <div class="pill glass">
-      <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
+      <a class="mark" href="#top">{logo.mark(26)}jobhunt</a>
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
         <a href="#skills" class="hide-sm">Skills</a>
@@ -242,19 +293,17 @@ def build():
   <div class="wrap hero">
     <span class="eyebrow glass up">{icon("briefcase")}Works with any job link</span>
     <h1 class="up">{headline}</h1>
-    <p class="lede up">{e(data.SUB)}</p>
     <div class="cta up">
       <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
       <a class="btn btn-ghost" href="#how">See how it works</a>
     </div>
-    <p class="cta-note up">Free. No API key. Nothing to install.</p>
-
-    <div class="boards up">
-      <p>Paste a link from</p>
-      <div class="board-row stagger">{boards}</div>
-    </div>
   </div>
 
+  <div class="slider up" aria-label="Works with postings from these boards">
+    <div class="track">{boards}</div>
+  </div>
+
+  <div class="wrap">
   <div class="wrap versus up">
     <div class="versus-head">
       <span class="for glass">{icon("link-simple")}{e(data.JOB)}</span>
@@ -267,28 +316,41 @@ def build():
   </div>
 </div>
 
-<section id="why"><section id="why">
+<div class="night" id="cost">
   <div class="wrap">
     <div class="sec-head wide up">
-      <span class="kicker">{icon("briefcase")}What it takes off your plate</span>
-      <h2>An application used to cost you an evening.</h2>
-      <p>Tailoring the CV, working out who to contact, writing the message.
-         Every time, for every job. That is the part this removes.</p>
+      <span class="kicker">{icon("clock-countdown")}What it takes off your plate</span>
+      <h2>{e(data.DAY_TITLE)}</h2>
+      <p>{e(data.DAY_SUB)}</p>
     </div>
-    <div class="three stagger">{three}</div>
+    <div class="race up" data-tasks="{e(chr(124).join(data.DAY_TASKS))}">
+      <div class="lane slow">
+        <div class="lane-top"><b>{e(data.DAY_BY_HAND["label"])}</b>
+          <span class="unit">{data.DAY_BY_HAND["count"]} {e(data.DAY_BY_HAND["unit"])}</span>
+          <span class="clock">{e(data.DAY_BY_HAND["time"])}</span></div>
+        <div class="meter"><i></i></div>
+        <div class="lane-foot"><span class="doing">{e(data.DAY_TASKS[0])}</span></div>
+      </div>
+      <div class="lane fast">
+        <div class="lane-top"><b>{e(data.DAY_WITH["label"])}</b>
+          <span class="unit">{data.DAY_WITH["count"]} {e(data.DAY_WITH["unit"])}</span>
+          <span class="clock">{e(data.DAY_WITH["time"])}</span></div>
+        <div class="meter"><i></i></div>
+        <div class="lane-foot">{e(data.DAY_WITH["note"])}</div>
+      </div>
+    </div>
 
     <div class="wont up">
       <div class="badge">{icon("shield-check")}</div>
       <div>
         <h3>It still won't write you a career you don't have</h3>
-        <p>Every line it produces comes out of your own profile, and anything
-           it can't trace back is flagged before you send it. Faster, not
-           looser.</p>
+        <p>Every line comes out of your own profile, and anything it can't
+           trace back is flagged before you send it. Faster, not looser.</p>
         <span class="said"><em>{e(data.FLAG["claim"])}</em>{e(data.FLAG["finding"])}</span>
       </div>
     </div>
   </div>
-</section>
+</div>
 
 <section id="how">
   <div class="wrap">
@@ -307,12 +369,11 @@ def build():
   <div class="wrap">
     <div class="sec-head wide up">
       <span class="kicker">{icon("magnifying-glass")}Who to message</span>
-      <h2>The other half of an application.</h2>
-      <p>A CV in a pile gets read once. A message to somebody who works there
-         gets answered. It works out who, and writes the first one for you.</p>
+      <h2>{e(data.NET_TITLE)}</h2>
+      <p>{e(data.NET_SUB)}</p>
     </div>
-    <div class="reach">
-      <div class="who stagger">{who}</div>
+    <div class="net">
+      <div class="graph up">{graph}</div>
       <div class="draft glass up">
         <h4>{icon("paper-plane-tilt")}Drafted for you</h4>
         <blockquote>{e(data.OUTREACH_MESSAGE)}</blockquote>
@@ -322,17 +383,17 @@ def build():
   </div>
 </div>
 
-<section id="soon">
+<div class="night" id="soon">
   <div class="wrap">
     <div class="sec-head wide up">
       <span class="kicker">{icon("clock-countdown")}Coming soon</span>
-      <h2>Next, the part you still do by hand.</h2>
+      <h2>{e(data.SOON_TITLE)}</h2>
     </div>
     <div class="soon stagger">{soon}</div>
     <p class="soon-note up">{icon("clock-countdown")}
       <span>{e(data.SOON_NOTE)}</span></p>
   </div>
-</section>
+</div>
 
 <section id="install">
   <div class="wrap">
@@ -359,11 +420,9 @@ def build():
 <section id="skills">
   <div class="wrap">
     <div class="sec-head wide up">
-      <span class="kicker">{icon("briefcase")}Eleven skills</span>
-      <h2>Take all of them, or take one.</h2>
-      <p>Each works on its own. Install just the checker to look over a letter
-         you wrote yourself, or just the score to decide whether a job is worth
-         an evening.</p>
+      <span class="kicker">{icon("briefcase")}What gets installed</span>
+      <h2>Eleven skills.</h2>
+      <p>Each works on its own, or all of them together.</p>
     </div>
     <div class="grid stagger">{"".join(cards)}</div>
   </div>
@@ -377,28 +436,21 @@ def build():
     </div>
     <div class="faq up">
       <details><summary>Does it apply to jobs for me?</summary>
-        <p>No, and it won't be made to. It makes the documents; you send them.
-        Some employers disqualify applications the applicant didn't write, and
-        that's their call to make.</p></details>
+        <p>Not yet — that is on the way, for the boards that allow it. Today it
+        prepares the application and hands it to you.</p></details>
       <details><summary>Do I need to pay for anything?</summary>
         <p>No. Your coding agent is the model, so whatever you already pay for
-        covers it. There's no provider to sign up to, no token bill, and nothing
-        is uploaded anywhere.</p></details>
-      <details><summary>Does it scrape LinkedIn?</summary>
-        <p>No. LinkedIn walls and throttles automated access and the risk of
-        working around that would land on your account. It works out who's worth
-        messaging and builds the search — you run it and press send.</p></details>
-      <details><summary>What do I need installed?</summary>
-        <p>Python 3.9 or newer, which macOS and every Linux already has, and
-        Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
-        Without a browser you still get markdown.</p></details>
-      <details><summary>Where does my CV go?</summary>
-        <p>Into a <code>jobhunt/</code> folder in whatever directory you work in,
-        and nowhere else. It never leaves your machine.</p></details>
+        covers it. There is no provider to sign up to and no token bill.</p>
+        </details>
+      <details><summary>Can I just use one skill?</summary>
+        <p>Yes. Each folder carries its own copy of the library and imports
+        nothing from its siblings, so one installed alone works exactly the
+        same as all eleven.</p></details>
       <details><summary>Will it make my CV good?</summary>
-        <p>It will make your CV <b>accurate</b>, and put your strongest evidence
-        where a reader meets it. It can't give you experience you don't have, and
-        it will tell you plainly when a job needs some.</p></details>
+        <p>It will make your CV <b>accurate</b>, and put your strongest
+        evidence where a reader meets it. It cannot give you experience you do
+        not have, and it will tell you plainly when a job needs some.</p>
+        </details>
     </div>
   </div>
 </section>

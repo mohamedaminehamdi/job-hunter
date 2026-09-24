@@ -212,10 +212,27 @@ def test_both_themes_define_every_colour(page):
 
 
 def test_the_page_says_what_it_will_not_do(page):
-    """The claims that make this tool worth using have to survive a redesign."""
-    for promise in ("applies to nothing", "no api key", "scrape linkedin",
-                    "never leaves your machine"):
+    """The claims that make this tool worth using have to survive a redesign,
+    and they have now survived three."""
+    for promise in ("applies to nothing",      # in the footer
+                    "never logs in",           # the outreach note
+                    "never sends",
+                    "nothing to sign up for",  # the install section
+                    "not built yet"):          # the roadmap, labelled as one
         assert promise in page.lower(), promise
+
+
+def test_the_roadmap_is_never_written_as_a_feature(page):
+    """Auto-apply is on the page and is not built. A visitor must not be able
+    to read it as something that works today - the code refuses to apply, and
+    a page that implies otherwise is the one thing here that would be a lie."""
+    soon = page.split('id="soon"', 1)[1].split("</div>\n</div>")[0].lower()
+    assert "not built yet" in soon or "coming soon" in soon
+    # and the claim never appears in the present tense anywhere else
+    body = page.lower()
+    for wrong in ("applies for you", "submits your application",
+                  "applies to jobs for you"):
+        assert wrong not in body, wrong
 
 
 # --- the motion, in a real browser -----------------------------------------
@@ -278,10 +295,15 @@ PROBE = r"""
   setTimeout(function () {
     // 1. the first screenful, at rest
     settle();
-    ['h1', 'lede', 'cta', 'eyebrow'].forEach(function (name) {
+    ['h1', 'cta', 'eyebrow', 'slider'].forEach(function (name) {
       var el = document.querySelector(name === 'h1' ? 'h1' : '.' + name);
       out.push('hero-' + name + '=' + (el ? getComputedStyle(el).opacity : 'MISSING'));
     });
+    // Sampled twice, because the first sample is just the text the script
+    // seeds before the loop starts - a broken animation passes that.
+    var swap = document.querySelector('.type .live');
+    out.push('typed=' + (swap ? (swap.textContent || '').length : 'MISSING'));
+    window.__typedFirst = swap ? swap.textContent : '';
 
     // 2. the rail, at three depths
     (function () {
@@ -315,8 +337,18 @@ PROBE = r"""
                      getComputedStyle(document.getElementById('panel-empty')).display);
             out.push('commands=' + document.querySelectorAll('.cmd code').length);
 
-            out.push('errors=' + (errs.length ? errs.join('|') : 'none'));
-            done();
+            // The headline holds its first phrase for 2.1s on purpose, so
+            // that people can read it. The probe has to outlast that.
+            setTimeout(function () {
+              var late = document.querySelector('.type .live');
+              out.push('typedLater=' +
+                       (late ? (late.textContent || '').length : '-'));
+              out.push('typedMoved=' +
+                       (late ? String(late.textContent !== window.__typedFirst)
+                             : '-'));
+              out.push('errors=' + (errs.length ? errs.join('|') : 'none'));
+              done();
+            }, 3000);
           }, 350);
         }, 350);
       }, 350);
@@ -401,14 +433,45 @@ def test_the_page_throws_nothing(moving):
     assert moving["errors"] == "none", moving["errors"]
 
 
-@pytest.mark.parametrize("part", ["hero-h1", "hero-lede", "hero-cta",
-                                  "hero-eyebrow"])
+@pytest.mark.parametrize("part", ["hero-h1", "hero-cta", "hero-eyebrow",
+                                  "hero-slider"])
 def test_the_first_screenful_is_visible_at_rest(moving, part):
     """`.up` starts at opacity 0 and is revealed by an observer. If that never
     fires the page is blank, which looks like a broken site rather than a
     broken script, so nobody reports it."""
     assert moving["js"] == "true"
     assert moving[part] == "1", f"{part} is invisible"
+
+
+@needs_browser
+def test_the_headline_retypes_itself(moving):
+    """The swapped half is the page's one moving headline. Checked by sampling
+    it twice: the first sample is only the text the script seeds before the
+    loop starts, and a broken animation passes that test happily - which it
+    did, until this one sampled again later."""
+    assert int(moving["typed"]) > 0, "nothing was typed at all"
+    assert moving["typedMoved"] == "true", (
+        f"the headline never changed: {moving['typed']} -> {moving['typedLater']}")
+
+
+@needs_browser
+def test_reduced_motion_leaves_a_whole_phrase_not_a_stub(stilled):
+    """Nothing types, so whatever is there has to be a finished sentence."""
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+    assert int(stilled["typed"]) == len(data.HEADLINE_SWAP[0]), stilled["typed"]
+    assert stilled["typedMoved"] == "false", "it moved anyway"
+
+
+def test_the_headline_never_leaves_a_hole_without_script(page):
+    """No script, no typing - so the phrase has to be in the markup, visible.
+    The `.ghost` copy carries it and is un-hidden by a `html:not(.js)` rule."""
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+    longest = max(data.HEADLINE_SWAP, key=len)
+    assert f'<span class="ghost">{longest}</span>' in page
+    assert "html:not(.js) .type .ghost { visibility: visible; }" in page
+    assert "html:not(.js) .type .live, html:not(.js) .type .caret" in page
 
 
 def test_the_two_cvs_are_right_without_any_script(page):
@@ -485,6 +548,6 @@ def test_reduced_motion_still_shows_the_whole_page(stilled):
     """The thing that matters about reduced motion is not that nothing moves,
     but that nothing is missing."""
     assert stilled["reduced"] == "true", "the flag did not take"
-    for part in ("hero-h1", "hero-lede", "hero-cta", "hero-eyebrow"):
+    for part in ("hero-h1", "hero-cta", "hero-eyebrow", "hero-slider"):
         assert stilled[part] == "1", f"{part} is invisible"
     assert pair(stilled["railPast"])[1] == 4, "the steps never light"

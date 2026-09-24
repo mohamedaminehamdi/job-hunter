@@ -27,9 +27,15 @@
   --on-field:      #ffffff;
   --on-field-soft: rgba(255, 255, 255, .78);
   --on-field-dim:  rgba(255, 255, 255, .58);
-  --glass:        rgba(255, 255, 255, .13);
-  --glass-hi:     rgba(255, 255, 255, .20);
-  --glass-edge:   rgba(255, 255, 255, .24);
+  /* Pushed up from .13: at that strength, over a near-flat field, the frost
+     was doing nothing a reader could see. */
+  --glass:        rgba(255, 255, 255, .20);
+  --glass-hi:     rgba(255, 255, 255, .28);
+  --glass-edge:   rgba(255, 255, 255, .34);
+
+  /* The ink ground the page alternates onto. */
+  --night:      #0a0d0e;
+  --night-lift: #141a1c;
   --flag:        #a63d19;
   --flag-wash:   #fdeee6;
 
@@ -60,6 +66,7 @@
     --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
     --flag: #ef9b6a; --flag-wash: #2b1a11;
     --field-base: #061f16; --field-lift: #0d5238;
+    --night: #06090a; --night-lift: #10161a;
     --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
     --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
     --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
@@ -73,6 +80,7 @@
   --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
   --flag: #ef9b6a; --flag-wash: #2b1a11;
   --field-base: #061f16; --field-lift: #0d5238;
+  --night: #06090a; --night-lift: #10161a;
   --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
   --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
   --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
@@ -140,10 +148,18 @@ svg { display: block; }
    in a few places and switched off by people who asked for less transparency;
    both get a solid tint instead of an invisible element. */
 .glass {
+  position: relative;
   background: var(--glass);
   border: 1px solid var(--glass-edge);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+}
+/* The highlight along the top edge is what makes frosted glass read as glass
+   rather than as a translucent grey box. */
+.glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(255,255,255,.22), transparent 42%);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass { background: rgba(255, 255, 255, .17); }
@@ -219,16 +235,27 @@ svg { display: block; }
 /* --- buttons ------------------------------------------------------------ */
 
 .btn {
-  display: inline-flex; align-items: center; gap: 9px;
-  font: inherit; font-size: 16px; font-weight: 560;
-  padding: 14px 26px; border-radius: 999px;
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 10px;
+  font: inherit; font-size: 16.5px; font-weight: 560; letter-spacing: -.011em;
+  padding: 15px 30px; border-radius: 999px;
   border: 1px solid transparent; cursor: pointer; white-space: nowrap;
-  transition: transform .14s var(--ease), background .2s, border-color .2s,
-              box-shadow .2s, color .2s;
+  transition: transform .18s var(--ease), background .22s, border-color .22s,
+              box-shadow .22s, color .22s;
 }
 .btn:hover { text-decoration: none; transform: translateY(-2px); }
-.btn:active { transform: translateY(0); }
-.btn .ico { width: 18px; height: 18px; }
+.btn:active { transform: translateY(0); transition-duration: .06s; }
+.btn .ico { width: 18px; height: 18px; position: relative;
+            transition: transform .22s var(--ease); }
+.btn:hover .ico { transform: translateX(3px); }
+.btn > * { position: relative; }
+/* A light along the top edge, so a flat pill reads as a raised one. */
+.btn::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.22), transparent 58%);
+  opacity: .85; pointer-events: none;
+}
+.btn-ghost::after { opacity: .5; }
 
 /* Paper is the default and the field is the exception, not the other way
    round: most of this page is on paper, and a button that forgets to opt in
@@ -244,10 +271,11 @@ svg { display: block; }
 
 /* On the field: solid white against the colour, and a glass ghost beside it. */
 .field .btn-go { background: #fff; color: var(--field-base);
-                 box-shadow: var(--lift-float); }
-.field .btn-go:hover { background: #fff;
-                       box-shadow: 0 4px 8px rgba(6, 30, 22, .14),
-                                   0 34px 80px -26px rgba(6, 30, 22, .55); }
+                 box-shadow: 0 2px 4px rgba(6, 30, 22, .18),
+                             0 18px 44px -14px rgba(6, 30, 22, .55); }
+.field .btn-go::after { opacity: 0; }
+.field .btn-go:hover { box-shadow: 0 4px 10px rgba(6, 30, 22, .22),
+                                   0 30px 70px -20px rgba(6, 30, 22, .65); }
 .field .btn-ghost { background: rgba(255, 255, 255, .12); color: #fff;
                     border-color: rgba(255, 255, 255, .34);
                     -webkit-backdrop-filter: blur(14px);
@@ -268,17 +296,62 @@ svg { display: block; }
 }
 .eyebrow .ico { width: 15px; height: 15px; }
 
-h1 { font-size: clamp(2.7rem, 7.4vw, 5.2rem); letter-spacing: -.042em;
-     line-height: .97; }
-h1 span { display: block; }
+h1 { font-size: clamp(2.4rem, 6.6vw, 4.6rem); letter-spacing: -.042em;
+     line-height: 1.02; max-width: 16ch; margin: 0 auto;
+     text-wrap: balance; }
+/* No `h1 span { display: block }` here. The headline used to be three hard
+   lines of spans; it is one sentence now with a piece that retypes itself,
+   and turning those spans into blocks stacks the phrase on top of itself. */
 h1 em { font-style: italic; font-weight: 620; }
 
 .lede { margin: 28px auto 0; font-size: clamp(1.04rem, 1.7vw, 1.2rem);
         color: var(--on-field-soft); max-width: 44ch; line-height: 1.55; }
 
-.cta { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 36px;
+.cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 40px;
        justify-content: center; }
-.cta-note { margin-top: 20px; font-size: 14px; color: var(--on-field-dim); }
+
+/* --- the headline that retypes itself ----------------------------------- */
+/* The swapped half is absolutely sized by the longest option, so the line
+   below it does not jump every time a character lands. */
+
+.type { position: relative; display: inline-block; white-space: nowrap; }
+.type .ghost { visibility: hidden; }
+.type .live { position: absolute; left: 0; top: 0; white-space: nowrap; }
+.type .caret {
+  display: inline-block; width: .06em; height: .82em; margin-left: .06em;
+  background: currentColor; vertical-align: -.06em; border-radius: 1px;
+  animation: blink 1.05s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+/* Without script the whole phrase is simply there, and there is no caret to
+   sit blinking beside a sentence that will never change. */
+html:not(.js) .type .live, html:not(.js) .type .caret { display: none; }
+html:not(.js) .type .ghost { visibility: visible; }
+
+/* --- the boards, sliding -------------------------------------------------- */
+
+.slider { margin-top: 56px; position: relative;
+          -webkit-mask-image: linear-gradient(90deg, transparent,
+                              #000 9%, #000 91%, transparent);
+          mask-image: linear-gradient(90deg, transparent,
+                      #000 9%, #000 91%, transparent); }
+.track { display: flex; gap: 14px; width: max-content;
+         animation: slide 34s linear infinite; }
+.slider:hover .track { animation-play-state: paused; }
+@keyframes slide { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .track { animation: none; }
+  .slider { -webkit-mask-image: none; mask-image: none; }
+  .track { flex-wrap: wrap; justify-content: center; width: auto; }
+}
+
+.board { display: inline-flex; align-items: center; gap: 10px; flex: none;
+         padding: 11px 20px 11px 16px; border-radius: 999px;
+         color: #fff; font-size: 15px; font-weight: 500;
+         letter-spacing: -.01em; }
+.board svg { width: 20px; height: 20px; fill: currentColor; opacity: .95;
+             position: relative; }
+.board span { position: relative; }
 
 /* --- the two CVs -------------------------------------------------------- */
 /* The centrepiece. Two of the same card, one dimmed, so the difference is the
@@ -367,20 +440,21 @@ h1 em { font-style: italic; font-weight: 620; }
 
 @keyframes grow { from { width: 0; } }
 
-/* --- boards ---/* --- boards ------------------------------------------------------------- */
-/* Glass chips on the field, which is the one place frosting them means
-   anything. */
+/* --- the night ground ---------------------------------------------------- */
+/* The page alternates: colour, ink, colour, ink. Each one is a different kind
+   of statement - the field sells, the ink counts the cost. */
 
-.boards { margin-top: 56px; }
-.boards p { font-size: 13.5px; color: var(--on-field-dim); margin-bottom: 18px; }
-.board-row { display: flex; flex-wrap: wrap; justify-content: center;
-             align-items: center; gap: 10px; }
-.board { display: inline-flex; align-items: center; gap: 9px;
-         padding: 9px 16px 9px 13px; border-radius: 999px;
-         color: #fff; font-size: 14.5px; font-weight: 500;
-         letter-spacing: -.01em; }
-.board svg { width: 19px; height: 19px; fill: currentColor; opacity: .92; }
-.board-more { color: var(--on-field-dim); font-size: 14.5px; padding-left: 6px; }
+.night {
+  position: relative; overflow: hidden; color: #fff;
+  background:
+    radial-gradient(70% 55% at 78% 0%, rgba(76, 199, 154, .14), transparent 62%),
+    radial-gradient(60% 50% at 12% 88%, rgba(76, 199, 154, .08), transparent 60%),
+    var(--night);
+  padding: clamp(80px, 13vh, 132px) 0;
+}
+.night .kicker { color: #4cc79a; }
+.night .sec-head h2 { color: #fff; }
+.night .sec-head p { color: rgba(255, 255, 255, .68); }
 
 /* --- sections ----------------------------------------------------------- */
 
@@ -456,28 +530,47 @@ section { padding: clamp(74px, 12vh, 128px) 0; }
 
 .agents { display: flex; flex-direction: column; gap: 6px; }
 .agents button {
-  display: flex; align-items: center; gap: 11px; width: 100%;
+  position: relative;
+  display: flex; align-items: center; gap: 12px; width: 100%;
   font: inherit; font-size: 15px; text-align: left;
-  padding: 12px 14px; border-radius: var(--r-md);
+  padding: 13px 15px; border-radius: var(--r-md);
   border: 1px solid var(--rule-soft); background: var(--paper);
   color: var(--ink-soft); cursor: pointer;
-  transition: border-color .16s, color .16s, box-shadow .16s;
+  transition: border-color .18s var(--ease), color .18s, box-shadow .18s,
+              transform .18s var(--ease);
 }
-.agents button:hover { color: var(--ink); border-color: var(--ink-faint); }
+.agents button:hover { color: var(--ink); border-color: var(--ink-faint);
+                       transform: translateX(2px); }
 .agents button[aria-selected="true"] {
-  color: var(--ink); font-weight: 560;
-  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash);
+  color: var(--ink); font-weight: 560; transform: none;
+  border-color: var(--accent); background: var(--paper);
+  box-shadow: 0 0 0 3px var(--accent-wash), var(--lift);
 }
-.agents button .tick { width: 16px; flex: none; color: var(--accent); opacity: 0;
-                       transition: opacity .16s; }
-.agents button[aria-selected="true"] .tick { opacity: 1; }
+/* A rule down the selected row, pointing at the panel it filled. */
+.agents button[aria-selected="true"]::before {
+  content: ""; position: absolute; left: -1px; top: 12px; bottom: 12px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--accent);
+}
+.agents button .tick {
+  width: 18px; height: 18px; flex: none; padding: 3px; border-radius: 50%;
+  background: var(--rule-soft); color: transparent;
+  transition: background .18s, color .18s;
+}
+.agents button[aria-selected="true"] .tick { background: var(--accent);
+                                             color: #fff; }
+:root[data-theme="dark"] .agents button[aria-selected="true"] .tick { color: #052018; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .agents button[aria-selected="true"] .tick {
+    color: #052018; }
+}
 .agents .group { font-size: 11.5px; font-weight: 560; letter-spacing: .09em;
                  text-transform: uppercase; color: var(--ink-faint);
                  padding: 20px 14px 8px; }
 .agents .group:first-child { padding-top: 0; }
 
 .panel { background: var(--paper); border: 1px solid var(--rule); min-width: 0;
-         border-radius: var(--r-lg); padding: 28px 30px 30px; box-shadow: var(--lift); }
+         border-radius: var(--r-xl); padding: 30px 32px 32px;
+         box-shadow: var(--lift-hi); }
 @media (max-width: 640px) { .panel { padding: 22px; } }
 .panel-empty { color: var(--ink-faint); display: grid; place-items: center;
                min-height: 250px; text-align: center; gap: 12px; }
@@ -608,38 +701,117 @@ html:not(.js) .picker { grid-template-columns: minmax(0, 1fr); }
                color: var(--on-field-dim);
                border-top: 1px solid rgba(255,255,255,.14); }
 
+/* --- the day it costs you ----------------------------------------------- */
+/* Two bars racing. The point is the length of one against the other, so they
+   share a scale and the slow one is allowed to take its time. */
+
+.race { display: grid; gap: 16px; max-width: 880px; }
+.lane { border-radius: var(--r-lg); padding: 22px 24px 24px;
+        background: var(--night-lift);
+        border: 1px solid rgba(255, 255, 255, .09); }
+.lane.fast { border-color: rgba(76, 199, 154, .38);
+             background: linear-gradient(180deg,
+               rgba(76, 199, 154, .10), rgba(76, 199, 154, .03)); }
+.lane-top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.lane-top b { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.lane-top .clock {
+  margin-left: auto; font-family: var(--mono); font-size: 26px;
+  font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.lane.slow .clock { color: #fff; }
+.lane.fast .clock { color: #4cc79a; }
+.lane-top .unit { font-size: 13px; color: rgba(255,255,255,.55); }
+
+.meter { height: 8px; border-radius: 999px; margin-top: 16px;
+         background: rgba(255, 255, 255, .09); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 999px; width: 0;
+           background: rgba(255, 255, 255, .55); }
+.lane.fast .meter i { background: #4cc79a; }
+.lane.slow.run .meter i { animation: crawl 7s linear infinite; }
+.lane.fast.run .meter i { animation: dash 7s linear infinite; }
+@keyframes crawl { 0% { width: 0; } 92%, 100% { width: 100%; } }
+@keyframes dash  { 0% { width: 0; } 6%, 100% { width: 4%; } }
+
+.lane-foot { display: flex; gap: 12px; align-items: baseline;
+             margin-top: 12px; font-size: 13px;
+             color: rgba(255, 255, 255, .55); min-height: 20px; }
+.lane-foot .doing { color: rgba(255, 255, 255, .8); }
+.lane-foot .doing::after { content: "…"; }
+
+/* Without script the bars sit at their finished length and the tasks are
+   simply listed, which says the same thing more quietly. */
+html:not(.js) .meter i { width: 100%; }
+html:not(.js) .lane.fast .meter i { width: 4%; }
+@media (prefers-reduced-motion: reduce) {
+  .lane .meter i { animation: none !important; width: 100%; }
+  .lane.fast .meter i { width: 4%; }
+}
+
+/* --- the network --------------------------------------------------------- */
+/* You, three people, the job. The alumni edge is drawn brightest because it
+   is the one that actually gets answered. */
+
+.net { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+       gap: 34px; align-items: center; }
+@media (max-width: 880px) { .net { grid-template-columns: minmax(0, 1fr); } }
+
+.graph { position: relative; }
+.graph svg { width: 100%; height: auto; display: block; overflow: visible; }
+.edge { stroke: rgba(255, 255, 255, .22); stroke-width: 1.6; fill: none; }
+.edge.best { stroke: #4cc79a; stroke-width: 2.2; }
+.spark { stroke: #fff; stroke-width: 2.6; fill: none; stroke-linecap: round;
+         stroke-dasharray: 16 260; stroke-dashoffset: 276;
+         animation: travel 2.6s var(--ease) infinite; }
+@keyframes travel { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .spark { display: none; } }
+
+.node circle { fill: var(--field-base); stroke: rgba(255,255,255,.3);
+               stroke-width: 1.6; }
+.node.you circle { fill: #fff; stroke: #fff; }
+.node.job circle { fill: #4cc79a; stroke: #4cc79a; }
+.node.best circle { stroke: #4cc79a; stroke-width: 2.2; }
+.node text { font: 500 11.5px var(--sans); fill: #fff; text-anchor: middle; }
+/* On the two filled nodes the label sits on the fill, so it inverts. A fill
+   attribute in the markup would lose to this rule, which is how "You" spent
+   a while as white text on a white circle. */
+.node.you text, .node.job text { font-weight: 600; fill: var(--field-base); }
+.node .sub { font-size: 10px; fill: rgba(255, 255, 255, .5); font-weight: 400; }
+
 /* --- coming soon --------------------------------------------------------- */
 
 .soon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 860px) { .soon { grid-template-columns: minmax(0, 1fr); } }
-.soon-card { border: 1px dashed var(--rule); border-radius: var(--r-lg);
-             padding: 24px 24px 26px; background: transparent; }
+/* Dashed and dimmed, on the ink ground: a roadmap has to look unlike the
+   things that actually exist above it. */
+.soon-card { border: 1px dashed rgba(255, 255, 255, .18);
+             border-radius: var(--r-lg); padding: 24px 24px 26px; }
 .soon-card .badge { width: 40px; height: 40px; display: grid; place-items: center;
-                    border-radius: 12px; background: var(--rule-soft);
-                    color: var(--ink-faint); margin-bottom: 18px; }
+                    border-radius: 12px; background: rgba(255, 255, 255, .07);
+                    color: rgba(255, 255, 255, .55); margin-bottom: 18px; }
 .soon-card .badge .ico { width: 20px; height: 20px; }
-.soon-card h3 { font-size: 1.04rem; margin-bottom: 9px; color: var(--ink-soft); }
-.soon-card p { font-size: .93rem; color: var(--ink-faint); }
-.soon-note { margin-top: 26px; font-size: .92rem; color: var(--ink-faint);
+.soon-card h3 { font-size: 1.04rem; margin-bottom: 9px;
+                color: rgba(255, 255, 255, .88); }
+.soon-card p { font-size: .93rem; color: rgba(255, 255, 255, .55); }
+.soon-note { margin-top: 26px; font-size: .92rem; color: rgba(255,255,255,.55);
              display: flex; gap: 10px; align-items: flex-start; max-width: 62ch; }
-.soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px;
-                  color: var(--ink-faint); }
+.soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px; }
 
 /* --- the one it still will not do ---------------------------------------- */
 
-.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 46px;
-        padding: 22px 24px; border-radius: var(--r-lg);
-        background: var(--paper); border: 1px solid var(--rule); }
+.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 44px;
+        padding: 24px 26px; border-radius: var(--r-lg);
+        background: var(--night-lift);
+        border: 1px solid rgba(255, 255, 255, .09); max-width: 880px; }
 .wont .badge { flex: none; width: 40px; height: 40px; display: grid;
                place-items: center; border-radius: 12px;
-               background: var(--flag-wash); color: var(--flag); }
+               background: rgba(239, 155, 106, .14); color: #ef9b6a; }
 .wont .badge .ico { width: 20px; height: 20px; }
-.wont h3 { font-size: 1.02rem; margin-bottom: 8px; }
-.wont p { color: var(--ink-soft); font-size: .95rem; max-width: 62ch; }
-.wont .said { display: block; margin-top: 12px; font-size: 13.5px;
-              color: var(--flag); font-family: var(--mono); }
-.wont .said em { font-style: normal; color: var(--ink-faint);
-                 display: block; margin-bottom: 4px; font-family: var(--sans); }
+.wont h3 { font-size: 1.02rem; margin-bottom: 8px; color: #fff; }
+.wont p { color: rgba(255, 255, 255, .68); font-size: .95rem; max-width: 62ch; }
+.wont .said { display: block; margin-top: 14px; font-size: 13.5px;
+              color: #ef9b6a; font-family: var(--mono); }
+.wont .said em { font-style: normal; color: rgba(255, 255, 255, .45);
+                 display: block; margin-bottom: 5px; font-family: var(--sans); }
 
 /* --- the star ------------------------------------------------------------ */
 

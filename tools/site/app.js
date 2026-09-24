@@ -161,6 +161,78 @@
     });
   }
 
+  // --- the headline that retypes itself -----------------------------------
+  // Two ways of saying the same complaint. The second is the reason the first
+  // is a problem, and watching one become the other says that in less space
+  // than a sentence would.
+
+  var swap = document.querySelector(".type");
+  if (swap && !still) {
+    var phrases = (swap.dataset.swap || "").split("|").filter(Boolean);
+    var live = swap.querySelector(".live");
+    if (phrases.length > 1 && live) {
+      // Starts fully typed, so the first move is a delete. Getting this wrong
+      // is silent: with `back = false` the counter runs straight past the
+      // word's length, the equality check never fires, and the headline sits
+      // there looking finished forever.
+      var at = 0, cut = phrases[0].length, back = true;
+      live.textContent = phrases[0];
+
+      var step = function () {
+        var word = phrases[at];
+        cut = Math.max(0, Math.min(word.length, cut + (back ? -1 : 1)));
+        live.textContent = word.slice(0, cut);
+
+        var wait = back ? 34 : 58;
+        if (!back && cut >= word.length) { back = true; wait = 2400; }
+        else if (back && cut <= 0) {
+          back = false;
+          at = (at + 1) % phrases.length;
+          wait = 380;
+        }
+        setTimeout(step, wait);
+      };
+      setTimeout(step, 2400);
+    }
+  } else if (swap) {
+    // Still: one phrase, no caret, nothing moving.
+    var only = swap.querySelector(".live");
+    if (only) only.textContent = (swap.dataset.swap || "").split("|")[0];
+  }
+
+  // --- the two lanes ------------------------------------------------------
+  // The bars are a CSS animation; this only starts them when the section is
+  // reached and ticks the task label alongside. The lengths are in the
+  // stylesheet, so a reader who never triggers this still sees the comparison.
+
+  var race = document.querySelector(".race");
+  if (race) {
+    var doing = race.querySelector(".doing");
+    var tasks = (race.dataset.tasks || "").split("|").filter(Boolean);
+
+    var begin = function () {
+      Array.prototype.forEach.call(race.querySelectorAll(".lane"),
+        function (lane) { lane.classList.add("run"); });
+      if (still || !doing || tasks.length < 2) return;
+      var n = 0;
+      setInterval(function () {
+        n = (n + 1) % tasks.length;
+        doing.textContent = tasks[n];
+      }, 7000 / tasks.length);
+    };
+
+    if (still || !("IntersectionObserver" in window)) {
+      begin();
+    } else {
+      var watching = new IntersectionObserver(function (entries) {
+        if (!entries[0].isIntersecting) return;
+        watching.disconnect();
+        begin();
+      }, { threshold: 0.25 });
+      watching.observe(race);
+    }
+  }
+
   // --- the rail -----------------------------------------------------------
   // One continuous fill down the steps as you scroll past them, and each badge
   // lights as the fill reaches it. Cheaper than four separate observers, and
