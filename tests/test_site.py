@@ -182,8 +182,13 @@ needs_browser = pytest.mark.skipif(jh.find_browser() is None,
                                    reason="no Chromium-family browser")
 
 
-def in_browser(probe_js, width=1280):
-    """Run `probe_js` in the built page and return what it wrote to #measured."""
+def in_browser(probe_js, width=1280, still=False):
+    """Run `probe_js` in the built page and return what it wrote to #measured.
+
+    `still` forces prefers-reduced-motion, which is what some CI runners report
+    by default - so both branches get exercised on every machine rather than
+    whichever one the runner happens to pick.
+    """
     page = PAGE.read_text(encoding="utf-8").replace('data-theme=""', 'data-theme="light"')
     work = Path(tempfile.mkdtemp(prefix="jobhunt-probe-"))
     try:
@@ -194,8 +199,10 @@ def in_browser(probe_js, width=1280):
         command = [jh.find_browser(), "--headless=new", "--disable-gpu",
                    "--no-sandbox", "--no-first-run", "--disable-extensions",
                    f"--window-size={width},1057", f"--user-data-dir={work / 'p'}",
-                   "--virtual-time-budget=9000", "--dump-dom",
-                   (work / "page.html").as_uri()]
+                   "--virtual-time-budget=9000", "--dump-dom"]
+        if still:
+            command.append("--force-prefers-reduced-motion")
+        command.append((work / "page.html").as_uri())
         with dump.open("wb") as sink:
             process = subprocess.Popen(command, stdout=sink, stderr=subprocess.DEVNULL)
         raw = jh._await_file(dump, process, 60, ready=jh._dom_complete)
@@ -279,18 +286,22 @@ def test_the_two_numbers_fill_in():
 
 
 @needs_browser
-def test_the_rail_fills_and_lights_the_steps():
-    """Both ends of the scroll: nothing at the top, everything past the bottom.
-    The frames between are not observable in headless - rAF is coalesced - but
-    the fill is linear between these two."""
-    # Wrapped in a function: at global scope `var top` is an assignment to
-    # window.top, which is read-only and fails silently, so every offset came
-    # out NaN and the page looked broken when the probe was.
+def test_the_rail_fills_as_you_scroll_the_steps():
+    """More of the rail, and more lit badges, the further down you are.
+
+    A relationship rather than two numbers: the fill is a fraction of the
+    viewport height, so exact values differ between a laptop and a CI runner -
+    which is how this test first failed, asserting 0% where one runner
+    computed 4.8%. And where the runner asks for reduced motion the rail is
+    deliberately never touched: every step is lit from the start, and that is
+    the right answer, not a failure.
+    """
     got = in_browser("""(function () {
       var steps = document.querySelector('.steps');
       var rail = steps.querySelector('.rail i');
       var anchor = steps.getBoundingClientRect().top + window.scrollY;
-      var out = [];
+      var out = ['reduced=' +
+                 window.matchMedia('(prefers-reduced-motion: reduce)').matches];
       function at(offset, label, then) {
         // instant: the page sets scroll-behavior smooth, which animates over
         // ~500ms and swallows a scripted jump.
@@ -298,19 +309,29 @@ def test_the_rail_fills_and_lights_the_steps():
                           behavior: 'instant' });
         window.dispatchEvent(new Event('scroll'));
         setTimeout(function () {
-          out.push(label + ' rail=' + (rail.style.height || 'unset') +
-                   ' lit=' + steps.querySelectorAll('.step.lit').length);
+          out.push(label + '=' + parseFloat(rail.style.height || 0) +
+                   ',' + steps.querySelectorAll('.step.lit').length);
           then();
         }, 400);
       }
       setTimeout(function () {
-        at(0, 'top', function () {
-          at(4000, 'past', function () {
-      """ + REPORT + """ }); }); }, 300);
+        at(-600, 'above', function () {
+          at(300, 'into', function () {
+            at(4000, 'past', function () {
+      """ + REPORT + """ }); }); }); }, 300);
     })();""")
-    lines = dict(line.split(" ", 1) for line in got.strip().splitlines())
-    assert "rail=0" in lines["top"] and "lit=0" in lines["top"], got
-    assert "rail=100%" in lines["past"] and "lit=4" in lines["past"], got
+    read = dict(pair.split("=", 1) for pair in got.split() if "=" in pair)
+    steps = [tuple(float(n) for n in read[k].split(",")) for k in ("above", "into", "past")]
+
+    if read["reduced"] == "true":
+        # Nothing animates, so everything is shown at once. That is the point.
+        assert all(lit == 4 for _, lit in steps), got
+        return
+
+    (top_fill, top_lit), (mid_fill, mid_lit), (end_fill, end_lit) = steps
+    assert top_fill < mid_fill < end_fill, f"the rail does not fill\n{got}"
+    assert top_lit <= mid_lit < end_lit, f"the badges do not light\n{got}"
+    assert end_fill == 100 and end_lit == 4, f"it never completes\n{got}"
 
 
 @needs_browser
@@ -350,3 +371,32 @@ def test_the_install_routes_are_readable_without_javascript():
     assert numbers["named"] == numbers["panels"], "the routes are not labelled by agent"
     assert numbers["placeholder"] == "none", "the 'choose an agent' placeholder is still there"
     assert int(numbers["commands"]) >= 8, got
+
+
+@needs_browser
+def test_reduced_motion_shows_everything_at_once():
+    """Somebody who asked their machine for less movement gets no movement -
+    and, more importantly, still gets the whole page. A CI runner reports this
+    preference by default, which is how the branch got exercised at all."""
+    got = in_browser("""(function () {
+      setTimeout(function () {
+        var kill = document.createElement('style');
+        kill.textContent = '*{transition:none!important;animation:none!important}';
+        document.head.appendChild(kill);
+        void document.body.offsetHeight;
+        var hidden = 0;
+        Array.prototype.forEach.call(document.querySelectorAll('.up, .stagger'),
+          function (el) { if (getComputedStyle(el).opacity === '0') hidden++; });
+        var out = ['reduced=' +
+                     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+                   'invisible=' + hidden,
+                   'lit=' + document.querySelectorAll('.step.lit').length,
+                   'bars=' + Array.prototype.filter.call(
+                     document.querySelectorAll('.score-bar i'),
+                     function (i) { return i.style.width; }).length];
+      """ + REPORT + """ }, 500);
+    })();""", still=True)
+    assert "reduced=true" in got, f"the flag did not take\n{got}"
+    assert "invisible=0" in got, f"reduced motion hid the page\n{got}"
+    assert "lit=4" in got, f"the steps never light\n{got}"
+    assert "bars=2" in got, f"the numbers never fill\n{got}"
