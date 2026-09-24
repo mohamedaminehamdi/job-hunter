@@ -151,6 +151,56 @@ def test_it_is_one_self_contained_file_plus_the_archives(page):
     assert "<script src=" not in page                        # JS is inlined
 
 
+def test_no_element_wears_a_class_the_stylesheet_never_styles(page):
+    """A renamed rule leaves the markup pointing at nothing, and the element
+    quietly renders as an unstyled box. Eight download buttons were doing
+    exactly that after `.btn-quiet` was renamed out from under them.
+
+    Classes used only as JavaScript hooks are listed, because they are real -
+    they just do not need a rule.
+    """
+    hooks = {"js", "in", "stuck", "lit", "i-copy", "i-done", "say"}
+    css = page.split("<style>", 1)[1].split("</style>")[0]
+    styled = set(re.findall(r"\.([a-zA-Z][\w-]*)", css))
+
+    used = set()
+    for attr in re.findall(r'class="([^"]+)"', page):
+        used |= set(attr.split())
+
+    orphans = used - styled - hooks
+    assert not orphans, f"no rule for: {sorted(orphans)}"
+
+
+def test_the_glass_has_somewhere_to_fall_back_to(page):
+    """`backdrop-filter` is unsupported in places and switched off by anyone
+    who asked their machine for less transparency. Without a fallback those
+    surfaces become 13%-white rectangles on a dark field - which is to say
+    invisible, along with the text on them."""
+    css = page.split("<style>", 1)[1].split("</style>")[0]
+    assert "@supports not ((backdrop-filter" in css, "no unsupported-browser fallback"
+    assert "prefers-reduced-transparency" in css, "no reduced-transparency fallback"
+    # and the fallback must actually set a background, not merely exist
+    block = css.split("prefers-reduced-transparency", 1)[1][:400]
+    assert "background:" in block and "backdrop-filter: none" in block, block
+
+
+def test_white_text_on_the_field_clears_wcag_aa(page):
+    """The field's colours were chosen by this number, so it is worth keeping.
+    AA is 4.5:1 for body text; the brightest point of the gradient is what has
+    to pass, not the base."""
+    css = page.split("<style>", 1)[1].split("</style>")[0]
+    lift = re.search(r"--field-lift:\s*(#[0-9a-fA-F]{6})", css).group(1)
+
+    def luminance(colour):
+        parts = (int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        chan = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                for c in parts]
+        return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2]
+
+    ratio = (1.0 + 0.05) / (luminance(lift) + 0.05)
+    assert ratio >= 4.5, f"white on {lift} is {ratio:.2f}:1, below AA"
+
+
 def test_both_themes_define_every_colour(page):
     css = page.split("<style>", 1)[1].split("</style>")[0]
     light = set(re.findall(r"(--[a-z-]+):", css.split("@media")[0]))

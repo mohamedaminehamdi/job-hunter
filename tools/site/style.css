@@ -18,6 +18,18 @@
   --accent:      #12664a;
   --accent-deep: #0c4a35;
   --accent-wash: #e6f1ec;
+
+  /* The hero sits on a colour field rather than on paper. Both ends are dark
+     enough that white body text clears AA on the brightest point of the
+     highlight - 5.9:1 - which is the constraint that picked them. */
+  --field-base: #093d2b;
+  --field-lift: #14724f;
+  --on-field:      #ffffff;
+  --on-field-soft: rgba(255, 255, 255, .78);
+  --on-field-dim:  rgba(255, 255, 255, .58);
+  --glass:        rgba(255, 255, 255, .13);
+  --glass-hi:     rgba(255, 255, 255, .20);
+  --glass-edge:   rgba(255, 255, 255, .24);
   --flag:        #a63d19;
   --flag-wash:   #fdeee6;
 
@@ -34,6 +46,7 @@
   --page: 1120px;
   --lift: 0 1px 2px rgba(18, 22, 26, .04), 0 12px 32px -16px rgba(18, 22, 26, .16);
   --lift-hi: 0 1px 2px rgba(18, 22, 26, .05), 0 28px 60px -28px rgba(18, 22, 26, .28);
+  --lift-float: 0 2px 4px rgba(6, 30, 22, .10), 0 30px 70px -24px rgba(6, 30, 22, .45);
 
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
@@ -46,8 +59,10 @@
     --rule: #252b2d; --rule-soft: #1d2224;
     --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
     --flag: #ef9b6a; --flag-wash: #2b1a11;
+    --field-base: #061f16; --field-lift: #0d5238;
     --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
     --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
+    --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
   }
 }
 :root[data-theme="dark"] {
@@ -57,8 +72,10 @@
   --rule: #252b2d; --rule-soft: #1d2224;
   --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
   --flag: #ef9b6a; --flag-wash: #2b1a11;
+  --field-base: #061f16; --field-lift: #0d5238;
   --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
   --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
+  --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
 }
 
 * { box-sizing: border-box; }
@@ -97,37 +114,96 @@ svg { display: block; }
   fill: currentColor; stroke: none;
 }
 
+/* --- the field -----------------------------------------------------------
+   The hero sits on a saturated colour field instead of on paper, and the
+   glass in this file is only ever over that field. Frosting a card that sits
+   on a flat background frosts nothing - it is just a grey box with a blur tax.
+   ------------------------------------------------------------------------ */
+
+.field {
+  position: relative;
+  /* Three overlapping washes rather than one top-down ramp: a single radial
+     from the top edge reads as a band, and the seam where it runs out is
+     visible as a horizontal line. */
+  background:
+    radial-gradient(70% 55% at 22% 12%, rgba(255, 255, 255, .10), transparent 60%),
+    radial-gradient(85% 70% at 72% 8%, var(--field-lift), transparent 58%),
+    radial-gradient(120% 90% at 50% 28%, var(--field-lift), transparent 72%),
+    var(--field-base);
+  color: var(--on-field);
+  padding: 118px 0 96px;
+  overflow: hidden;
+}
+@media (max-width: 720px) { .field { padding: 104px 0 72px; } }
+
+/* Frosted, with somewhere to fall back to. `backdrop-filter` is unsupported
+   in a few places and switched off by people who asked for less transparency;
+   both get a solid tint instead of an invisible element. */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: rgba(255, 255, 255, .17); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: color-mix(in srgb, var(--field-base) 72%, #fff);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* --- bar ---------------------------------------------------------------- */
+/* A pill floating over the page rather than a band stuck to its top edge. */
 
 .bar {
-  position: sticky; top: 0; z-index: 60;
-  background: color-mix(in srgb, var(--bone) 84%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-  border-bottom: 1px solid transparent;
-  transition: border-color .25s var(--ease);
+  position: fixed; top: 14px; left: 0; right: 0; z-index: 60;
+  pointer-events: none;
 }
-.bar.stuck { border-bottom-color: var(--rule); }
-.bar .wrap { display: flex; align-items: center; gap: 16px; height: 66px; }
+.bar .wrap { pointer-events: auto; }
+.bar .pill {
+  display: flex; align-items: center; gap: 16px;
+  height: 58px; padding: 0 10px 0 20px; border-radius: 999px;
+  transition: background .3s var(--ease), border-color .3s var(--ease),
+              box-shadow .3s var(--ease), color .3s var(--ease);
+}
+/* Once the field has scrolled by there is nothing left to frost, so the pill
+   becomes an ordinary solid one. */
+.bar.stuck .pill {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  border-color: var(--rule);
+  color: var(--ink);
+  box-shadow: var(--lift);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
 
 .mark { display: flex; align-items: center; gap: 10px; font-weight: 620;
-        font-size: 17px; letter-spacing: -.02em; color: var(--ink); }
+        font-size: 17px; letter-spacing: -.02em; color: inherit; }
 .mark:hover { text-decoration: none; }
-.mark .dot {
-  width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
-  flex: none; box-shadow: 0 0 0 4px var(--accent-wash);
-}
-.bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.bar nav a { color: var(--ink-soft); font-size: 15px; padding: 8px 12px;
-             border-radius: var(--r-sm); }
-.bar nav a:hover { color: var(--ink); background: var(--rule-soft);
-                   text-decoration: none; }
-@media (max-width: 720px) { .bar nav a.hide-sm { display: none; } }
+.mark .dot { width: 10px; height: 10px; border-radius: 50%; flex: none;
+             background: currentColor; opacity: .85; }
+.bar.stuck .mark .dot { background: var(--accent); opacity: 1; }
 
-.tog { width: 36px; height: 36px; display: grid; place-items: center;
-       border: 1px solid var(--rule); border-radius: var(--r-sm);
-       background: var(--paper); color: var(--ink-soft); cursor: pointer;
-       transition: color .15s, border-color .15s; }
-.tog:hover { color: var(--ink); border-color: var(--ink-faint); }
+.bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.bar nav a { color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
+             border-radius: 999px; transition: opacity .18s, background .18s; }
+.bar nav a:hover { opacity: 1; background: rgba(255, 255, 255, .12);
+                   text-decoration: none; }
+.bar.stuck nav a:hover { background: var(--rule-soft); }
+@media (max-width: 760px) { .bar nav a.hide-sm { display: none; } }
+
+.tog { width: 38px; height: 38px; display: grid; place-items: center;
+       border-radius: 999px; cursor: pointer; color: inherit;
+       background: rgba(255, 255, 255, .14);
+       border: 1px solid rgba(255, 255, 255, .20);
+       transition: background .18s, border-color .18s; }
+.tog:hover { background: rgba(255, 255, 255, .24); }
+.bar.stuck .tog { background: var(--paper); border-color: var(--rule);
+                  color: var(--ink-soft); }
+.bar.stuck .tog:hover { border-color: var(--ink-faint); color: var(--ink); }
 .tog .ico { width: 17px; height: 17px; }
 :root[data-theme="dark"] .i-sun, .i-moon { display: none; }
 :root[data-theme="dark"] .i-moon { display: block; }
@@ -141,71 +217,87 @@ svg { display: block; }
 .btn {
   display: inline-flex; align-items: center; gap: 9px;
   font: inherit; font-size: 16px; font-weight: 560;
-  padding: 13px 22px; border-radius: 999px;
+  padding: 14px 26px; border-radius: 999px;
   border: 1px solid transparent; cursor: pointer; white-space: nowrap;
-  transition: transform .14s var(--ease), background .18s, border-color .18s,
-              box-shadow .18s;
+  transition: transform .14s var(--ease), background .2s, border-color .2s,
+              box-shadow .2s, color .2s;
 }
-.btn:hover { text-decoration: none; transform: translateY(-1px); }
+.btn:hover { text-decoration: none; transform: translateY(-2px); }
 .btn:active { transform: translateY(0); }
 .btn .ico { width: 18px; height: 18px; }
+
+/* Paper is the default and the field is the exception, not the other way
+   round: most of this page is on paper, and a button that forgets to opt in
+   should look ordinary rather than look like nothing. */
 .btn-go { background: var(--accent); color: #fff; box-shadow: var(--lift); }
 .btn-go:hover { background: var(--accent-deep); box-shadow: var(--lift-hi); }
 :root[data-theme="dark"] .btn-go { color: #052018; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .btn-go { color: #052018; }
 }
-.btn-quiet { background: var(--paper); border-color: var(--rule); color: var(--ink); }
-.btn-quiet:hover { border-color: var(--ink-faint); }
+.btn-ghost { background: var(--paper); color: var(--ink); border-color: var(--rule); }
+.btn-ghost:hover { border-color: var(--ink-faint); }
+
+/* On the field: solid white against the colour, and a glass ghost beside it. */
+.field .btn-go { background: #fff; color: var(--field-base);
+                 box-shadow: var(--lift-float); }
+.field .btn-go:hover { background: #fff;
+                       box-shadow: 0 4px 8px rgba(6, 30, 22, .14),
+                                   0 34px 80px -26px rgba(6, 30, 22, .55); }
+.field .btn-ghost { background: rgba(255, 255, 255, .12); color: #fff;
+                    border-color: rgba(255, 255, 255, .34);
+                    -webkit-backdrop-filter: blur(14px);
+                    backdrop-filter: blur(14px); }
+.field .btn-ghost:hover { background: rgba(255, 255, 255, .22); }
 
 /* --- hero --------------------------------------------------------------- */
+/* Centred, because the claim is the whole point of the screen and there is
+   nothing to sit beside it. */
 
-.hero { padding: clamp(56px, 11vh, 104px) 0 0; position: relative; }
-.hero .wrap { position: relative; z-index: 1; }
-
-/* One soft wash behind the headline. No mesh, no aurora. */
-.hero::before {
-  content: ""; position: absolute; inset: -20% -10% 40%;
-  background: radial-gradient(60% 50% at 30% 30%, var(--accent-wash), transparent 70%);
-  opacity: .8; pointer-events: none;
-}
+.hero { text-align: center; }
 
 .eyebrow {
   display: inline-flex; align-items: center; gap: 9px;
-  font-size: 13px; font-weight: 560; letter-spacing: .02em;
-  color: var(--accent); background: var(--paper);
-  border: 1px solid var(--rule); border-radius: 999px;
-  padding: 7px 15px 7px 11px; margin-bottom: 28px; box-shadow: var(--lift);
+  font-size: 13px; font-weight: 560; letter-spacing: .04em;
+  color: #fff; border-radius: 999px; padding: 8px 17px 8px 13px;
+  margin-bottom: 30px;
 }
 .eyebrow .ico { width: 15px; height: 15px; }
 
-h1 { font-size: clamp(2.6rem, 6.6vw, 4.6rem); letter-spacing: -.038em; }
+h1 { font-size: clamp(2.7rem, 7.4vw, 5.2rem); letter-spacing: -.042em;
+     line-height: .97; }
 h1 span { display: block; }
 h1 em { font-style: italic; font-weight: 620; }
 
-.lede { margin-top: 26px; font-size: clamp(1.02rem, 1.7vw, 1.18rem);
-        color: var(--ink-soft); max-width: 46ch; line-height: 1.58; }
+.lede { margin: 28px auto 0; font-size: clamp(1.04rem, 1.7vw, 1.2rem);
+        color: var(--on-field-soft); max-width: 44ch; line-height: 1.55; }
 
-.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-.cta-note { margin-top: 16px; font-size: 14px; color: var(--ink-faint); }
+.cta { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 36px;
+       justify-content: center; }
+.cta-note { margin-top: 20px; font-size: 14px; color: var(--on-field-dim); }
 
 /* --- the proof card ----------------------------------------------------- */
+/* Lifted out of the field and over its bottom edge, so the page reads as one
+   object rather than two stacked blocks. */
+
+/* On the field, not across its edge. A boundary running through the middle of
+   a sentence looks like a rendering fault rather than a layered composition. */
+.proof-out { margin-top: 64px; position: relative; z-index: 2; }
 
 .proof {
-  margin-top: 64px; background: var(--paper);
-  border: 1px solid var(--rule); border-radius: var(--r-xl);
-  box-shadow: var(--lift-hi); overflow: hidden;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-xl); box-shadow: var(--lift-float); overflow: hidden;
 }
 .proof-head {
   display: flex; align-items: center; gap: 10px;
-  padding: 15px 22px; border-bottom: 1px solid var(--rule-soft);
+  padding: 16px 24px; border-bottom: 1px solid var(--rule-soft);
   background: color-mix(in srgb, var(--sunk) 60%, var(--paper));
   font-size: 13.5px; color: var(--ink-faint);
 }
 .proof-head .ico { width: 16px; height: 16px; }
 .proof-body { display: grid; grid-template-columns: 1fr 1fr; }
 @media (max-width: 800px) { .proof-body { grid-template-columns: 1fr; } }
-.proof-body > div { padding: 26px 28px 30px; }
+.proof-body > div { padding: 28px 30px 32px; }
 .proof-body > div + div { border-left: 1px solid var(--rule-soft); }
 @media (max-width: 800px) {
   .proof-body > div + div { border-left: 0; border-top: 1px solid var(--rule-soft); }
@@ -218,19 +310,16 @@ h1 em { font-style: italic; font-weight: 620; }
   padding: 14px 16px; border-radius: var(--r-md);
   background: var(--sunk); border: 1px solid var(--rule-soft);
 }
-.finding {
-  display: flex; gap: 10px; align-items: flex-start;
-  margin-top: 12px; font-size: 14px; color: var(--flag);
-}
+.finding { display: flex; gap: 10px; align-items: flex-start;
+           margin-top: 12px; font-size: 14px; color: var(--flag); }
 .finding .ico { width: 17px; height: 17px; flex: none; margin-top: 1px; }
-.finding code { color: inherit; font-weight: 500; }
 
-/* the two numbers */
 .score { display: grid; gap: 18px; }
 .score-row { display: flex; align-items: baseline; gap: 14px; }
 .score-label { font-size: 14px; color: var(--ink-soft); flex: 1; min-width: 0; }
 .score-num { font-family: var(--mono); font-size: 26px; font-weight: 500;
-             letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+             letter-spacing: -.02em; color: var(--ink);
+             font-variant-numeric: tabular-nums; }
 .score-num small { font-size: 15px; color: var(--ink-faint); }
 .score-move { font-family: var(--mono); font-size: 14px; color: var(--accent);
               font-weight: 500; }
@@ -243,16 +332,19 @@ h1 em { font-style: italic; font-weight: 620; }
 .score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
 /* --- boards ------------------------------------------------------------- */
+/* Glass chips on the field, which is the one place frosting them means
+   anything. */
 
-.boards { padding: 74px 0 0; }
-.boards p { text-align: center; font-size: 14px; color: var(--ink-faint);
-            margin-bottom: 26px; }
+.boards { margin-top: 56px; }
+.boards p { font-size: 13.5px; color: var(--on-field-dim); margin-bottom: 18px; }
 .board-row { display: flex; flex-wrap: wrap; justify-content: center;
-             align-items: center; gap: 14px 52px; }
-.board { display: flex; align-items: center; gap: 11px; color: var(--ink-soft); }
-.board svg { width: 24px; height: 24px; fill: currentColor; }
-.board span { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
-.board-more { color: var(--ink-faint); font-size: 15px; }
+             align-items: center; gap: 10px; }
+.board { display: inline-flex; align-items: center; gap: 9px;
+         padding: 9px 16px 9px 13px; border-radius: 999px;
+         color: #fff; font-size: 14.5px; font-weight: 500;
+         letter-spacing: -.01em; }
+.board svg { width: 19px; height: 19px; fill: currentColor; opacity: .92; }
+.board-more { color: var(--on-field-dim); font-size: 14.5px; padding-left: 6px; }
 
 /* --- sections ----------------------------------------------------------- */
 

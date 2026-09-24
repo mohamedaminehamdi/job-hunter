@@ -41,7 +41,7 @@ def icon(name, extra=""):
 
 def brand(key):
     mark = data.BRANDS[key]
-    return (f'<span class="board"><svg viewBox="0 0 24 24" aria-hidden="true">'
+    return (f'<span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true">'
             f'<path d="{mark["path"]}"/></svg>'
             f'<span>{e(mark["title"])}</span></span>')
 
@@ -92,7 +92,7 @@ def routes(agent):
         f'<div class="route"><h3><span class="num">{n}</span>Download a folder</h3>'
         f"<p>No terminal at all. Unzip it and put the folder in {place} — make "
         "that directory if it is not there yet.</p>"
-        f'<p style="margin-top:14px"><a class="btn btn-quiet" '
+        f'<p style="margin-top:14px"><a class="btn btn-ghost" '
         f'href="download/jobhunt-all.zip" download>{icon("download-simple")}'
         "All eleven skills</a></p></div>")
 
@@ -189,76 +189,78 @@ def build():
 
 <header class="bar">
   <div class="wrap">
-    <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
-    <nav>
-      <a href="#how" class="hide-sm">How it works</a>
-      <a href="#skills" class="hide-sm">Skills</a>
-      <a href="https://github.com/{REPO}" class="hide-sm">GitHub</a>
-      <a href="#install">Install</a>
-      <button class="tog" type="button" id="theme" aria-label="Switch theme">
-        {icon("sun", "i-sun")}{icon("moon", "i-moon")}
-      </button>
-    </nav>
+    <div class="pill glass">
+      <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
+      <nav>
+        <a href="#how" class="hide-sm">How it works</a>
+        <a href="#skills" class="hide-sm">Skills</a>
+        <a href="https://github.com/{REPO}" class="hide-sm">GitHub</a>
+        <a href="#install">Install</a>
+        <button class="tog" type="button" id="theme" aria-label="Switch theme">
+          {icon("sun", "i-sun")}{icon("moon", "i-moon")}
+        </button>
+      </nav>
+    </div>
   </div>
 </header>
 
 <main id="top">
 
-<div class="hero">
-  <div class="wrap">
-    <span class="eyebrow up">{icon("briefcase")}Works with any job link</span>
+<div class="field">
+  <div class="wrap hero">
+    <span class="eyebrow glass up">{icon("briefcase")}Works with any job link</span>
     <h1 class="up">{headline}</h1>
     <p class="lede up">{e(data.SUB)}</p>
     <div class="cta up">
       <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
-      <a class="btn btn-quiet" href="#how">See how it works</a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
     </div>
     <p class="cta-note up">Free. No API key. Nothing to install.</p>
 
+    <div class="boards up">
+      <p>Paste a link from</p>
+      <div class="board-row stagger">{boards}</div>
+    </div>
+  </div>
+
+  <div class="wrap proof-out">
     <div class="proof up">
-      <div class="proof-head">{icon("folder-simple")}
-        2026-09-24-acme-senior-data-engineer</div>
-      <div class="proof-body">
-        <div>
-          <h3>What it caught</h3>
-          <p class="claim">{e(data.FLAG["claim"])}</p>
-          {findings}
-        </div>
-        <div>
-          <h3>How you actually match</h3>
-          <div class="score">
-            <div>
-              <div class="score-row">
-                <span class="score-label">Backed by your CV</span>
-                <span class="score-num"
-                  data-count="{fit['evidenced']}">0<small>/{fit['of']}</small></span>
-              </div>
-              <div class="score-bar flat"
-                   data-fill="{round(100 * fit['evidenced'] / fit['of'])}"><i></i></div>
-              <p class="score-note">A fact about you. Tailoring cannot move it.</p>
+    <div class="proof-head">{icon("folder-simple")}
+      2026-09-24-acme-senior-data-engineer</div>
+    <div class="proof-body">
+      <div>
+        <h3>What it caught</h3>
+        <p class="claim">{e(data.FLAG["claim"])}</p>
+        {findings}
+      </div>
+      <div>
+        <h3>How you actually match</h3>
+        <div class="score">
+          <div>
+            <div class="score-row">
+              <span class="score-label">Backed by your CV</span>
+              <span class="score-num"
+                data-count="{fit['evidenced']}">0<small>/{fit['of']}</small></span>
             </div>
-            <div>
-              <div class="score-row">
-                <span class="score-label">Seen in the first screenful</span>
-                <span class="score-num"
-                  data-count="{fit['after']}">0<small>/{fit['backed']}</small></span>
-                <span class="score-move">+{fit['after'] - fit['before']}</span>
-              </div>
-              <div class="score-bar"
-                   data-fill="{round(100 * fit['after'] / fit['backed'])}"><i></i></div>
-              <p class="score-note">This is the one tailoring is for.</p>
-            </div>
+            <div class="score-bar flat"
+                 data-fill="{round(100 * fit['evidenced'] / fit['of'])}"><i></i></div>
+            <p class="score-note">A fact about you. Tailoring cannot move it.</p>
           </div>
+          <div>
+            <div class="score-row">
+              <span class="score-label">Seen in the first screenful</span>
+              <span class="score-num"
+                data-count="{fit['after']}">0<small>/{fit['backed']}</small></span>
+              <span class="score-move">+{fit['after'] - fit['before']}</span>
+            </div>
+            <div class="score-bar"
+                 data-fill="{round(100 * fit['after'] / fit['backed'])}"><i></i></div>
+            <p class="score-note">This is the one tailoring is for.</p>
+          </div>
+        </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="boards">
-  <div class="wrap">
-    <p class="up">Paste a link from</p>
-    <div class="board-row stagger">{boards}</div>
   </div>
 </div>
 
@@ -362,7 +364,7 @@ def build():
        that part stays yours.</p>
     <div class="cta">
       <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
-      <a class="btn btn-quiet" href="https://github.com/{REPO}">Read the source</a>
+      <a class="btn btn-ghost" href="https://github.com/{REPO}">Read the source</a>
     </div>
   </div>
 </div>

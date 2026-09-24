@@ -33,6 +33,18 @@
   --accent:      #12664a;
   --accent-deep: #0c4a35;
   --accent-wash: #e6f1ec;
+
+  /* The hero sits on a colour field rather than on paper. Both ends are dark
+     enough that white body text clears AA on the brightest point of the
+     highlight - 5.9:1 - which is the constraint that picked them. */
+  --field-base: #093d2b;
+  --field-lift: #14724f;
+  --on-field:      #ffffff;
+  --on-field-soft: rgba(255, 255, 255, .78);
+  --on-field-dim:  rgba(255, 255, 255, .58);
+  --glass:        rgba(255, 255, 255, .13);
+  --glass-hi:     rgba(255, 255, 255, .20);
+  --glass-edge:   rgba(255, 255, 255, .24);
   --flag:        #a63d19;
   --flag-wash:   #fdeee6;
 
@@ -49,6 +61,7 @@
   --page: 1120px;
   --lift: 0 1px 2px rgba(18, 22, 26, .04), 0 12px 32px -16px rgba(18, 22, 26, .16);
   --lift-hi: 0 1px 2px rgba(18, 22, 26, .05), 0 28px 60px -28px rgba(18, 22, 26, .28);
+  --lift-float: 0 2px 4px rgba(6, 30, 22, .10), 0 30px 70px -24px rgba(6, 30, 22, .45);
 
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
@@ -61,8 +74,10 @@
     --rule: #252b2d; --rule-soft: #1d2224;
     --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
     --flag: #ef9b6a; --flag-wash: #2b1a11;
+    --field-base: #061f16; --field-lift: #0d5238;
     --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
     --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
+    --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
   }
 }
 :root[data-theme="dark"] {
@@ -72,8 +87,10 @@
   --rule: #252b2d; --rule-soft: #1d2224;
   --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
   --flag: #ef9b6a; --flag-wash: #2b1a11;
+  --field-base: #061f16; --field-lift: #0d5238;
   --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
   --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
+  --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
 }
 
 * { box-sizing: border-box; }
@@ -112,37 +129,96 @@ svg { display: block; }
   fill: currentColor; stroke: none;
 }
 
+/* --- the field -----------------------------------------------------------
+   The hero sits on a saturated colour field instead of on paper, and the
+   glass in this file is only ever over that field. Frosting a card that sits
+   on a flat background frosts nothing - it is just a grey box with a blur tax.
+   ------------------------------------------------------------------------ */
+
+.field {
+  position: relative;
+  /* Three overlapping washes rather than one top-down ramp: a single radial
+     from the top edge reads as a band, and the seam where it runs out is
+     visible as a horizontal line. */
+  background:
+    radial-gradient(70% 55% at 22% 12%, rgba(255, 255, 255, .10), transparent 60%),
+    radial-gradient(85% 70% at 72% 8%, var(--field-lift), transparent 58%),
+    radial-gradient(120% 90% at 50% 28%, var(--field-lift), transparent 72%),
+    var(--field-base);
+  color: var(--on-field);
+  padding: 118px 0 96px;
+  overflow: hidden;
+}
+@media (max-width: 720px) { .field { padding: 104px 0 72px; } }
+
+/* Frosted, with somewhere to fall back to. `backdrop-filter` is unsupported
+   in a few places and switched off by people who asked for less transparency;
+   both get a solid tint instead of an invisible element. */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: rgba(255, 255, 255, .17); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background: color-mix(in srgb, var(--field-base) 72%, #fff);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
 /* --- bar ---------------------------------------------------------------- */
+/* A pill floating over the page rather than a band stuck to its top edge. */
 
 .bar {
-  position: sticky; top: 0; z-index: 60;
-  background: color-mix(in srgb, var(--bone) 84%, transparent);
-  backdrop-filter: saturate(180%) blur(14px);
-  border-bottom: 1px solid transparent;
-  transition: border-color .25s var(--ease);
+  position: fixed; top: 14px; left: 0; right: 0; z-index: 60;
+  pointer-events: none;
 }
-.bar.stuck { border-bottom-color: var(--rule); }
-.bar .wrap { display: flex; align-items: center; gap: 16px; height: 66px; }
+.bar .wrap { pointer-events: auto; }
+.bar .pill {
+  display: flex; align-items: center; gap: 16px;
+  height: 58px; padding: 0 10px 0 20px; border-radius: 999px;
+  transition: background .3s var(--ease), border-color .3s var(--ease),
+              box-shadow .3s var(--ease), color .3s var(--ease);
+}
+/* Once the field has scrolled by there is nothing left to frost, so the pill
+   becomes an ordinary solid one. */
+.bar.stuck .pill {
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  border-color: var(--rule);
+  color: var(--ink);
+  box-shadow: var(--lift);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+}
 
 .mark { display: flex; align-items: center; gap: 10px; font-weight: 620;
-        font-size: 17px; letter-spacing: -.02em; color: var(--ink); }
+        font-size: 17px; letter-spacing: -.02em; color: inherit; }
 .mark:hover { text-decoration: none; }
-.mark .dot {
-  width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
-  flex: none; box-shadow: 0 0 0 4px var(--accent-wash);
-}
-.bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.bar nav a { color: var(--ink-soft); font-size: 15px; padding: 8px 12px;
-             border-radius: var(--r-sm); }
-.bar nav a:hover { color: var(--ink); background: var(--rule-soft);
-                   text-decoration: none; }
-@media (max-width: 720px) { .bar nav a.hide-sm { display: none; } }
+.mark .dot { width: 10px; height: 10px; border-radius: 50%; flex: none;
+             background: currentColor; opacity: .85; }
+.bar.stuck .mark .dot { background: var(--accent); opacity: 1; }
 
-.tog { width: 36px; height: 36px; display: grid; place-items: center;
-       border: 1px solid var(--rule); border-radius: var(--r-sm);
-       background: var(--paper); color: var(--ink-soft); cursor: pointer;
-       transition: color .15s, border-color .15s; }
-.tog:hover { color: var(--ink); border-color: var(--ink-faint); }
+.bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.bar nav a { color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
+             border-radius: 999px; transition: opacity .18s, background .18s; }
+.bar nav a:hover { opacity: 1; background: rgba(255, 255, 255, .12);
+                   text-decoration: none; }
+.bar.stuck nav a:hover { background: var(--rule-soft); }
+@media (max-width: 760px) { .bar nav a.hide-sm { display: none; } }
+
+.tog { width: 38px; height: 38px; display: grid; place-items: center;
+       border-radius: 999px; cursor: pointer; color: inherit;
+       background: rgba(255, 255, 255, .14);
+       border: 1px solid rgba(255, 255, 255, .20);
+       transition: background .18s, border-color .18s; }
+.tog:hover { background: rgba(255, 255, 255, .24); }
+.bar.stuck .tog { background: var(--paper); border-color: var(--rule);
+                  color: var(--ink-soft); }
+.bar.stuck .tog:hover { border-color: var(--ink-faint); color: var(--ink); }
 .tog .ico { width: 17px; height: 17px; }
 :root[data-theme="dark"] .i-sun, .i-moon { display: none; }
 :root[data-theme="dark"] .i-moon { display: block; }
@@ -156,71 +232,87 @@ svg { display: block; }
 .btn {
   display: inline-flex; align-items: center; gap: 9px;
   font: inherit; font-size: 16px; font-weight: 560;
-  padding: 13px 22px; border-radius: 999px;
+  padding: 14px 26px; border-radius: 999px;
   border: 1px solid transparent; cursor: pointer; white-space: nowrap;
-  transition: transform .14s var(--ease), background .18s, border-color .18s,
-              box-shadow .18s;
+  transition: transform .14s var(--ease), background .2s, border-color .2s,
+              box-shadow .2s, color .2s;
 }
-.btn:hover { text-decoration: none; transform: translateY(-1px); }
+.btn:hover { text-decoration: none; transform: translateY(-2px); }
 .btn:active { transform: translateY(0); }
 .btn .ico { width: 18px; height: 18px; }
+
+/* Paper is the default and the field is the exception, not the other way
+   round: most of this page is on paper, and a button that forgets to opt in
+   should look ordinary rather than look like nothing. */
 .btn-go { background: var(--accent); color: #fff; box-shadow: var(--lift); }
 .btn-go:hover { background: var(--accent-deep); box-shadow: var(--lift-hi); }
 :root[data-theme="dark"] .btn-go { color: #052018; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .btn-go { color: #052018; }
 }
-.btn-quiet { background: var(--paper); border-color: var(--rule); color: var(--ink); }
-.btn-quiet:hover { border-color: var(--ink-faint); }
+.btn-ghost { background: var(--paper); color: var(--ink); border-color: var(--rule); }
+.btn-ghost:hover { border-color: var(--ink-faint); }
+
+/* On the field: solid white against the colour, and a glass ghost beside it. */
+.field .btn-go { background: #fff; color: var(--field-base);
+                 box-shadow: var(--lift-float); }
+.field .btn-go:hover { background: #fff;
+                       box-shadow: 0 4px 8px rgba(6, 30, 22, .14),
+                                   0 34px 80px -26px rgba(6, 30, 22, .55); }
+.field .btn-ghost { background: rgba(255, 255, 255, .12); color: #fff;
+                    border-color: rgba(255, 255, 255, .34);
+                    -webkit-backdrop-filter: blur(14px);
+                    backdrop-filter: blur(14px); }
+.field .btn-ghost:hover { background: rgba(255, 255, 255, .22); }
 
 /* --- hero --------------------------------------------------------------- */
+/* Centred, because the claim is the whole point of the screen and there is
+   nothing to sit beside it. */
 
-.hero { padding: clamp(56px, 11vh, 104px) 0 0; position: relative; }
-.hero .wrap { position: relative; z-index: 1; }
-
-/* One soft wash behind the headline. No mesh, no aurora. */
-.hero::before {
-  content: ""; position: absolute; inset: -20% -10% 40%;
-  background: radial-gradient(60% 50% at 30% 30%, var(--accent-wash), transparent 70%);
-  opacity: .8; pointer-events: none;
-}
+.hero { text-align: center; }
 
 .eyebrow {
   display: inline-flex; align-items: center; gap: 9px;
-  font-size: 13px; font-weight: 560; letter-spacing: .02em;
-  color: var(--accent); background: var(--paper);
-  border: 1px solid var(--rule); border-radius: 999px;
-  padding: 7px 15px 7px 11px; margin-bottom: 28px; box-shadow: var(--lift);
+  font-size: 13px; font-weight: 560; letter-spacing: .04em;
+  color: #fff; border-radius: 999px; padding: 8px 17px 8px 13px;
+  margin-bottom: 30px;
 }
 .eyebrow .ico { width: 15px; height: 15px; }
 
-h1 { font-size: clamp(2.6rem, 6.6vw, 4.6rem); letter-spacing: -.038em; }
+h1 { font-size: clamp(2.7rem, 7.4vw, 5.2rem); letter-spacing: -.042em;
+     line-height: .97; }
 h1 span { display: block; }
 h1 em { font-style: italic; font-weight: 620; }
 
-.lede { margin-top: 26px; font-size: clamp(1.02rem, 1.7vw, 1.18rem);
-        color: var(--ink-soft); max-width: 46ch; line-height: 1.58; }
+.lede { margin: 28px auto 0; font-size: clamp(1.04rem, 1.7vw, 1.2rem);
+        color: var(--on-field-soft); max-width: 44ch; line-height: 1.55; }
 
-.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
-.cta-note { margin-top: 16px; font-size: 14px; color: var(--ink-faint); }
+.cta { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 36px;
+       justify-content: center; }
+.cta-note { margin-top: 20px; font-size: 14px; color: var(--on-field-dim); }
 
 /* --- the proof card ----------------------------------------------------- */
+/* Lifted out of the field and over its bottom edge, so the page reads as one
+   object rather than two stacked blocks. */
+
+/* On the field, not across its edge. A boundary running through the middle of
+   a sentence looks like a rendering fault rather than a layered composition. */
+.proof-out { margin-top: 64px; position: relative; z-index: 2; }
 
 .proof {
-  margin-top: 64px; background: var(--paper);
-  border: 1px solid var(--rule); border-radius: var(--r-xl);
-  box-shadow: var(--lift-hi); overflow: hidden;
+  background: var(--paper); border: 1px solid var(--rule);
+  border-radius: var(--r-xl); box-shadow: var(--lift-float); overflow: hidden;
 }
 .proof-head {
   display: flex; align-items: center; gap: 10px;
-  padding: 15px 22px; border-bottom: 1px solid var(--rule-soft);
+  padding: 16px 24px; border-bottom: 1px solid var(--rule-soft);
   background: color-mix(in srgb, var(--sunk) 60%, var(--paper));
   font-size: 13.5px; color: var(--ink-faint);
 }
 .proof-head .ico { width: 16px; height: 16px; }
 .proof-body { display: grid; grid-template-columns: 1fr 1fr; }
 @media (max-width: 800px) { .proof-body { grid-template-columns: 1fr; } }
-.proof-body > div { padding: 26px 28px 30px; }
+.proof-body > div { padding: 28px 30px 32px; }
 .proof-body > div + div { border-left: 1px solid var(--rule-soft); }
 @media (max-width: 800px) {
   .proof-body > div + div { border-left: 0; border-top: 1px solid var(--rule-soft); }
@@ -233,19 +325,16 @@ h1 em { font-style: italic; font-weight: 620; }
   padding: 14px 16px; border-radius: var(--r-md);
   background: var(--sunk); border: 1px solid var(--rule-soft);
 }
-.finding {
-  display: flex; gap: 10px; align-items: flex-start;
-  margin-top: 12px; font-size: 14px; color: var(--flag);
-}
+.finding { display: flex; gap: 10px; align-items: flex-start;
+           margin-top: 12px; font-size: 14px; color: var(--flag); }
 .finding .ico { width: 17px; height: 17px; flex: none; margin-top: 1px; }
-.finding code { color: inherit; font-weight: 500; }
 
-/* the two numbers */
 .score { display: grid; gap: 18px; }
 .score-row { display: flex; align-items: baseline; gap: 14px; }
 .score-label { font-size: 14px; color: var(--ink-soft); flex: 1; min-width: 0; }
 .score-num { font-family: var(--mono); font-size: 26px; font-weight: 500;
-             letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+             letter-spacing: -.02em; color: var(--ink);
+             font-variant-numeric: tabular-nums; }
 .score-num small { font-size: 15px; color: var(--ink-faint); }
 .score-move { font-family: var(--mono); font-size: 14px; color: var(--accent);
               font-weight: 500; }
@@ -258,16 +347,19 @@ h1 em { font-style: italic; font-weight: 620; }
 .score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
 /* --- boards ------------------------------------------------------------- */
+/* Glass chips on the field, which is the one place frosting them means
+   anything. */
 
-.boards { padding: 74px 0 0; }
-.boards p { text-align: center; font-size: 14px; color: var(--ink-faint);
-            margin-bottom: 26px; }
+.boards { margin-top: 56px; }
+.boards p { font-size: 13.5px; color: var(--on-field-dim); margin-bottom: 18px; }
 .board-row { display: flex; flex-wrap: wrap; justify-content: center;
-             align-items: center; gap: 14px 52px; }
-.board { display: flex; align-items: center; gap: 11px; color: var(--ink-soft); }
-.board svg { width: 24px; height: 24px; fill: currentColor; }
-.board span { font-size: 15px; font-weight: 500; letter-spacing: -.01em; }
-.board-more { color: var(--ink-faint); font-size: 15px; }
+             align-items: center; gap: 10px; }
+.board { display: inline-flex; align-items: center; gap: 9px;
+         padding: 9px 16px 9px 13px; border-radius: 999px;
+         color: #fff; font-size: 14.5px; font-weight: 500;
+         letter-spacing: -.01em; }
+.board svg { width: 19px; height: 19px; fill: currentColor; opacity: .92; }
+.board-more { color: var(--on-field-dim); font-size: 14.5px; padding-left: 6px; }
 
 /* --- sections ----------------------------------------------------------- */
 
@@ -530,76 +622,78 @@ footer nav a { color: var(--ink-soft); }
 
 <header class="bar">
   <div class="wrap">
-    <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
-    <nav>
-      <a href="#how" class="hide-sm">How it works</a>
-      <a href="#skills" class="hide-sm">Skills</a>
-      <a href="https://github.com/mohamedaminehamdi/job-hunter" class="hide-sm">GitHub</a>
-      <a href="#install">Install</a>
-      <button class="tog" type="button" id="theme" aria-label="Switch theme">
-        <svg class="ico i-sun" viewBox="0 0 256 256" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg><svg class="ico i-moon" viewBox="0 0 256 256" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg>
-      </button>
-    </nav>
+    <div class="pill glass">
+      <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
+      <nav>
+        <a href="#how" class="hide-sm">How it works</a>
+        <a href="#skills" class="hide-sm">Skills</a>
+        <a href="https://github.com/mohamedaminehamdi/job-hunter" class="hide-sm">GitHub</a>
+        <a href="#install">Install</a>
+        <button class="tog" type="button" id="theme" aria-label="Switch theme">
+          <svg class="ico i-sun" viewBox="0 0 256 256" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg><svg class="ico i-moon" viewBox="0 0 256 256" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg>
+        </button>
+      </nav>
+    </div>
   </div>
 </header>
 
 <main id="top">
 
-<div class="hero">
-  <div class="wrap">
-    <span class="eyebrow up"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>Works with any job link</span>
+<div class="field">
+  <div class="wrap hero">
+    <span class="eyebrow glass up"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>Works with any job link</span>
     <h1 class="up"><span>Apply for jobs without</span><span>claiming things you</span><span>haven&#x27;t done.</span></h1>
     <p class="lede up">Drop in a job link. Your coding agent reads the posting, rebuilds your CV from your own history, and flags anything it can&#x27;t back.</p>
     <div class="cta up">
       <a class="btn btn-go" href="#install">Install<svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
-      <a class="btn btn-quiet" href="#how">See how it works</a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
     </div>
     <p class="cta-note up">Free. No API key. Nothing to install.</p>
 
+    <div class="boards up">
+      <p>Paste a link from</p>
+      <div class="board-row stagger"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span><span class="board-more">…or any job URL</span></div>
+    </div>
+  </div>
+
+  <div class="wrap proof-out">
     <div class="proof up">
-      <div class="proof-head"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z"/></svg>
-        2026-09-24-acme-senior-data-engineer</div>
-      <div class="proof-body">
-        <div>
-          <h3>What it caught</h3>
-          <p class="claim">Led the OpenStack migration, cutting costs 73%.</p>
-          <p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>The figure &#x27;73%&#x27; is not in your profile.</span></p><p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>&#x27;OpenStack&#x27; does not appear in your profile.</span></p>
-        </div>
-        <div>
-          <h3>How you actually match</h3>
-          <div class="score">
-            <div>
-              <div class="score-row">
-                <span class="score-label">Backed by your CV</span>
-                <span class="score-num"
-                  data-count="4">0<small>/9</small></span>
-              </div>
-              <div class="score-bar flat"
-                   data-fill="44"><i></i></div>
-              <p class="score-note">A fact about you. Tailoring cannot move it.</p>
+    <div class="proof-head"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z"/></svg>
+      2026-09-24-acme-senior-data-engineer</div>
+    <div class="proof-body">
+      <div>
+        <h3>What it caught</h3>
+        <p class="claim">Led the OpenStack migration, cutting costs 73%.</p>
+        <p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>The figure &#x27;73%&#x27; is not in your profile.</span></p><p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>&#x27;OpenStack&#x27; does not appear in your profile.</span></p>
+      </div>
+      <div>
+        <h3>How you actually match</h3>
+        <div class="score">
+          <div>
+            <div class="score-row">
+              <span class="score-label">Backed by your CV</span>
+              <span class="score-num"
+                data-count="4">0<small>/9</small></span>
             </div>
-            <div>
-              <div class="score-row">
-                <span class="score-label">Seen in the first screenful</span>
-                <span class="score-num"
-                  data-count="4">0<small>/4</small></span>
-                <span class="score-move">+2</span>
-              </div>
-              <div class="score-bar"
-                   data-fill="100"><i></i></div>
-              <p class="score-note">This is the one tailoring is for.</p>
-            </div>
+            <div class="score-bar flat"
+                 data-fill="44"><i></i></div>
+            <p class="score-note">A fact about you. Tailoring cannot move it.</p>
           </div>
+          <div>
+            <div class="score-row">
+              <span class="score-label">Seen in the first screenful</span>
+              <span class="score-num"
+                data-count="4">0<small>/4</small></span>
+              <span class="score-move">+2</span>
+            </div>
+            <div class="score-bar"
+                 data-fill="100"><i></i></div>
+            <p class="score-note">This is the one tailoring is for.</p>
+          </div>
+        </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="boards">
-  <div class="wrap">
-    <p class="up">Paste a link from</p>
-    <div class="board-row stagger"><span class="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span><span class="board-more">…or any job URL</span></div>
   </div>
 </div>
 
@@ -643,7 +737,7 @@ footer nav a { color: var(--ink-soft); }
         <div class="panel-empty" id="panel-empty">
           <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/></svg><p>Choose your agent on the left.</p>
         </div>
-        <div class="agent-panel" data-for="claude" hidden><div class="panel-name">Claude Code</div><div class="route"><h3><span class="num">1</span>Inside Claude Code<span class="best">easiest</span></h3><p>Paste these at the prompt. You get all eleven, and updates with one command.</p><div class="cmd"><code>/plugin marketplace add mohamedaminehamdi/job-hunter</code><button class="copy" type="button" data-copy="/plugin marketplace add mohamedaminehamdi/job-hunter" aria-label="Copy marketplace command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div><div class="cmd"><code>/plugin install jobhunt@jobhunt</code><button class="copy" type="button" data-copy="/plugin install jobhunt@jobhunt" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>One line in your terminal</h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">3</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.claude/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="codex" hidden><div class="panel-name">OpenAI Codex</div><div class="route"><h3><span class="num">1</span>Inside OpenAI Codex<span class="best">easiest</span></h3><p>Paste these at the prompt. You get all eleven, and updates with one command.</p><div class="cmd"><code>/plugin marketplace add mohamedaminehamdi/job-hunter</code><button class="copy" type="button" data-copy="/plugin marketplace add mohamedaminehamdi/job-hunter" aria-label="Copy marketplace command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div><div class="cmd"><code>/plugin install jobhunt@jobhunt</code><button class="copy" type="button" data-copy="/plugin install jobhunt@jobhunt" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>One line in your terminal</h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">3</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.codex/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="gemini" hidden><div class="panel-name">Gemini CLI</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.gemini/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="cursor" hidden><div class="panel-name">Cursor</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cursor</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cursor" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.cursor/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Cursor reads skills from the folder you have open, not from your home directory. Keep one folder for your job search and run it there.</div></div><div class="agent-panel" data-for="cline" hidden><div class="panel-name">Cline</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cline</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cline" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.cline/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Cline reads skills from the folder you have open, so run this where you want to work.</div></div><div class="agent-panel" data-for="windsurf" hidden><div class="panel-name">Windsurf</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .windsurf</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .windsurf" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.windsurf/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Windsurf reads skills from the folder you have open, so run this where you want to work.</div></div><div class="agent-panel" data-for="other" hidden><div class="panel-name">Something else</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in wherever your agent reads skills from — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-quiet" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Any agent that reads a folder of skills will work — these are plain markdown and plain Python. Download them and put them wherever yours looks.</div></div>
+        <div class="agent-panel" data-for="claude" hidden><div class="panel-name">Claude Code</div><div class="route"><h3><span class="num">1</span>Inside Claude Code<span class="best">easiest</span></h3><p>Paste these at the prompt. You get all eleven, and updates with one command.</p><div class="cmd"><code>/plugin marketplace add mohamedaminehamdi/job-hunter</code><button class="copy" type="button" data-copy="/plugin marketplace add mohamedaminehamdi/job-hunter" aria-label="Copy marketplace command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div><div class="cmd"><code>/plugin install jobhunt@jobhunt</code><button class="copy" type="button" data-copy="/plugin install jobhunt@jobhunt" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>One line in your terminal</h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">3</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.claude/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="codex" hidden><div class="panel-name">OpenAI Codex</div><div class="route"><h3><span class="num">1</span>Inside OpenAI Codex<span class="best">easiest</span></h3><p>Paste these at the prompt. You get all eleven, and updates with one command.</p><div class="cmd"><code>/plugin marketplace add mohamedaminehamdi/job-hunter</code><button class="copy" type="button" data-copy="/plugin marketplace add mohamedaminehamdi/job-hunter" aria-label="Copy marketplace command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div><div class="cmd"><code>/plugin install jobhunt@jobhunt</code><button class="copy" type="button" data-copy="/plugin install jobhunt@jobhunt" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>One line in your terminal</h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">3</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.codex/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="gemini" hidden><div class="panel-name">Gemini CLI</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>~/.gemini/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Installs once, works in every project.</div></div><div class="agent-panel" data-for="cursor" hidden><div class="panel-name">Cursor</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cursor</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cursor" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.cursor/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Cursor reads skills from the folder you have open, not from your home directory. Keep one folder for your job search and run it there.</div></div><div class="agent-panel" data-for="cline" hidden><div class="panel-name">Cline</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cline</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cline" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.cline/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Cline reads skills from the folder you have open, so run this where you want to work.</div></div><div class="agent-panel" data-for="windsurf" hidden><div class="panel-name">Windsurf</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in. Run it in the folder you want to use for your job search.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .windsurf</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .windsurf" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in <code>.windsurf/skills/</code> — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note warn"><b>Per project, not per user.</b> Windsurf reads skills from the folder you have open, so run this where you want to work.</div></div><div class="agent-panel" data-for="other" hidden><div class="panel-name">Something else</div><div class="route"><h3><span class="num">1</span>One line in your terminal<span class="best">easiest</span></h3><p>macOS and Linux. It finds your agent and copies the skills in.</p><div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh" aria-label="Copy install command"><svg class="ico i-copy" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg><svg class="ico i-done" viewBox="0 0 256 256" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg><span>Copy</span></button></div></div><div class="route"><h3><span class="num">2</span>Download a folder</h3><p>No terminal at all. Unzip it and put the folder in wherever your agent reads skills from — make that directory if it is not there yet.</p><p style="margin-top:14px"><a class="btn btn-ghost" href="download/jobhunt-all.zip" download><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg>All eleven skills</a></p></div><div class="note">Any agent that reads a folder of skills will work — these are plain markdown and plain Python. Download them and put them wherever yours looks.</div></div>
       </div>
     </div>
   </div>
@@ -703,7 +797,7 @@ footer nav a { color: var(--ink-soft); }
        that part stays yours.</p>
     <div class="cta">
       <a class="btn btn-go" href="#install">Install<svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
-      <a class="btn btn-quiet" href="https://github.com/mohamedaminehamdi/job-hunter">Read the source</a>
+      <a class="btn btn-ghost" href="https://github.com/mohamedaminehamdi/job-hunter">Read the source</a>
     </div>
   </div>
 </div>
