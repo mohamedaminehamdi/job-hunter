@@ -15,9 +15,24 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-#: The repo root: three levels up from this file (src/job_hunter/paths.py).
+
+def _find_root() -> Path:
+    """The repo root, found by looking for pyproject.toml rather than counting
+    directories.
+
+    Counting broke the moment the package moved up a level: `parents[2]` went
+    from the repo to the folder above it, and every test overrides this with
+    JOB_HUNTER_HOME so nothing noticed. A marker cannot drift that way.
+    """
+    here = Path(__file__).resolve()
+    for candidate in here.parents:
+        if (candidate / "pyproject.toml").exists():
+            return candidate
+    return here.parents[1]
+
+
 #: `JOB_HUNTER_HOME` overrides it, which is what the tests use.
-ROOT = Path(os.environ.get("JOB_HUNTER_HOME") or Path(__file__).resolve().parents[2])
+ROOT = Path(os.environ.get("JOB_HUNTER_HOME") or _find_root())
 
 CV_DIR = "cv"
 RUNS_DIR = "runs"
@@ -27,7 +42,7 @@ LOG_NAME = "log.md"
 
 def root() -> Path:
     """Re-read each call so a test can point the whole tool somewhere else."""
-    return Path(os.environ.get("JOB_HUNTER_HOME") or ROOT)
+    return Path(os.environ.get("JOB_HUNTER_HOME") or _find_root())
 
 
 def cv_dir(base: Path | None = None) -> Path:

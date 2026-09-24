@@ -248,3 +248,12 @@ def test_the_cv_folders_own_readme_is_not_a_cv(repo, capsys):
     (repo / paths.CV_DIR / "README.md").write_text("Put your CV here")
     main(["doctor"])
     assert read(capsys)["cv_files"] == []
+
+
+def test_the_repo_root_is_found_by_its_marker(monkeypatch):
+    """Counting parent directories broke the moment the package moved a level
+    up, and every other test overrides the root so nothing noticed."""
+    monkeypatch.delenv("JOB_HUNTER_HOME", raising=False)
+    found = paths.root()
+    assert (found / "pyproject.toml").exists()
+    assert (found / "job_hunter").is_dir()
