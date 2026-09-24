@@ -22,7 +22,9 @@ Layout, in dependency order:
 
 from __future__ import annotations
 
+import copy
 import dataclasses
+import hashlib
 import html
 import json
 import os
@@ -33,7 +35,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass, field, fields, replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 VERSION = "1.0.0"
@@ -41,7 +43,7 @@ VERSION = "1.0.0"
 #: Every file carries it, and reading a higher one is an error with a fix.
 SCHEMA = 1
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def now() -> str:
@@ -143,6 +145,21 @@ def build(cls, raw, **overrides):
 def asdict(obj):
     """A dataclass as plain data, ready for JSON or YAML."""
     return dataclasses.asdict(obj)
+
+
+def fieldnames(cls):
+    """The field names of a record, for checking what a model sent back."""
+    return {f.name for f in fields(cls)}
+
+
+def clone(obj, **changes):
+    """A deep copy of a record, with `changes` applied.
+
+    `dataclasses.replace` is shallow, so a copy made with it shares its lists
+    with the original and mutating one mutates both. Everything here nests, so
+    the deep copy is the right default and the shallow one is not offered.
+    """
+    return replace(copy.deepcopy(obj), **changes) if changes else copy.deepcopy(obj)
 
 
 # --- YAML, the part of it anyone writes by hand -----------------------------
@@ -764,3 +781,2168 @@ def save(obj, path):
     tmp.write_text(body + "\n", encoding="utf-8")
     tmp.replace(path)
     return path
+
+
+# --- guard ------------------------------------------------------------------
+#
+# The structural half of the honesty rule is handled by construction: generators
+# return indices into the profile, so employers, dates and degrees are copied and
+# cannot be invented. What a model *can* still slip in is free text - a figure or
+# a tool name inside an otherwise real bullet - and that is what this catches.
+#
+# The check is lexical, not semantic. It compares the words and figures in the
+# output against the words and figures in the profile. It therefore misses a
+# plausible-sounding rewording, and occasionally flags something legitimate. It
+# is a review aid: findings are warnings addressed to the person about to send
+# the document, never a silent rewrite.
+
+#: A word, keeping the punctuation that belongs inside technical names: C++, .NET,
+#: CI/CD. `[^\W\d_]` is "a Unicode letter", so an accented word survives whole -
+#: matching on `A-Za-z` cut "expérience" into "exp" and "rience" and then showed
+#: the user the fragment.
+_LETTERISH = r"(?:[^\W_]|[+#])"
+_WORD = re.compile(r"[^\W\d_]" + _LETTERISH + r"*(?:[./-]" + _LETTERISH + r"+)*")
+
+#: A figure worth checking: 35%, 1,200, 3+, 4.5, 60k, and the French "25 000".
+_FIGURE = re.compile(r"\d{1,3}(?:[   ]\d{3})+|\d[\d,.]*\s?%?\+?[kKmM]?")
+#: Sentence boundaries, so the capitalised first word of a sentence is not read
+#: as a proper noun. "Led migration to Kubernetes" should only ever flag Kubernetes.
+_SENTENCE = re.compile(r"(?<=[.!?;:])\s+|\n+|^", re.MULTILINE)
+
+#: Languages whose capitalisation this can actually read. The proper-noun check
+#: assumes a capitalised word mid-sentence is a name; German capitalises every
+#: noun, so there it reports the entire letter. Rather than bury a correct
+#: document under findings, it says plainly that it could not check the wording.
+CHECKED_LANGUAGES = frozenset({"en", "fr"})
+
+#: Capitalised mid-sentence words that are not claims about the candidate.
+_HARMLESS = frozenset("""
+i a an the and or but of for to in on at by with from as into over under
+i'm i've my me we our their his her its this that these those
+january february march april may june july august september october november december
+monday tuesday wednesday thursday friday saturday sunday
+je tu il elle on nous vous ils elles mon ma mes notre nos votre vos leur leurs
+le la les un une des du au aux et ou mais donc car dans sur avec pour par chez
+ce cet cette ces celui ceux qui que dont ainsi
+janvier février mars avril mai juin juillet août septembre octobre novembre décembre
+lundi mardi mercredi jeudi vendredi samedi dimanche
+""".split())
+
+
+def norm(word):
+    """Fold a word to its comparison form: lowercase, no possessive, no plural 's'."""
+    word = word.lower().strip(".,;:!?()[]{}\"'’«»")
+    if word.endswith("'s"):
+        word = word[:-2]
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
+
+
+def words(text):
+    """Every word in `text`, in order, as written.
+
+    Public because `fit` reads requirements with it. One tokeniser in this repo
+    and not two: this one already keeps C++, CI/CD and .NET whole and survives
+    accents, and that behaviour is tested here.
+    """
+    return [m.group() for m in _WORD.finditer(text)]
+
+
+def _digits(figure):
+    """Fold a figure to the digits of the number it denotes.
+
+    Locale-aware, because the same quantity is written `25,000` in English and
+    `25 000` or `25.000` in French, and a CV written in one language is regularly
+    quoted in a letter written in the other. Comparing the raw characters flagged
+    the candidate's own metric as unverified.
+    """
+    body = re.sub(r"[   ]", "", figure)
+    digits = re.sub(r"[^\d.,]", "", body)
+    if "." in digits and "," in digits:
+        # Whichever comes last is the decimal point; the other grouped thousands.
+        thousands = "," if digits.rfind(".") > digits.rfind(",") else "."
+        digits = digits.replace(thousands, "").replace(",", ".")
+    else:
+        sep = "." if "." in digits else ("," if "," in digits else "")
+        if sep:
+            # One separator, three digits behind it: it grouped thousands, not tenths.
+            head, _, tail = digits.rpartition(sep)
+            digits = (head + tail) if (len(tail) == 3 and head) else digits.replace(sep, ".")
+    return digits.rstrip(".")
+
+
+@dataclass(frozen=True)
+class Support:
+    """The vocabulary a generated document is allowed to draw on."""
+
+    terms: frozenset = frozenset()
+    figures: frozenset = frozenset()
+
+    def __or__(self, other):
+        return Support(self.terms | other.terms, self.figures | other.figures)
+
+    @classmethod
+    def of(cls, *sources):
+        """Build support from records, strings, or any mix of the two."""
+        body = "\n".join(_strings(source) for source in sources)
+        return cls(
+            terms=frozenset(norm(m.group()) for m in _WORD.finditer(body)),
+            figures=frozenset(
+                d for m in _FIGURE.finditer(body) if (d := _digits(m.group()))
+            ),
+        )
+
+    @classmethod
+    def wording_of(cls, *sources):
+        """Support for the words in `sources`, but not for their figures.
+
+        Naming a thing is not claiming it: an answer has to write "Workday" to
+        say it has never used Workday, and that honest no is the answer this
+        package exists to allow. A figure is an assertion wherever it appears,
+        so those are deliberately left unsupported.
+        """
+        return cls(terms=cls.of(*sources).terms)
+
+    def backs_term(self, word):
+        normalised = norm(word)
+        return not normalised or normalised in self.terms
+
+    def backs_figure(self, figure):
+        digits = _digits(figure)
+        return not digits or digits in self.figures
+
+
+def _strings(source):
+    """Every string inside a record, a list, or a string, flattened."""
+    if isinstance(source, str):
+        return source
+    if isinstance(source, Issue):
+        return ""  # diagnostics are not facts: a message must not become support
+    if dataclasses.is_dataclass(source):
+        return "\n".join(_strings(getattr(source, f.name)) for f in fields(source))
+    if isinstance(source, dict):
+        return "\n".join(_strings(item) for item in source.values())
+    if isinstance(source, (list, tuple, set, frozenset)):
+        return "\n".join(_strings(item) for item in source)
+    return ""
+
+
+#: Function words that make a passage English. Used to tell an English document
+#: apart from the posting it was written for - the tailorer writes a CV summary
+#: in English under a French posting, and that summary is checkable.
+_ENGLISH = frozenset("""
+the and of to in with for on at by from as is are was were be been has have had
+i my we our that this these those it its not but or into over under across
+""".split())
+
+
+def _looks_english(body):
+    found = [norm(m.group()) for m in _WORD.finditer(body)]
+    if len(found) < 8:  # too short to tell, and too short to be worth guessing
+        return False
+    return sum(word in _ENGLISH for word in found) / len(found) >= 0.10
+
+
+def reads(body, language=""):
+    """Whether the proper-noun check can read this passage's capitalisation.
+
+    Two signals, because neither alone is right. The posting's language is what
+    the letter and the answers are written in, by instruction - but not the CV
+    summary, which comes back in English however the posting was written. So an
+    unreadable posting language switches the check off only for text that does
+    not itself look English.
+
+    An unnamed language reads as yes: a posting whose language the parser could
+    not name is usually English, and a review aid that quietly switches itself
+    off is worse than one that occasionally over-reports.
+    """
+    if not language or language.strip().lower()[:2] in CHECKED_LANGUAGES:
+        return True
+    return _looks_english(body)
+
+
+def check(body, support, path, asked=None, language=""):
+    """Every claim in `body` that the support does not back.
+
+    `asked` is the vocabulary of a question being answered. Those words are
+    still unsupported - saying "yes, I have used X" must be flagged - but the
+    finding says so differently, because "remove it" is the wrong advice for a
+    word the answer cannot avoid writing.
+
+    `language` is the document's own language. Figures are checked whatever it
+    is; the wording check needs `CHECKED_LANGUAGES` to mean anything.
+    """
+    if not body or not body.strip():
+        return []
+
+    issues = []
+    for figure in sorted({m.group().strip() for m in _FIGURE.finditer(body)}):
+        if not support.backs_figure(figure):
+            issues.append(Issue(path, WARNING,
+                                f"The figure {figure!r} is not in your profile - "
+                                "check it before you send this."))
+
+    if not reads(body, language):
+        issues.append(Issue(path, WARNING,
+                            f"This is written in {language!r}, and the wording check only "
+                            "reads English and French - the figures above were checked, the "
+                            "words were not. Read it against your profile yourself."))
+        return issues
+
+    for term in sorted(_unsupported_terms(body, support)):
+        if asked is not None and asked.backs_term(term):
+            message = (f"{term!r} is the question's own term and is not in your profile - "
+                       "check the answer does not claim it.")
+        else:
+            message = (f"{term!r} does not appear in your profile. Remove it, or add it "
+                       "to your profile if it is true.")
+        issues.append(Issue(path, WARNING, message))
+    return issues
+
+
+def _unsupported_terms(body, support):
+    """Proper nouns and acronyms in the text that the profile never mentions.
+
+    Only words that carry a claim are considered: an acronym anywhere, or a
+    capitalised word that is not merely starting a sentence.
+    """
+    found = set()
+    for sentence in _SENTENCE.split(body):
+        if not sentence or not sentence.strip():
+            continue
+        seen = list(_WORD.finditer(sentence))
+        for position, match in enumerate(seen):
+            word = match.group()
+            if len(word) < 2 or norm(word) in _HARMLESS:
+                continue
+            acronym = word.isupper()
+            proper = word[0].isupper() and position > 0
+            if (acronym or proper) and not support.backs_term(word):
+                found.add(word)
+    return found
+
+
+def check_all(values, support, language=""):
+    """Run `check` over a mapping of path -> string or list of strings.
+
+    An unreadable language would otherwise repeat its one finding once per
+    paragraph, so it is said once for the whole document.
+    """
+    issues = []
+    for path, value in values.items():
+        if isinstance(value, str):
+            issues.extend(check(value, support, path, language=language))
+        elif isinstance(value, (list, tuple)):
+            for i, item in enumerate(value):
+                if isinstance(item, str):
+                    issues.extend(check(item, support, f"{path}[{i}]", language=language))
+    if not reads("\n".join(_strings(v) for v in values.values()), language):
+        said = next((i for i in issues if "wording check" in i.message), None)
+        issues = [i for i in issues if "wording check" not in i.message]
+        if said is not None:
+            issues.append(replace(said, path=next(iter(values), "text")))
+    return issues
+
+
+# --- fit --------------------------------------------------------------------
+#
+# Measuring one CV against one job, twice. Two numbers, because they answer
+# different questions and only one of them can move:
+#
+#   evidenced - of what the posting asks for, how much can the *profile* back?
+#               A fact about the candidate. Identical before and after tailoring,
+#               by construction: evidence is looked up in the profile, and
+#               rewriting a document cannot add to it.
+#   shown     - of what the profile can back, how much does the *document* put in
+#               front of a reader in the first screenful? This is the one
+#               tailoring moves, and it is what tailoring is for.
+#
+# Copying a requirement's words into a summary therefore earns nothing. It earns
+# a line in `parroting` instead, which is the tripwire for exactly that.
+#
+# No single 0-100 score, deliberately. One number invites optimising the number,
+# and optimising this one means parroting. Counts, named, disjoint.
+
+#: How strong a piece of evidence is, strongest first. Where a claim is backed
+#: matters to a reader: a sentence describing doing the thing is worth more than
+#: the same word sitting in a comma-separated list.
+DEMONSTRATED = "demonstrated"   # a bullet on a role - someone did this
+CREDENTIALED = "credentialed"   # a certificate, a course, a language
+CLAIMED = "claimed"             # a skills list or a project's tech - cheap to write
+ASSERTED = "asserted"           # the summary or headline - self-description
+STRENGTHS = (DEMONSTRATED, CREDENTIALED, CLAIMED, ASSERTED)
+
+#: What became of one requirement.
+EVIDENCED = "evidenced"               # every concrete term in it is backed
+PARTLY = "partly_evidenced"           # some are
+NOT_EVIDENCED = "not_evidenced"       # none are
+NOT_CHECKABLE = "not_checkable"       # nothing concrete to look for
+STATUSES = (EVIDENCED, PARTLY, NOT_EVIDENCED, NOT_CHECKABLE)
+
+#: What a reader meets before deciding to keep reading. Evidence below this is
+#: in the document but not doing any work.
+SKIM_BULLETS = 10
+
+
+@dataclass
+class Evidence:
+    """One place in the profile that backs one term."""
+
+    term: str = ""
+    #: Where it was found, as a path: "experience[0].bullets[2]".
+    where: str = ""
+    kind: str = CLAIMED
+    #: The sentence itself, so a reader can judge the evidence rather than trust
+    #: a number.
+    quote: str = ""
+
+
+@dataclass
+class Requirement:
+    """One thing the posting asks for, and what the profile has to say about it."""
+
+    text: str = ""
+    #: required or nice_to_have, in the posting's own division.
+    kind: str = "required"
+    #: The concrete words worth looking for. Empty means not checkable.
+    terms: list = field(default_factory=list)
+    missing: list = field(default_factory=list)
+    status: str = NOT_CHECKABLE
+    evidence: list = field(default_factory=list)
+    #: Would a reader see this in the first screenful of the document?
+    shown_in_skim: bool = False
+    #: Is it anywhere in the document at all?
+    present_anywhere: bool = False
+    #: Set when nothing concrete could be looked for, saying so plainly.
+    why: str = ""
+
+    SHAPE = {"terms": "lines", "missing": "lines", "evidence": (list, Evidence),
+             "shown_in_skim": "raw", "present_anywhere": "raw"}
+
+    @property
+    def is_checkable(self):
+        return self.status != NOT_CHECKABLE
+
+    @property
+    def is_backed(self):
+        return self.status == EVIDENCED
+
+
+@dataclass
+class FitReport:
+    """One measurement of one CV against one job."""
+
+    when: str = "before"
+    job_label: str = ""
+    job_url: str = ""
+    #: "requirements" normally; "keywords" when the posting states none and we
+    #: fell back, so the reader knows the measurement is coarser.
+    basis: str = "requirements"
+    skim_bullets: int = 0
+    requirements: list = field(default_factory=list)
+    #: Terms the document mentions that the profile cannot back. The tripwire:
+    #: non-zero means the writing is parroting the posting.
+    parroting: list = field(default_factory=list)
+    #: Evidence the profile has that this document leaves out entirely.
+    regressions: list = field(default_factory=list)
+    #: Stated in the posting, not evidenced anywhere, with the line that asked.
+    gaps: list = field(default_factory=list)
+    #: Years asked for against years the profile can date, when both are legible.
+    years_note: str = ""
+
+    SHAPE = {"requirements": (list, Requirement), "parroting": "lines",
+             "regressions": "lines", "gaps": "lines", "skim_bullets": "raw"}
+
+    @property
+    def required(self):
+        return [r for r in self.requirements if r.kind == "required"]
+
+    @property
+    def checkable(self):
+        return [r for r in self.required if r.is_checkable]
+
+    def count(self, status):
+        return sum(1 for r in self.required if r.status == status)
+
+    @property
+    def evidenced(self):
+        return self.count(EVIDENCED)
+
+    @property
+    def shown(self):
+        """Backed requirements a reader would actually meet in the first screenful."""
+        return sum(1 for r in self.checkable if r.is_backed and r.shown_in_skim)
+
+    @property
+    def present(self):
+        return sum(1 for r in self.checkable if r.is_backed and r.present_anywhere)
+
+    @property
+    def nice_to_have(self):
+        return [r for r in self.requirements if r.kind == "nice_to_have"]
+
+
+# --- fit: reading what a posting asks for -----------------------------------
+#
+# A requirement is a sentence. Some sentences name something concrete - a tool, a
+# language, a certificate - and those can be checked against a profile. Many do
+# not: "Strong communication skills", "Thrives in a fast-paced environment". A
+# lexical reader cannot judge those, and pretending otherwise is worse than
+# saying so, so they leave the denominator and are printed for the candidate to
+# judge. Nothing here asks a model for anything.
+
+#: Words that carry no signal.
+_NOISE = frozenset("""
+a an the and or of for to in at on with by from new our we you your job role
+position opening opportunity career careers hiring m f d w x h
+one two three four five six seven eight nine ten
+du sie wir ihr der die das den dem ein eine einen als auch bei mit von und oder
+le la les un une des du au aux et ou avec chez dans pour par
+""".split())
+
+#: The vocabulary requirements are written in, as opposed to what they require.
+#: "Experience with Kafka" is about Kafka; every other word is scaffolding.
+_SCAFFOLDING = frozenset("""
+experience experienced strong solid proven deep good excellent working work
+years year knowledge understanding familiarity familiar ability able skills
+skill background track record hands-on plus bonus ideally preferably must have
+has having is are be been you your we our team environment able comfortable
+significant substantial extensive considerable relevant appropriate suitable
+equivalent similar related various several multiple broad wide
+demonstrated ausgezeichnete gute kenntnisse erfahrung jahre sowie expérience
+connaissance solide maîtrise ans bonne
+""".split())
+
+#: HR vocabulary. A lexical reader cannot judge "strong communication skills",
+#: and a profile is not going to contain the word "proactive". Treating these as
+#: requirements would report them as gaps, which is noise dressed as rigour, so
+#: a line that names nothing else is marked not checkable instead.
+_SOFT = frozenset("""
+communication communicator collaboration collaborative teamwork team-player
+leadership ownership autonomy autonomous independent independently proactive
+motivated driven passionate curious pragmatic organised organized reliable
+detail-oriented analytical creative flexible adaptable resilient enthusiasm
+mindset attitude fast-paced dynamic startup culture fit player self-starter
+thrive thrives thriving excited excellent great strong deep passion interest
+willing eager keen love enjoy comfortable confident
+kommunikation teamfähigkeit selbstständig eigenverantwortlich
+communication autonomie rigueur curiosité esprit équipe
+""".split())
+
+#: Postings write the number both ways, and "Five or more years" is as common
+#: as "5+ years".
+_WORD_NUMBERS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10,
+    "un": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "sept": 7,
+    "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "sechs": 6, "sieben": 7,
+}
+_YEARS = re.compile(
+    r"(\d+|" + "|".join(_WORD_NUMBERS) + r")\s*(?:\+|-\s*\d+)?\s*"
+    r"(?:or more\s*)?(?:years?|yrs?|ans?|jahre[n]?)\b", re.IGNORECASE)
+
+#: A role that has not ended.
+_PRESENT = frozenset("present now current ongoing today heute aujourd'hui actuel".split())
+
+
+def salient_terms(line, vocabulary=frozenset()):
+    """The concrete things a requirement line asks for, in order, deduplicated.
+
+    Precision over recall, deliberately. A term is kept when it looks like a
+    *name* rather than a word: an acronym, a capitalised word, or something
+    carrying a digit or a symbol - AWS, Kubernetes, C++, CI/CD, Python3.
+
+    `vocabulary` rescues the exception: plenty of real tools are lowercase -
+    dbt, npm, kubectl - and would look like ordinary words. A token the
+    candidate lists among their own skills is a name whatever its case.
+
+    The cost is that a lowercase tool the candidate does *not* have is missed
+    here. That is the right trade: a wrongly reported gap - telling someone they
+    lack "production" - is worse than a quiet omission, because the
+    requirement's own sentence is printed beside the verdict for them to read.
+    """
+    found = []
+    seen = set()
+    for word in words(line):
+        key = norm(word)
+        if len(word) < 2 or key in seen:
+            continue
+        if key in _NOISE or key in _SCAFFOLDING or key in _SOFT:
+            continue
+        named = (word.isupper() or word[0].isupper()
+                 or any(c.isdigit() or c in "+#/." for c in word)
+                 or key in vocabulary)
+        if not named:
+            continue
+        seen.add(key)
+        found.append(word)
+    return found
+
+
+def years_required(line):
+    """How many years a line asks for, when it asks in a form we can read."""
+    match = _YEARS.search(line)
+    if match is None:
+        return None
+    asked = match.group(1)
+    return int(asked) if asked.isdigit() else _WORD_NUMBERS[asked.lower()]
+
+
+def _year_of(body):
+    match = re.search(r"\b(19|20)\d{2}\b", str(body))
+    return int(match.group()) if match else None
+
+
+def years_held(profile, as_of=None):
+    """Years of dated experience in the profile, overlaps counted once.
+
+    None when no role carries a readable date - an unreadable date is not a
+    short career, the same rule the rest of this tool follows.
+    """
+    current = as_of or datetime.now(UTC).date()
+    spans = []
+    for role in profile.experience:
+        start = _year_of(role.start)
+        if start is None:
+            continue
+        if norm(str(role.end)) in _PRESENT or not str(role.end).strip():
+            end = current.year
+        else:
+            end = _year_of(role.end) or current.year
+        spans.append((start, max(end, start)))
+
+    if not spans:
+        return None
+
+    # Union the spans so two overlapping roles are not counted twice.
+    total = 0
+    covered = []
+    for start, end in sorted(spans):
+        if covered and start <= covered[-1][1]:
+            covered[-1] = (covered[-1][0], max(covered[-1][1], end))
+        else:
+            covered.append((start, end))
+    for start, end in covered:
+        total += end - start
+    return float(total)
+
+
+def extract(job, vocabulary=frozenset()):
+    """Every line the posting asks for, with the terms worth looking up.
+
+    Falls back to `keywords` when a posting states no requirements at all -
+    plenty are one prose paragraph, and "0 of 0" reads as a score of zero.
+    `keywords` is what the posting screens for, which is the right material.
+    """
+    stated = [(line, "required") for line in job.requirements]
+    stated += [(line, "nice_to_have") for line in job.nice_to_have]
+
+    if not stated and job.keywords:
+        stated = [(word, "required") for word in job.keywords]
+
+    found = []
+    for line, kind in stated:
+        terms = salient_terms(line, vocabulary)
+        found.append(Requirement(
+            text=line.strip(), kind=kind, terms=terms,
+            why=("" if terms else
+                 "No concrete term to look for - judge this one yourself.")))
+    return found
+
+
+def basis_of(job):
+    return "requirements" if (job.requirements or job.nice_to_have) else "keywords"
+
+
+# --- fit: finding what backs a requirement ----------------------------------
+#
+# The rule this half exists to keep: **evidence is looked for in the profile and
+# nowhere else.** A tailored CV can put a fact in front of a reader or bury it,
+# but it cannot create one, so a word copied out of the posting finds nothing
+# here. That is what makes measuring fit after tailoring worth anything.
+#
+# `Support.of(job)` must never appear below. A posting asking for Kafka does not
+# license claiming it - the same rule the invention guard keeps, for the same
+# reason.
+
+
+def skills_index(profile):
+    """Every skill the profile claims, deduplicated, longest first.
+
+    Longest first so "Google Cloud" is reported rather than "Google" when both
+    would match the same words.
+    """
+    named = list(profile.skills)
+    for role in profile.experience:
+        named.extend(role.skills)
+    for project in profile.projects:
+        named.extend(project.tech)
+    seen = {}
+    for skill in named:
+        key = skill.strip().lower()
+        if key and key not in seen:
+            seen[key] = skill.strip()
+    return sorted(seen.values(), key=len, reverse=True)
+
+
+def _mentions(term, body):
+    """Whether `body` names `term` as a word, not as a fragment.
+
+    The boundary is what stops "Go" matching "going" and "Java" matching
+    "JavaScript".
+    """
+    if not term.strip() or not body:
+        return False
+    pattern = r"(?<![a-z0-9])" + re.escape(term.lower()) + r"(?![a-z0-9])"
+    return re.search(pattern, body.lower()) is not None
+
+
+def _quote(body, limit=160):
+    body = " ".join(body.split())
+    return body if len(body) <= limit else body[: limit - 1] + "…"
+
+
+def _places(profile):
+    """Every (path, kind, text) in the profile that could back a claim.
+
+    In strength order, because where a claim is backed matters to whoever reads
+    it: a sentence describing doing the thing beats the same word sitting in a
+    comma-separated list.
+    """
+    places = []
+
+    for i, role in enumerate(profile.experience):
+        for j, bullet in enumerate(role.bullets):
+            places.append((f"experience[{i}].bullets[{j}]", DEMONSTRATED, bullet))
+
+    for i, education in enumerate(profile.education):
+        for j, course in enumerate(education.courses):
+            places.append((f"education[{i}].courses[{j}]", CREDENTIALED, course))
+        places.append((f"education[{i}]", CREDENTIALED,
+                       f"{education.level} {education.field_of_study} "
+                       f"{education.institution}"))
+    for i, cert in enumerate(profile.certifications):
+        places.append((f"certifications[{i}]", CREDENTIALED,
+                       f"{cert.name} {cert.issuer} {cert.description}"))
+    for i, language in enumerate(profile.languages):
+        places.append((f"languages[{i}]", CREDENTIALED,
+                       f"{language.name} {language.level}"))
+
+    for i, role in enumerate(profile.experience):
+        for j, skill in enumerate(role.skills):
+            places.append((f"experience[{i}].skills[{j}]", CLAIMED, skill))
+        places.append((f"experience[{i}]", CLAIMED, f"{role.position} {role.industry}"))
+    for i, project in enumerate(profile.projects):
+        places.append((f"projects[{i}]", CLAIMED,
+                       f"{project.name} {project.description} {' '.join(project.tech)}"))
+    for i, skill in enumerate(profile.skills):
+        places.append((f"skills[{i}]", CLAIMED, skill))
+
+    places.append(("summary", ASSERTED, profile.summary))
+    places.append(("personal.headline", ASSERTED, profile.personal.headline))
+    return places
+
+
+def find(term, profile, support=None):
+    """Every place in the profile that backs `term`, strongest first.
+
+    `support` is an optional pre-built `Support.of(profile)`, used only to skip
+    the search for a word the profile does not contain at all. It is a filter,
+    never the answer: a bag of words cannot say *where* a claim is backed, and a
+    number a candidate cannot trace is not worth printing.
+    """
+    if support is not None and not support.backs_term(term):
+        return []
+    return [Evidence(term=term, where=where, kind=kind, quote=_quote(body))
+            for where, kind, body in _places(profile) if _mentions(term, body)]
+
+
+def backs(term, profile, support=None):
+    return bool(find(term, profile, support))
+
+
+def mentions_any(body, terms):
+    """Which of `terms` a piece of text names. Reads a document, not a profile."""
+    return [term for term in terms if _mentions(term, body)]
+
+
+# --- fit: the measurement ---------------------------------------------------
+
+
+def _skim(document, bullets):
+    """The first screenful: who they are, what they claim, the opening bullets."""
+    parts = [document.personal.headline, document.summary, " ".join(document.skills)]
+    seen = 0
+    for role in document.experience:
+        parts.append(f"{role.position} {role.company}")
+        for bullet in role.bullets:
+            if seen >= bullets:
+                break
+            parts.append(bullet)
+            seen += 1
+    return "\n".join(p for p in parts if p)
+
+
+def _everything(document):
+    """Every word of the document, for telling 'buried' from 'absent'."""
+    parts = [document.personal.headline, document.summary, " ".join(document.skills)]
+    for role in document.experience:
+        parts += [role.position, role.company, role.industry, *role.bullets, *role.skills]
+    for project in document.projects:
+        parts += [project.name, project.description, *project.tech]
+    for education in document.education:
+        parts += [education.level, education.field_of_study, education.institution,
+                  *education.courses]
+    for cert in document.certifications:
+        parts += [cert.name, cert.issuer, cert.description]
+    for language in document.languages:
+        parts += [language.name, language.level]
+    return "\n".join(p for p in parts if p)
+
+
+def score(job, profile, document=None, when="before", skim_bullets=SKIM_BULLETS):
+    """Measure `document` against `job`, with `profile` as the only source of evidence.
+
+    `document` defaults to the profile itself, which is what "before" means: the
+    CV as it stands. Passing a tailored CV gives "after". Both arms run the same
+    code and look evidence up in the same place, so `evidenced` cannot differ
+    between them - that is a property of the design, not of care.
+    """
+    document = document if document is not None else profile
+    support = Support.of(profile)
+    # A lowercase tool the candidate actually lists - dbt, npm - is a name, not
+    # an ordinary word. Nothing here comes from the job: the posting never gets
+    # to widen what counts as evidence.
+    vocabulary = frozenset(norm(skill) for skill in skills_index(profile))
+    skim, whole = _skim(document, skim_bullets), _everything(document)
+
+    parroting, regressions, gaps, found = [], [], [], []
+    for requirement in extract(job, vocabulary):
+        if not requirement.terms:
+            found.append(requirement)
+            continue
+
+        backed, missing, evidence = [], [], []
+        for term in requirement.terms:
+            hits = find(term, profile, support)
+            if hits:
+                backed.append(term)
+                evidence.append(hits[0])
+            else:
+                missing.append(term)
+
+        # One backed term is enough. Requirement lines bundle several things -
+        # "Python or Go", "Kubernetes and Docker" - and extraction is lexical,
+        # so demanding all of them would report noise as a gap.
+        status = EVIDENCED if backed else NOT_EVIDENCED
+        requirement = replace(
+            requirement, status=status, missing=missing, evidence=evidence,
+            shown_in_skim=bool(mentions_any(skim, backed)),
+            present_anywhere=bool(mentions_any(whole, backed)))
+        found.append(requirement)
+
+        if status == NOT_EVIDENCED and requirement.kind == "required":
+            gaps.extend(requirement.terms)
+            # Named in the document, backed by nothing. The document is
+            # repeating the posting rather than the candidate.
+            parroting.extend(mentions_any(whole, requirement.terms))
+        elif backed and not mentions_any(whole, backed):
+            # The profile can back this and the document dropped it entirely.
+            regressions.extend(backed)
+
+    return FitReport(
+        when=when, job_label=job.label, job_url=job.url, basis=basis_of(job),
+        skim_bullets=skim_bullets, requirements=found,
+        parroting=sorted(set(parroting)), regressions=sorted(set(regressions)),
+        gaps=sorted(set(gaps)), years_note=_years_note(job, profile))
+
+
+def _years_note(job, profile):
+    """What the posting asks for in years against what the profile can date.
+
+    The one gap tailoring can never close, and it is on nearly every posting a
+    student reads. An unreadable date is not a short career, so silence when the
+    profile cannot be dated.
+    """
+    asked = max((y for line in job.requirements
+                 if (y := years_required(line)) is not None), default=None)
+    if asked is None:
+        return ""
+    held = years_held(profile)
+    if held is None:
+        return f"Asks for {asked} years. Your roles carry no readable dates."
+    if held >= asked:
+        return f"Asks for {asked} years; your profile dates to about {held:.0f}."
+    return (f"Asks for {asked} years; your profile dates to about {held:.0f}. "
+            "This is the gap tailoring cannot close.")
+
+
+def delta(before, after):
+    """What tailoring bought, in one block a person can read."""
+    checkable = len(before.checkable)
+    out = [
+        f"Fit for {before.job_label}",
+        "",
+        f"Evidenced in your profile:    {before.evidenced} of {checkable}"
+        "   (unchanged by tailoring - it is what you have done)",
+    ]
+    not_checkable = before.count(NOT_CHECKABLE)
+    if not_checkable:
+        out.append(f"  not checkable:              {not_checkable}"
+                   "        (judge these yourself)")
+
+    backed = before.evidenced
+    out += [
+        "",
+        f"Shown in the first screenful: {before.shown} of {backed}"
+        f"  ->  {after.shown} of {backed}"
+        f"      {after.shown - before.shown:+d}",
+        f"Present anywhere in the CV:   {before.present} of {backed}"
+        f"  ->  {after.present} of {backed}",
+    ]
+    if after.regressions:
+        out.append(f"  ! left off entirely: {', '.join(after.regressions)}")
+    if after.parroting:
+        out.append("")
+        out.append(f"  ! claimed but not evidenced: {', '.join(after.parroting)}"
+                   "  - the CV names these and your profile does not back them")
+    if after.gaps:
+        out += ["", "Not evidenced anywhere in your profile:"]
+        for requirement in after.required:
+            if requirement.status == NOT_EVIDENCED:
+                out.append(f"  · {', '.join(requirement.terms):<28} "
+                           f"\"{requirement.text[:60]}\"")
+    if after.years_note:
+        out += ["", f"  · {after.years_note}"]
+    return "\n".join(out)
+
+
+# --- assemble ---------------------------------------------------------------
+#
+# The honesty rule made structural. The model never writes an employer, a job
+# title, a date, a degree or a certification: it answers with *indices* into the
+# profile and rewritten bullet text, and everything else is copied across
+# verbatim. A fabricated employer is therefore not something we detect and warn
+# about - it cannot be expressed.
+#
+# What the model does decide: which roles to show and in what order, which of a
+# role's achievements to keep and how to word them, which projects are relevant,
+# how to order the skills, and the summary at the top. The free text it produces
+# goes through the guard before the document is considered finished.
+
+#: More than this from one role reads as a job description, not a highlight reel.
+MAX_BULLETS = 8
+#: A letter longer than this stops being read.
+MAX_PARAGRAPHS = 4
+
+_SEVERITY_ORDER = {BLOCKING: 0, WARNING: 1, INFO: 2}
+
+
+def _worst_first(issues):
+    return sorted(issues, key=lambda i: _SEVERITY_ORDER.get(i.severity, 3))
+
+
+@dataclass
+class TailoredCV(Profile):
+    """A CV rewritten for one job.
+
+    A `Profile` subclass, so `report()`, the placeholder check and every template
+    that renders a profile work on it unchanged.
+    """
+
+    job_label: str = ""
+    job_slug: str = ""
+    #: Findings from the invention guard and from assembling the document.
+    issues: list = field(default_factory=list)
+
+    SHAPE = dict(Profile.SHAPE, issues=(list, Issue))
+
+    @property
+    def all_issues(self):
+        """Guard findings and profile validation together, worst first."""
+        return _worst_first([*self.issues, *self.report()])
+
+    @property
+    def blocking(self):
+        """What must be fixed before this may be exported."""
+        return [i for i in self.all_issues if i.severity == BLOCKING]
+
+
+@dataclass
+class CoverLetter:
+    """One letter, ready to render."""
+
+    #: Copied from the profile, never generated.
+    personal: Personal = field(default_factory=Personal)
+    greeting: str = ""
+    paragraphs: list = field(default_factory=list)
+    closing: str = ""
+    #: Written under the closing. Always the profile's name.
+    signature: str = ""
+    written_on: str = ""
+    #: The posting's language, which the letter is written in. Drives the date
+    #: format and the subject label - an English "Application:" over French
+    #: prose is the sort of detail that says nobody read this before sending.
+    language: str = ""
+    company: str = ""
+    role: str = ""
+    job_label: str = ""
+    job_slug: str = ""
+    issues: list = field(default_factory=list)
+
+    SHAPE = {"personal": "raw", "paragraphs": "lines", "issues": (list, Issue)}
+    COERCE = {"personal": lambda v: build(Personal, v)}
+
+    @property
+    def all_issues(self):
+        found = [*self.issues]
+        found.extend(placeholder_issues(self.greeting, "greeting"))
+        found.extend(placeholder_issues(self.paragraphs, "paragraphs"))
+        found.extend(placeholder_issues(self.closing, "closing"))
+        if not self.paragraphs:
+            found.append(Issue("paragraphs", BLOCKING, "The letter has no body text."))
+        if not self.signature:
+            found.append(Issue("signature", WARNING,
+                               "No name to sign with - add one to your profile."))
+        return _worst_first(found)
+
+    @property
+    def blocking(self):
+        return [i for i in self.all_issues if i.severity == BLOCKING]
+
+    @property
+    def body(self):
+        """The letter as plain text, for a terminal or a paste into a form."""
+        out = [self.greeting, ""]
+        for paragraph in self.paragraphs:
+            out += [paragraph, ""]
+        out += [self.closing, self.signature]
+        return "\n".join(line for line in out if line is not None).strip()
+
+
+def tailor(profile, job, data):
+    """Build the CV from the model's choices and the profile's facts.
+
+    Separate from anything that talks to a model, so the assembly rules - which
+    are where invention would otherwise creep in - are tested without one.
+    """
+    issues = []
+
+    experience = _roles(profile, data.get("roles"), issues)
+    skills = _pick_skills(profile, data.get("skills"), issues)
+    projects = _pick_projects(profile, data.get("projects"))
+    summary = _line(data.get("summary")) or profile.summary
+
+    document = TailoredCV(
+        # Copied, never generated.
+        personal=profile.personal,
+        education=profile.education,
+        certifications=profile.certifications,
+        languages=profile.languages,
+        # Chosen by the model, from the profile's own facts.
+        summary=summary,
+        experience=experience,
+        projects=projects,
+        skills=skills,
+        job_label=job.label,
+        job_slug=job.slug,
+    )
+
+    # The company and role may be named in the summary; nothing else new may be.
+    support = Support.of(profile) | Support.of(job.company, job.title)
+    issues.extend(check(summary, support, "summary", language=job.language))
+    for i, role in enumerate(experience):
+        issues.extend(check_all({f"experience[{i}].bullets": role.bullets},
+                                Support.of(profile), language=job.language))
+
+    document.issues = issues
+    return document
+
+
+def write_letter(profile, job, data):
+    """Build the letter from the model's text and the profile's contact facts."""
+    paragraphs = _paragraphs(data.get("paragraphs"))[:MAX_PARAGRAPHS]
+    greeting = _line(data.get("greeting")) or "Dear Hiring Team,"
+    closing = _line(data.get("closing")) or "Kind regards,"
+
+    # A letter may name the company, the role and the place. It may not claim a
+    # skill because the posting asked for one, so requirements are not support.
+    support = Support.of(profile) | Support.of(job.company, job.title, job.location,
+                                               profile.personal.full_name)
+    # Only the body is guarded. A greeting is a salutation, not a claim, and the
+    # one thing that can go wrong in it - "Dear [Hiring Manager]," - is caught by
+    # the placeholder check instead.
+    issues = check_all({"paragraphs": paragraphs}, support, language=job.language)
+
+    return CoverLetter(
+        personal=profile.personal, greeting=greeting, paragraphs=paragraphs,
+        closing=closing, signature=profile.personal.full_name,
+        written_on=today(), language=job.language, company=job.company,
+        role=job.title, job_label=job.label, job_slug=job.slug, issues=issues)
+
+
+def _roles(profile, raw, issues):
+    """Selected roles, with the model's bullets and the profile's identity.
+
+    The model chooses *which* roles appear; it does not choose the order they
+    appear in. Left to rank them by relevance it puts a past role above the
+    current one, which reads as a mistake on a CV whatever its reasoning. So the
+    profile's own order - the order you wrote your CV in - is kept.
+    """
+    picked = {}
+    for entry in raw if isinstance(raw, list) else []:
+        index = _index(entry)
+        if index is None or not 0 <= index < len(profile.experience) or index in picked:
+            continue
+        picked[index] = _bullets(entry) or profile.experience[index].bullets
+
+    chosen = [replace(profile.experience[i], bullets=picked[i][:MAX_BULLETS])
+              for i in sorted(picked)]
+
+    # Dropping a role is allowed - it is the point of tailoring - but doing it
+    # without saying so lets a whole job disappear off your CV unnoticed.
+    left_out = [profile.experience[i].company or f"role {i + 1}"
+                for i in range(len(profile.experience)) if i not in picked]
+    if chosen and left_out:
+        issues.append(Issue(
+            "experience", WARNING,
+            f"Left off as not relevant to this job: {', '.join(left_out)}. "
+            "Add them back by editing the document if you disagree."))
+
+    if not chosen and profile.experience:
+        issues.append(Issue(
+            "experience", WARNING,
+            "The model did not select any of your roles, so all of them are "
+            "shown as written in your profile."))
+        return list(profile.experience)
+    return chosen
+
+
+def _pick_skills(profile, raw, issues):
+    """The model's ordering of skills the profile actually claims.
+
+    Anything the model added is dropped and reported - a skill appearing on a CV
+    because the job asked for it is the exact failure this tool exists to avoid.
+    """
+    known = {}
+    for skill in profile.skills:
+        known.setdefault(skill.strip().lower(), skill)
+    for role in profile.experience:
+        for skill in role.skills:
+            known.setdefault(skill.strip().lower(), skill)
+    for project in profile.projects:
+        for tech in project.tech:
+            known.setdefault(tech.strip().lower(), tech)
+
+    ordered, invented = [], []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        match = known.get(item.strip().lower())
+        if match is None:
+            invented.append(item.strip())
+        elif match not in ordered:
+            ordered.append(match)
+
+    if invented:
+        issues.append(Issue(
+            "skills", INFO,
+            "Dropped skills the model added but your profile does not list: "
+            + ", ".join(sorted(set(invented)))))
+    return ordered or list(profile.skills)
+
+
+def _pick_projects(profile, raw):
+    """Selected projects, verbatim - project text is not reworded."""
+    chosen, seen = [], set()
+    for entry in raw if isinstance(raw, list) else []:
+        index = _index(entry)
+        if index is None or not 0 <= index < len(profile.projects) or index in seen:
+            continue
+        seen.add(index)
+        chosen.append(profile.projects[index])
+    return chosen
+
+
+def _index(entry):
+    """Read an index from the several shapes a model uses to give one."""
+    if isinstance(entry, bool):
+        return None
+    if isinstance(entry, int):
+        return entry
+    if isinstance(entry, str):
+        return int(entry) if entry.strip().isdigit() else None
+    if isinstance(entry, dict):
+        for key in ("index", "i", "role", "id"):
+            if key in entry:
+                return _index(entry[key])
+    return None
+
+
+def _bullets(entry):
+    if not isinstance(entry, dict):
+        return []
+    raw = entry.get("bullets") or entry.get("highlights") or []
+    if isinstance(raw, str):
+        raw = raw.splitlines()
+    return [body for item in raw if (body := _line(item))]
+
+
+def _paragraphs(raw):
+    if isinstance(raw, str):
+        raw = raw.split("\n\n")
+    if not isinstance(raw, list):
+        return []
+    return [body for item in raw if (body := _plain(item))]
+
+
+def _line(value):
+    """A clean single line: strip whitespace and any bullet character."""
+    if not isinstance(value, str):
+        return ""
+    return value.strip().lstrip("-*•–·").strip()
+
+
+def _plain(value):
+    return value.strip() if isinstance(value, str) else ""
+
+
+def profile_block(profile):
+    """The profile as a prompt block, numbered where a generator points at it.
+
+    The mirror of `Job.brief()`: one canonical way the user's facts enter a
+    prompt. Roles and projects are numbered because generators refer to them by
+    index - the model never gets to spell an employer's name, so it can never
+    misspell or invent one.
+    """
+    parts = []
+    p = profile.personal
+
+    if p.full_name:
+        parts.append(f"Name: {p.full_name}")
+    if p.headline:
+        parts.append(f"Headline: {p.headline}")
+    place = ", ".join(x for x in (p.city, p.country) if x)
+    if place:
+        parts.append(f"Based in: {place}")
+    if profile.summary:
+        parts.append(f"Current summary: {profile.summary}")
+    if profile.skills:
+        parts.append(f"Skills: {', '.join(profile.skills)}")
+
+    if profile.experience:
+        parts.append("\nExperience (refer to these by index):")
+        for i, role in enumerate(profile.experience):
+            head = " - ".join(x for x in (role.position, role.company) if x) or "Role"
+            meta = ", ".join(x for x in (role.period, role.location, role.industry) if x)
+            parts.append(f"[{i}] {head}" + (f" ({meta})" if meta else ""))
+            parts.extend(f"      - {bullet}" for bullet in role.bullets)
+            if role.skills:
+                parts.append(f"      skills: {', '.join(role.skills)}")
+
+    if profile.education:
+        parts.append("\nEducation:")
+        for edu in profile.education:
+            head = " - ".join(x for x in (edu.level, edu.field_of_study,
+                                          edu.institution) if x)
+            meta = ", ".join(x for x in (edu.period, edu.grade) if x)
+            parts.append(f"- {head}" + (f" ({meta})" if meta else ""))
+            if edu.courses:
+                parts.append(f"      courses: {', '.join(edu.courses)}")
+
+    if profile.projects:
+        parts.append("\nProjects (refer to these by index):")
+        for i, project in enumerate(profile.projects):
+            line = f"[{i}] {project.name}"
+            if project.description:
+                line += f" - {project.description}"
+            if project.tech:
+                line += f" (tech: {', '.join(project.tech)})"
+            parts.append(line)
+
+    if profile.certifications:
+        certs = "; ".join(" ".join(x for x in (c.name, c.issuer, c.year) if x)
+                          for c in profile.certifications)
+        parts.append(f"\nCertifications: {certs}")
+    if profile.languages:
+        langs = ", ".join(f"{lang.name} ({lang.level})" if lang.level else lang.name
+                          for lang in profile.languages)
+        parts.append(f"Languages: {langs}")
+
+    return "\n".join(parts).strip()
+
+
+# --- render: themes ---------------------------------------------------------
+#
+# Two axes only, because more would be a design tool rather than a job tool: an
+# accent colour and a type family. The company-branded cover letter is this same
+# neutral theme with the colour read off the job page - not a different template.
+
+_HEX6 = re.compile(r"^#[0-9a-f]{6}$", re.IGNORECASE)
+
+#: Ink, not black: pure black on white prints harsher than it looks on screen.
+NEUTRAL_ACCENT = "#1f2933"
+
+SANS = ('-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, '
+        "sans-serif")
+SERIF = 'Charter, Georgia, "Iowan Old Style", "Times New Roman", serif'
+
+
+@dataclass(frozen=True)
+class Theme:
+    name: str = "neutral"
+    accent: str = NEUTRAL_ACCENT
+    body_font: str = SANS
+    heading_font: str = SANS
+
+    @property
+    def is_branded(self):
+        return self.accent.lower() != NEUTRAL_ACCENT
+
+    @property
+    def ink(self):
+        """Body text colour. Always readable, never the accent."""
+        return "#14181d"
+
+    @property
+    def muted(self):
+        return "#5b6570"
+
+    @property
+    def rule(self):
+        return "#dfe3e8"
+
+
+NEUTRAL = Theme()
+#: A serif CV reads as more traditional; some fields expect it.
+CLASSIC = Theme(name="classic", body_font=SERIF, heading_font=SERIF)
+
+THEMES = {"neutral": NEUTRAL, "classic": CLASSIC}
+
+
+def branded(colour, base=NEUTRAL):
+    """`base` in the company's colour, or `base` unchanged if there isn't one.
+
+    The colour reaches a stylesheet, so anything that is not a plain hex value
+    is refused rather than escaped.
+    """
+    colour = (colour or "").strip().lower()
+    if not _HEX6.match(colour):
+        return base
+    return Theme(name="company", accent=colour,
+                 body_font=base.body_font, heading_font=base.heading_font)
+
+
+def resolve(name):
+    """Look up a theme by name, falling back to neutral."""
+    return THEMES.get((name or "").strip().lower(), NEUTRAL)
+
+
+# --- render: HTML -----------------------------------------------------------
+#
+# Written by hand because the whole point of this file is that it installs by
+# being copied. Jinja gave autoescaping for free; here `_e` is applied to every
+# value that came from a user, a model or a job page, and `test_render` proves
+# it by trying to inject a script tag through each field in turn.
+#
+# Only two things reach the page unescaped, both deliberately: the font stacks,
+# which are code constants containing the quotes CSS needs, and the accent,
+# which `branded()` has already checked is a plain hex colour.
+
+
+def _e(value):
+    """Escape a value for HTML. Everything dynamic goes through this."""
+    return html.escape("" if value is None else str(value), quote=True)
+
+
+def _joined(parts, sep=" · "):
+    """Non-empty parts, escaped and joined. Jinja's `| select | join`."""
+    return sep.join(_e(p) for p in parts if p)
+
+
+def _strip_scheme(url):
+    """Show 'github.com/ada', not 'https://github.com/ada' - it is a printed page."""
+    body = str(url)
+    for prefix in ("https://", "http://"):
+        if body.startswith(prefix):
+            body = body[len(prefix):]
+            break
+    return body.rstrip("/")
+
+
+#: Month names for the languages the tool writes in. `strftime` would follow the
+#: machine's locale, which has nothing to do with the posting's language.
+_MONTHS = {
+    "en": ("January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"),
+    "fr": ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+           "août", "septembre", "octobre", "novembre", "décembre"),
+}
+
+#: What a letter calls the line naming the job. French business letters use
+#: "Objet :", with the space before the colon that French typography wants.
+_SUBJECT = {"en": "Application:", "fr": "Objet :"}
+
+
+def _key(language):
+    """The language to render in. Anything we have no words for reads as English."""
+    code = (language or "").strip().lower()[:2]
+    return code if code in _MONTHS else "en"
+
+
+def _long_date(value, language=""):
+    """An ISO date as '7 September 2026', or '7 septembre 2026'.
+
+    Anything that is not an ISO date passes through untouched.
+    """
+    try:
+        parsed = date.fromisoformat(str(value))
+    except ValueError:
+        return str(value)
+    code = _key(language)
+    day = "1er" if parsed.day == 1 and code == "fr" else str(parsed.day)
+    return f"{day} {_MONTHS[code][parsed.month - 1]} {parsed.year}"
+
+
+def _subject(language=""):
+    return _SUBJECT[_key(language)]
+
+
+def _page(title, theme, body, extra_css="", lang="en"):
+    """The shell every document shares: A4, print colours, one accent."""
+    return f"""<!doctype html>
+<html lang="{_e(lang)}">
+<head>
+<meta charset="utf-8">
+<title>{_e(title)}</title>
+<style>
+  @page {{ size: A4; margin: 16mm 15mm; }}
+  * {{ box-sizing: border-box; }}
+  html {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+  body {{
+    margin: 0;
+    font-family: {theme.body_font};
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: {theme.ink};
+    background: #fff;
+  }}
+  /* @page only applies when printing. On screen - the review frame - the page
+     needs its own margins, or right-aligned dates are clipped at the edge. */
+  @media screen {{
+    body {{ max-width: 210mm; margin: 0 auto; padding: 16mm 15mm; }}
+  }}
+  a {{ color: {theme.accent}; text-decoration: none; }}
+  h1, h2, h3 {{ font-family: {theme.heading_font}; margin: 0; }}
+  h1 {{ font-size: 20pt; letter-spacing: -0.4pt; line-height: 1.15; }}
+  h2 {{
+    font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt;
+    color: {theme.accent}; margin: 16px 0 7px;
+    padding-bottom: 3px; border-bottom: 1px solid {theme.rule};
+  }}
+  h3 {{ font-size: 11pt; }}
+  p {{ margin: 0 0 8px; }}
+  ul {{ margin: 4px 0 0; padding-left: 15px; }}
+  li {{ margin-bottom: 3px; }}
+  .muted {{ color: {theme.muted}; }}
+  .accent-bar {{ height: 3px; background: {theme.accent}; margin-bottom: 14px; }}
+  .contact {{ font-size: 9pt; color: {theme.muted}; margin-top: 5px; }}
+  .contact span:not(:last-child)::after {{ content: " · "; }}
+  .block {{ break-inside: avoid; page-break-inside: avoid; margin-bottom: 11px; }}
+  .row {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }}
+  .when {{ font-size: 9pt; color: {theme.muted}; white-space: nowrap; }}
+  .tags {{ font-size: 9.5pt; }}
+{extra_css}
+</style>
+</head>
+<body>
+{'<div class="accent-bar"></div>' if theme.is_branded else ''}
+{body}
+</body>
+</html>"""
+
+
+_CV_CSS = """  header { margin-bottom: 4px; }
+  .headline { font-size: 10.5pt; color: %(muted)s; margin-top: 2px; }
+  .summary { margin-top: 10px; }
+  .role-company { font-weight: 600; }
+  .edu-line { font-weight: 600; }"""
+
+
+def cv_html(document, theme=NEUTRAL):
+    """A CV (or a plain profile) as a self-contained HTML page."""
+    p = document.personal
+    out = ["<header>", f"  <h1>{_e(p.full_name)}</h1>"]
+    if p.headline:
+        out.append(f'  <div class="headline">{_e(p.headline)}</div>')
+    out.append('  <div class="contact">')
+    for value in (p.email, p.phone):
+        if value:
+            out.append(f"    <span>{_e(value)}</span>")
+    place = ", ".join(x for x in (p.city, p.country) if x)
+    if place:
+        out.append(f"    <span>{_e(place)}</span>")
+    for link in (p.linkedin, p.github, p.website):
+        if link:
+            out.append(f'    <span><a href="{_e(link)}">{_e(_strip_scheme(link))}</a></span>')
+    out += ["  </div>", "</header>"]
+
+    if document.summary:
+        out.append(f'<div class="summary">{_e(document.summary)}</div>')
+
+    if document.experience:
+        out.append("<h2>Experience</h2>")
+        for role in document.experience:
+            title = f'<span class="role-company">{_e(role.position)}</span>'
+            if role.company:
+                title += f", {_e(role.company)}"
+            out += ['<div class="block">', '  <div class="row">', f"    <h3>{title}</h3>"]
+            if role.period:
+                out.append(f'    <span class="when">{_e(role.period)}</span>')
+            out.append("  </div>")
+            if role.location:
+                out.append(f'  <div class="muted" style="font-size:9pt">'
+                           f"{_e(role.location)}</div>")
+            if role.bullets:
+                items = "".join(f"<li>{_e(b)}</li>" for b in role.bullets)
+                out.append(f"  <ul>{items}</ul>")
+            out.append("</div>")
+
+    if document.projects:
+        out.append("<h2>Projects</h2>")
+        for project in document.projects:
+            name = (f'<a href="{_e(project.link)}">{_e(project.name)}</a>'
+                    if project.link else _e(project.name))
+            out += ['<div class="block">', '  <div class="row">', f"    <h3>{name}</h3>"]
+            if project.tech:
+                out.append(f'    <span class="when">{_joined(project.tech, ", ")}</span>')
+            out.append("  </div>")
+            if project.description:
+                out.append(f"  <div>{_e(project.description)}</div>")
+            out.append("</div>")
+
+    if document.education:
+        out.append("<h2>Education</h2>")
+        for edu in document.education:
+            head = _joined([edu.level, edu.field_of_study], ", ")
+            out += ['<div class="block">', '  <div class="row">',
+                    f'    <h3><span class="edu-line">{head}</span></h3>']
+            if edu.period:
+                out.append(f'    <span class="when">{_e(edu.period)}</span>')
+            out += ["  </div>",
+                    '  <div class="muted" style="font-size:9.5pt">'
+                    + _joined([edu.institution, edu.location, edu.grade]) + "</div>"]
+            if edu.courses:
+                out.append(f'  <div class="tags muted">{_joined(edu.courses, ", ")}</div>')
+            out.append("</div>")
+
+    if document.skills:
+        out += ["<h2>Skills</h2>", f'<div class="tags">{_joined(document.skills)}</div>']
+
+    if document.certifications:
+        out.append("<h2>Certifications</h2>")
+        for cert in document.certifications:
+            line = _e(cert.name)
+            if cert.issuer:
+                line += f' <span class="muted">— {_e(cert.issuer)}</span>'
+            out += ['<div class="row">', f"  <div>{line}</div>"]
+            if cert.year:
+                out.append(f'  <span class="when">{_e(cert.year)}</span>')
+            out.append("</div>")
+
+    if document.languages:
+        named = [f'{_e(x.name)} <span class="muted">({_e(x.level)})</span>'
+                 if x.level else _e(x.name) for x in document.languages]
+        out += ["<h2>Languages</h2>",
+                '<div class="tags">' + " · ".join(named) + "</div>"]
+
+    title = getattr(document, "job_label", "") or p.full_name or "CV"
+    return _page(f"CV - {title}", theme, "\n".join(out),
+                 _CV_CSS % {"muted": theme.muted})
+
+
+_LETTER_CSS = """  body { font-size: 11pt; line-height: 1.55; }
+  .sender { text-align: right; font-size: 9.5pt; color: %(muted)s; }
+  .sender .who { font-size: 13pt; color: %(ink)s; font-weight: 600; }
+  .meta { margin: 22px 0 20px; font-size: 9.5pt; color: %(muted)s; }
+  .greeting { margin-bottom: 12px; }
+  .closing { margin-top: 18px; }
+  .signature { font-weight: 600; }
+  .subject { font-weight: 600; color: %(accent)s; margin-bottom: 16px; }"""
+
+
+def letter_html(letter, theme=NEUTRAL):
+    """A cover letter as a self-contained HTML page."""
+    p = letter.personal
+    out = ['<div class="sender">', f'  <div class="who">{_e(p.full_name)}</div>',
+           "  " + _joined([p.email, p.phone])]
+    place = ", ".join(x for x in (p.city, p.country) if x)
+    if place:
+        out.append(f"  <br>{_e(place)}")
+    out += ["</div>", "", '<div class="meta">']
+    if letter.company:
+        out.append(f"  {_e(letter.company)}<br>")
+    out += [f"  {_e(_long_date(letter.written_on, letter.language))}", "</div>", ""]
+
+    if letter.role:
+        out.append(f'<div class="subject">{_e(_subject(letter.language))} '
+                   f"{_e(letter.role)}</div>")
+
+    out.append(f'<div class="greeting">{_e(letter.greeting)}</div>')
+    for paragraph in letter.paragraphs:
+        out.append(f"<p>{_e(paragraph)}</p>")
+    out += ['<div class="closing">', f"  {_e(letter.closing)}<br><br>",
+            f'  <span class="signature">{_e(letter.signature)}</span>', "</div>"]
+
+    who = p.full_name or "Cover letter"
+    return _page(f"Cover letter - {letter.company or who}", theme, "\n".join(out),
+                 _LETTER_CSS % {"muted": theme.muted, "ink": theme.ink,
+                                "accent": theme.accent},
+                 lang=_key(letter.language))
+
+
+# --- render: markdown -------------------------------------------------------
+#
+# This exists so the documents survive a machine with no browser. It also closes
+# the gap where, if the PDF step failed, the tempting next move would be to let
+# a model write the markdown instead - which would hand the employers, titles
+# and dates back to the model and quietly undo the one guarantee made here.
+
+
+def _contact(p):
+    bits = [p.email, p.phone, ", ".join(x for x in (p.city, p.country) if x)]
+    links = [_strip_scheme(x) for x in (p.linkedin, p.github, p.website) if x]
+    return " · ".join(x for x in [*bits, *links] if x)
+
+
+def cv_markdown(document):
+    """A CV as markdown, in the same order the PDF puts it."""
+    out = []
+    out.append(f"# {document.personal.full_name or 'CV'}")
+    if document.personal.headline:
+        out.append(f"*{document.personal.headline}*")
+    contact = _contact(document.personal)
+    if contact:
+        out.append(contact)
+    if document.summary:
+        out += ["", document.summary]
+
+    if document.experience:
+        out += ["", "## Experience"]
+        for role in document.experience:
+            where = " — ".join(x for x in (role.company, role.location) if x)
+            out += ["", f"### {role.position}" + (f", {where}" if where else "")]
+            if role.period:
+                out.append(f"*{role.period}*")
+            out += [f"- {bullet}" for bullet in role.bullets]
+
+    if document.projects:
+        out += ["", "## Projects"]
+        for project in document.projects:
+            title = (f"### [{project.name}]({project.link})" if project.link
+                     else f"### {project.name}")
+            out += ["", title]
+            if project.description:
+                out.append(project.description)
+            if project.tech:
+                out.append(f"*{', '.join(project.tech)}*")
+
+    if document.education:
+        out += ["", "## Education"]
+        for study in document.education:
+            head = ", ".join(x for x in (study.level, study.field_of_study) if x)
+            out += ["", f"### {head}" if head else "### Education"]
+            line = " · ".join(x for x in (study.institution, study.location,
+                                          study.period, study.grade) if x)
+            if line:
+                out.append(line)
+            if study.courses:
+                out.append(f"*{', '.join(study.courses)}*")
+
+    if document.skills:
+        out += ["", "## Skills", "", " · ".join(document.skills)]
+
+    if document.certifications:
+        out += ["", "## Certifications", ""]
+        for cert in document.certifications:
+            line = " — ".join(x for x in (cert.name, cert.issuer) if x)
+            out.append(f"- {line}" + (f" ({cert.year})" if cert.year else ""))
+
+    if document.languages:
+        out += ["", "## Languages", "",
+                " · ".join(f"{x.name} ({x.level})" if x.level else x.name
+                           for x in document.languages)]
+    return "\n".join(out).strip() + "\n"
+
+
+def letter_markdown(letter):
+    """A cover letter as markdown, ready to paste into a form."""
+    out = []
+    if letter.personal.full_name:
+        out.append(f"**{letter.personal.full_name}**")
+    contact = _contact(letter.personal)
+    if contact:
+        out.append(contact)
+    out.append("")
+    if letter.company:
+        out.append(letter.company)
+    if letter.written_on:
+        out.append(_long_date(letter.written_on, letter.language))
+    if letter.role:
+        out += ["", f"**{letter.role}**"]
+    out += ["", letter.greeting, ""]
+    for paragraph in letter.paragraphs:
+        out += [paragraph, ""]
+    out.append(letter.closing)
+    if letter.signature:
+        out += ["", letter.signature]
+    return "\n".join(out).strip() + "\n"
+
+
+# --- render: the door -------------------------------------------------------
+#
+# The one piece of policy here: a document with a blocking issue - an unfilled
+# placeholder, a missing name - does not become a file. That promise is in the
+# README, so it is enforced in the one place every export goes through rather
+# than in each caller.
+
+
+class ExportBlocked(RuntimeError):
+    """The document has problems that must be fixed before it becomes a file."""
+
+    def __init__(self, issues):
+        self.issues = issues
+        listed = "\n".join(f"  - {issue.path}: {issue.message}" for issue in issues)
+        super().__init__(f"This document is not ready to export:\n{listed}\n"
+                         "Fix these, or edit the document, and try again.")
+
+
+class PdfError(RuntimeError):
+    """The PDF could not be produced. Message is addressed to the user."""
+
+
+def blocking_issues(document):
+    """What stops this document becoming a file.
+
+    A tailored CV and a letter each publish their own `blocking` list. A plain
+    `Profile` publishes none, and would otherwise walk through the door
+    unchecked - carrying the '[Your Name]' this whole rule exists to stop - so
+    it is validated here instead. The door is one place, for every document.
+    """
+    declared = getattr(document, "blocking", None)
+    if declared is not None:
+        return list(declared)
+    report = getattr(document, "report", None)
+    found = report() if callable(report) else []
+    return [issue for issue in found if issue.severity == BLOCKING]
+
+
+def to_markdown(document):
+    """Whichever kind of document this is, as markdown.
+
+    Always written before the PDF is attempted, so a machine with no browser
+    still gets a document a person can read and send.
+    """
+    return (letter_markdown if hasattr(document, "paragraphs") else cv_markdown)(document)
+
+
+def to_html(document, theme=NEUTRAL):
+    """Render whichever kind of document this is."""
+    return (letter_html if hasattr(document, "paragraphs") else cv_html)(document, theme)
+
+
+def export(document, path, theme=NEUTRAL):
+    """Write a CV or a cover letter to `path` as a PDF.
+
+    Raises `ExportBlocked` if the document reports a blocking issue - which is
+    how "nothing becomes a PDF until it is fit to send" is actually kept.
+    """
+    blocked = blocking_issues(document)
+    if blocked:
+        raise ExportBlocked(blocked)
+    return write_pdf(to_html(document, theme), Path(path))
+
+
+# --- render: PDF, via the browser already on the machine --------------------
+#
+# Chromium's own print pipeline, so what the PDF looks like is what the HTML
+# looks like - no second layout engine to keep happy, and nothing to install.
+#
+# The awkward part is that Chrome does not reliably exit. On macOS the Google
+# updater keeps the process alive long after --print-to-pdf has written the
+# file, so waiting on the process means waiting minutes for work that took a
+# second. We poll for the file instead, and kill the browser once it has
+# stopped growing. That is why this is a loop and not a `subprocess.run`.
+
+#: Where a browser lives, per platform. First one found wins.
+_CHROMES = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium", "/usr/bin/chromium-browser",
+    "/usr/bin/microsoft-edge", "/snap/bin/chromium",
+)
+_CHROME_NAMES = ("google-chrome", "google-chrome-stable", "chromium",
+                 "chromium-browser", "chrome", "microsoft-edge", "brave-browser")
+
+#: How long to wait for the file, and how long it must stop growing for.
+_PDF_TIMEOUT = 60.0
+_PDF_SETTLE = 0.4
+
+
+def find_browser():
+    """A Chromium-family browser on this machine, or None.
+
+    `JOB_HUNTER_BROWSER` overrides, for a machine with one somewhere unusual.
+    """
+    named = os.environ.get("JOB_HUNTER_BROWSER", "").strip()
+    if named:
+        return named if Path(named).exists() else shutil.which(named)
+    for candidate in _CHROMES:
+        if Path(candidate).exists():
+            return candidate
+    for name in _CHROME_NAMES:
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+def write_pdf(page, path):
+    """Render `page` to a PDF at `path`, creating parent directories."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    browser = find_browser()
+    if browser is None:
+        raise PdfError(
+            "No Chrome, Chromium, Edge or Brave found, so the PDF could not be "
+            "made. The markdown version was still written and is ready to send. "
+            "Install any of those browsers, or set JOB_HUNTER_BROWSER to one.")
+
+    work = Path(tempfile.mkdtemp(prefix="jobhunt-pdf-"))
+    source = work / "document.html"
+    source.write_text(page, encoding="utf-8")
+    # Chrome refuses to overwrite, and writes relative to the cwd otherwise.
+    target = work / "out.pdf"
+
+    command = [
+        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        "--no-first-run", "--no-default-browser-check",
+        "--disable-extensions", "--disable-background-networking",
+        "--disable-component-update", "--run-all-compositor-stages-before-draw",
+        f"--user-data-dir={work / 'profile'}",
+        "--no-pdf-header-footer",
+        f"--print-to-pdf={target}",
+        source.as_uri(),
+    ]
+    try:
+        process = subprocess.Popen(command, stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL)
+    except OSError as exc:
+        shutil.rmtree(work, ignore_errors=True)
+        raise PdfError(f"Could not start {browser}: {exc}") from exc
+
+    try:
+        written = _await_pdf(target, process)
+        if written is None:
+            raise PdfError(
+                f"{Path(browser).name} did not produce a PDF within "
+                f"{_PDF_TIMEOUT:.0f}s. The markdown version was still written.")
+        path.write_bytes(written)
+    finally:
+        _stop(process)
+        shutil.rmtree(work, ignore_errors=True)
+
+    if not path.exists() or path.stat().st_size == 0:
+        raise PdfError(f"The PDF at {path} came out empty.")
+    return path
+
+
+def _await_pdf(target, process):
+    """The PDF's bytes once it has stopped growing, or None on timeout.
+
+    Polls the file rather than waiting on the process: Chrome writes the PDF
+    and then lingers, so waiting on exit turns a one-second render into a
+    five-minute one.
+    """
+    deadline = time.monotonic() + _PDF_TIMEOUT
+    size = -1
+    settled_at = None
+    while time.monotonic() < deadline:
+        if target.exists():
+            current = target.stat().st_size
+            if current > 0 and current == size:
+                if settled_at is None:
+                    settled_at = time.monotonic()
+                elif time.monotonic() - settled_at >= _PDF_SETTLE:
+                    return target.read_bytes()
+            else:
+                settled_at = None
+            size = current
+        elif process.poll() is not None:
+            # It exited without writing anything: no point waiting out the clock.
+            return None
+        time.sleep(0.05)
+    return target.read_bytes() if target.exists() and target.stat().st_size else None
+
+
+def _stop(process):
+    """End the browser, politely then not."""
+    if process.poll() is not None:
+        return
+    process.terminate()
+    for _ in range(20):
+        if process.poll() is not None:
+            return
+        time.sleep(0.05)
+    process.kill()
+    try:
+        process.wait(timeout=2)
+    except Exception:
+        pass
+
+
+# --- reading what a model wrote ---------------------------------------------
+
+
+class ParseError(ValueError):
+    """The response could not be read as the requested shape."""
+
+
+#: Opening or closing code fence on its own line, with or without a language tag.
+_FENCE = re.compile(r"^\s*```(?:json)?|```\s*$", re.MULTILINE)
+
+
+def parse_json(raw, hint=""):
+    """Pull a JSON object out of a model's response.
+
+    Forgiving by design: instructing a model to write only JSON reduces the
+    noise but never eliminates it. `hint` is appended to the error for a caller
+    that wants to end with its own advice ("paste it as YAML instead").
+    """
+    cleaned = _FENCE.sub("", raw.strip()).strip()
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        parsed = _salvage(cleaned, hint)
+    if not isinstance(parsed, dict):
+        raise ParseError(f"Expected a JSON object, not a {type(parsed).__name__}.")
+    return parsed
+
+
+def _salvage(cleaned, hint):
+    """Second attempt: take the outermost braces and ignore the prose around them."""
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start == -1:
+        raise ParseError(_and_hint("The model did not return JSON.", hint)) from None
+    if end <= start:
+        # Opened an object and never closed it - almost always a hit token limit.
+        raise ParseError(_and_hint(
+            "The model returned malformed JSON (the response looks cut off).",
+            hint)) from None
+    try:
+        return json.loads(cleaned[start:end + 1])
+    except json.JSONDecodeError as exc:
+        raise ParseError(f"The model returned malformed JSON: {exc}") from exc
+
+
+def _and_hint(message, hint):
+    return f"{message} {hint}".strip()
+
+
+# --- reading a CV -----------------------------------------------------------
+#
+# Only the formats the standard library can open. A PDF is left to the agent,
+# which can already read one - and that is the right division anyway: getting
+# the words out of somebody's CV layout is judgement, and judgement is the
+# agent's half of this tool.
+
+
+class IntakeError(RuntimeError):
+    """The file could not be read at all."""
+
+
+READABLE = {".txt", ".md", ".markdown", ".yaml", ".yml", ".docx"}
+CV_SUFFIXES = READABLE | {".pdf"}
+
+
+def read_cv_text(path):
+    """The plain text of a CV file. No model involved."""
+    path = Path(path)
+    if not path.exists():
+        raise IntakeError(f"No such file: {path}")
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        raise IntakeError(
+            f"{path.name} is a PDF. Read it yourself and write profile.yaml from "
+            "what you see - you can open a PDF and this script cannot.")
+    if suffix == ".docx":
+        return _docx_text(path)
+    if suffix not in READABLE:
+        raise IntakeError(f"Cannot read {suffix or 'a file with no extension'}. "
+                          f"Readable here: {', '.join(sorted(READABLE))}, plus "
+                          ".pdf if you read it yourself.")
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _docx_text(path):
+    """Text from a .docx, which is a zip of XML - no library needed.
+
+    Paragraphs and table cells, in document order. `w:p` is a paragraph and
+    `w:t` is a run of text inside one; everything else is formatting.
+    """
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml = archive.read("word/document.xml")
+    except (zipfile.BadZipFile, KeyError) as exc:
+        raise IntakeError(f"Could not read {path.name} as a .docx: {exc}") from exc
+
+    out = []
+    for paragraph in ET.fromstring(xml).iter(W + "p"):
+        line = "".join(node.text or "" for node in paragraph.iter(W + "t"))
+        if line.strip():
+            out.append(line)
+    body = "\n".join(out).strip()
+    if not body:
+        raise IntakeError(f"{path.name} appears to be empty.")
+    return body
+
+
+#: "github.com/ada", "www.ada.dev", "linkedin.com/in/ada" - a host and a path,
+#: with the scheme missing.
+_BARE_URL = re.compile(r"^(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:/\S*)?$")
+
+
+def restore_scheme(profile):
+    """Put back the https:// a printed CV left out.
+
+    Rendering strips the scheme so a CV shows "github.com/ada" rather than the
+    full URL - which means a CV exported by this tool, printed, and read back in
+    arrives bare, and the profile check then complains about three links that
+    were right all along. Adding the scheme is not a guess: it is the same
+    address, written the way the rest of the tool expects.
+    """
+    personal = profile.personal
+    fixed = {}
+    for name in ("github", "linkedin", "website"):
+        value = (getattr(personal, name, "") or "").strip()
+        if value and _BARE_URL.match(value):
+            fixed[name] = f"https://{value}"
+    if not fixed:
+        return profile
+    return replace(profile, personal=replace(personal, **fixed))
+
+
+# --- workspace --------------------------------------------------------------
+#
+# One directory per job, holding everything produced for it, all under a single
+# `jobhunt/` folder so a skill run from inside a code repo leaves one directory
+# behind rather than three.
+#
+#     jobhunt/profile.yaml
+#     jobhunt/cv/                       your CV, as you have it
+#     jobhunt/runs/<date>-<slug>/       everything made for one job
+#     jobhunt/runs/log.md               one line per job
+#
+# The date prefix means re-running the same job on the same day overwrites,
+# which is what you want while iterating, and two jobs at the same company a
+# month apart do not collide.
+
+WORKSPACE = "jobhunt"
+CV_DIR = "cv"
+RUNS_DIR = "runs"
+PROFILE_NAME = "profile.yaml"
+LOG_NAME = "log.md"
+INCOMING = ".incoming"
+
+
+def home():
+    """The workspace directory, re-read each call so a test can move it.
+
+    `JOBHUNT_HOME` wins. Otherwise the nearest `jobhunt/` at or above the
+    working directory, so running from a subfolder still finds your profile;
+    failing that, `./jobhunt/`, created on first write.
+    """
+    named = os.environ.get("JOBHUNT_HOME", "").strip()
+    if named:
+        return Path(named).expanduser()
+    here = Path.cwd().resolve()
+    for candidate in (here, *here.parents):
+        if (candidate / WORKSPACE / PROFILE_NAME).exists():
+            return candidate / WORKSPACE
+    return here / WORKSPACE
+
+
+def cv_dir(base=None):
+    return (Path(base) if base else home()) / CV_DIR
+
+
+def runs_dir(base=None):
+    return (Path(base) if base else home()) / RUNS_DIR
+
+
+def profile_path(base=None):
+    return (Path(base) if base else home()) / PROFILE_NAME
+
+
+def log_path(base=None):
+    return runs_dir(base) / LOG_NAME
+
+
+def incoming(url, base=None):
+    """Where a fetch lands before anyone knows what the job is called."""
+    digest = hashlib.sha1(url.encode()).hexdigest()[:10]
+    return runs_dir(base) / INCOMING / digest
+
+
+def settled(slug, base=None, on=""):
+    return runs_dir(base) / f"{on or today()}-{slug}"
+
+
+def promote(source, slug, base=None):
+    """Move a fetched run to its real name, now that the job has been read."""
+    source = Path(source)
+    target = settled(slug, base)
+    if target.resolve() == source.resolve():
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        shutil.rmtree(target)
+    shutil.move(str(source), str(target))
+    return target
+
+
+def run_dir(given, base=None):
+    """The run directory a caller named, as an absolute path inside `runs/`.
+
+    A run is addressed by name, never by an arbitrary path: everything this
+    tool writes belongs under `runs/`, and a directory argument that can escape
+    it is a directory argument that will.
+    """
+    candidate = Path(given)
+    if not candidate.is_absolute():
+        if candidate.parent.name in ("", ".", RUNS_DIR):
+            candidate = runs_dir(base) / candidate.name
+    candidate = candidate.resolve()
+    runs = runs_dir(base).resolve()
+    if runs not in candidate.parents:
+        raise ValueError(f"{given} is not a run directory under {runs}")
+    return candidate
+
+
+#: What each file is for, so a missing one can say what to do about it.
+_NEEDED = {
+    "job.yaml": "that run has no parsed posting yet - read the posting first",
+    "page.txt": "that run has no posting text - fetch the URL first",
+    "cv.yaml": "that run has no tailored CV yet - tailor the CV first",
+    "fit-before.json": "score the fit before tailoring first",
+}
+
+
+def require(run, name):
+    """A file a step cannot work without, or a sentence saying why not."""
+    target = Path(run) / name
+    if not target.exists():
+        why = _NEEDED.get(name, f"{name} is missing from that run")
+        raise FileNotFoundError(f"{Path(run).name}: {why}.")
+    return target
+
+
+def write_json(run, name, payload):
+    target = Path(run) / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                      encoding="utf-8")
+    return target
+
+
+def write_text(run, name, body):
+    target = Path(run) / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body if body.endswith("\n") else body + "\n", encoding="utf-8")
+    return target
+
+
+def note(run, label, url, base=None):
+    """One line per run in runs/log.md, appended.
+
+    The whole of what replaced application tracking. The run directory is the
+    record; this is the index, and it is markdown so a rejection or an
+    interview date can be typed straight into it.
+    """
+    log = log_path(base)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    if not log.exists():
+        log.write_text("# Applications\n\n"
+                       "One line per job prepared. Add what happened next yourself.\n\n",
+                       encoding="utf-8")
+    line = f"- {today()}  {label}  <{url}>  `{Path(run).name}`\n"
+    if line not in log.read_text(encoding="utf-8"):
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+    return log
+
+
+# --- what a skill script exits with -----------------------------------------
+#
+# Quoted in every SKILL.md, so the two cannot drift apart without somebody
+# noticing. The split that matters is 1 against 2: "the tool cannot continue"
+# and "your draft is not fit to send" need opposite responses, and collapsing
+# them teaches the model to retry things that will never work.
+
+OK = 0
+#: A precondition the *user* has to fix: no profile, no CV, a login wall, a
+#: posting too thin to work from. Stop and relay the message. Never work around
+#: it - working around a login wall means inventing the job description.
+BLOCKED = 1
+#: A document was produced and is not fit to export: a blocking issue, or a
+#: message over a hard length cap. Rewrite the JSON that produced it, once.
+UNFIT = 2
+#: The JSON could not be read at all - fenced, truncated, or not JSON. Write it
+#: again, once.
+UNREADABLE = 3
+
+MEANING = {
+    OK: "fine",
+    BLOCKED: "the user must fix something; stop and tell them",
+    UNFIT: "the draft is not fit to send; rewrite it once",
+    UNREADABLE: "the JSON could not be read; write it again once",
+}
+
+#: Everything raised on purpose here. All carry a message meant for a person.
+USER_ERRORS = (IntakeError, ParseError, ExportBlocked, PdfError,
+               ValueError, FileNotFoundError)
+
+
+def emit(payload):
+    """One line of JSON on stdout. The agent reads this; a person reads stderr."""
+    print(json.dumps(payload, ensure_ascii=False, default=str))
+
+
+def fail(message, code=BLOCKED):
+    print(message, file=sys.stderr)
+    return code
+
+
+def run_cli(work, argv=None):
+    """Run one skill's `work(args)` and turn whatever it raises into an exit code.
+
+    Every skill script ends with `raise SystemExit(jobhunt.run_cli(work))`, so
+    the exit codes above mean the same thing in all eleven of them.
+    """
+    try:
+        return work(argv if argv is not None else sys.argv[1:])
+    except ParseError as exc:
+        return fail(str(exc), UNREADABLE)
+    except (ExportBlocked, PdfError) as exc:
+        return fail(str(exc), UNFIT)
+    except USER_ERRORS as exc:
+        return fail(str(exc), BLOCKED)
+    except KeyboardInterrupt:
+        return fail("interrupted", BLOCKED)

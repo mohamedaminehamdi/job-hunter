@@ -8,7 +8,7 @@ as the prompt.
 
 
 
-from job_hunter.generate import cv
+import jobhunt
 
 REPLY = {
     "summary": "Data engineer with production pipeline experience.",
@@ -23,98 +23,98 @@ REPLY = {
 
 def test_roles_keep_the_profile_order_not_the_model_s(profile, job):
     """Ranked by relevance, a past role lands above the current one."""
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 1}, {"index": 0}]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 1}, {"index": 0}]})
     assert [r.company for r in document.experience] == ["Acme", "Beta"]
 
 
 def test_the_model_still_chooses_which_roles_appear(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 1}]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 1}]})
     assert [r.company for r in document.experience] == ["Beta"]
 
 
 def test_a_dropped_role_is_reported(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0}]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 0}]})
     left_out = [i for i in document.all_issues if "Left off" in i.message]
     assert left_out and "Beta" in left_out[0].message
 
 
 def test_nothing_is_reported_when_every_role_is_kept(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0}, {"index": 1}]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 0}, {"index": 1}]})
     assert not any("Left off" in i.message for i in document.all_issues)
 
 
 def test_a_role_with_no_bullets_falls_back_to_the_profile(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0, "bullets": []}]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 0, "bullets": []}]})
     assert document.experience[0].bullets == profile.experience[0].bullets
 
 
 def test_out_of_range_and_duplicate_indices_are_dropped(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [
         {"index": 0}, {"index": 0}, {"index": 99}, {"index": -1}, {"index": "x"}]})
     assert [r.company for r in document.experience] == ["Acme"]
 
 
 def test_index_accepted_in_the_shapes_models_use(profile, job):
     for entry in (1, "1", {"index": 1}, {"i": 1}, {"index": "1"}):
-        document = cv.assemble(profile, job, {**REPLY, "roles": [entry]})
+        document = jobhunt.tailor(profile, job, {**REPLY, "roles": [entry]})
         assert [r.company for r in document.experience] == ["Beta"], entry
 
 
 def test_no_roles_selected_keeps_them_all_and_says_so(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": []})
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": []})
     assert len(document.experience) == len(profile.experience)
     assert any("did not select" in i.message for i in document.issues)
 
 
 def test_bullets_are_capped(profile, job):
     many = [f"Did thing number {i} at work." for i in range(20)]
-    document = cv.assemble(profile, job, {**REPLY, "roles": [{"index": 0, "bullets": many}]})
-    assert len(document.experience[0].bullets) == cv.MAX_BULLETS
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [{"index": 0, "bullets": many}]})
+    assert len(document.experience[0].bullets) == jobhunt.MAX_BULLETS
 
 
 def test_bullet_characters_are_stripped(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "roles": [
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [
         {"index": 0, "bullets": ["- Mentored two junior analysts.", "  ", "• Cut runtime."]}]})
     assert document.experience[0].bullets == ["Mentored two junior analysts.", "Cut runtime."]
 
 
 def test_skills_fall_back_to_the_profile_when_none_survive(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "skills": ["Kafka"]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "skills": ["Kafka"]})
     assert document.skills == profile.skills
 
 
 def test_skills_may_come_from_a_role_or_a_project(profile, job):
     """Airflow is only listed on a role; Python only on a project. Both are real."""
-    document = cv.assemble(profile, job, {**REPLY, "skills": ["Airflow", "Python"]})
+    document = jobhunt.tailor(profile, job, {**REPLY, "skills": ["Airflow", "Python"]})
     assert document.skills == ["Airflow", "Python"]
 
 
 def test_summary_falls_back_to_the_profile(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "summary": ""})
+    document = jobhunt.tailor(profile, job, {**REPLY, "summary": ""})
     assert document.summary == profile.summary
 
 
 def test_projects_are_selected_not_reworded(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "projects": [{"index": 0,
+    document = jobhunt.tailor(profile, job, {**REPLY, "projects": [{"index": 0,
                                                                  "description": "Rewritten!"}]})
     assert document.projects == [profile.projects[0]]
 
 
 def test_the_document_carries_the_job_it_was_made_for(profile, job):
-    document = cv.assemble(profile, job, REPLY)
+    document = jobhunt.tailor(profile, job, REPLY)
     assert document.job_label == "Senior Data Engineer at Zeta"
     assert document.job_slug == "zeta-senior-data-engineer"
 
 
 def test_placeholder_text_blocks_the_document(profile, job):
-    document = cv.assemble(profile, job, {**REPLY, "summary": "Engineer at [Company]."})
+    document = jobhunt.tailor(profile, job, {**REPLY, "summary": "Engineer at [Company]."})
     assert document.blocking
     assert not document.is_renderable
 
 
 def test_issue_text_does_not_itself_become_a_blocking_issue(profile, job):
     """A warning mentioning '[Company]' must not be read as placeholder content."""
-    document = cv.assemble(profile, job, {**REPLY, "roles": [
+    document = jobhunt.tailor(profile, job, {**REPLY, "roles": [
         {"index": 0, "bullets": ["Ran Kubernetes."]}]})
     assert document.issues  # the guard fired
     assert not document.blocking  # but that is not a blocker

@@ -1,22 +1,21 @@
+"""Fixtures shared across the suite.
+
+There is no model to stub - the agent writes JSON files and Python reads them,
+so every test here runs on real code with fixture input.
+"""
+
 import sys
 from pathlib import Path
 
-# `core/jobhunt.py` is the source of truth; the copies under
-# plugins/*/skills/*/lib/ are generated from it by tools/sync.py.
+# `core/jobhunt.py` is the source of truth; the copies under each skill's lib/
+# are generated from it by tools/sync.py, and a test fails if they drift.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
-"""Fixtures shared across the suite.
-
-There is no model to stub any more - Claude Code writes JSON files and Python
-reads them, so every test here runs on real code with fixture input.
-"""
-
-import pytest
-
-from job_hunter.jobs.models import Job
-from job_hunter.profile.models import (
+import pytest  # noqa: E402
+from jobhunt import (  # noqa: E402
     Certification,
     Education,
+    Job,
     Language,
     Personal,
     Profile,

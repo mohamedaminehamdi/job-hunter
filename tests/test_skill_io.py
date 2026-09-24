@@ -8,11 +8,11 @@ would only test the mock.
 
 import json
 
+import jobhunt
 import pytest
 import yaml
 
 from job_hunter import paths
-from job_hunter.profile import store as profile_store
 from job_hunter.skill import exits, runs
 from job_hunter.skill.__main__ import main
 
@@ -65,7 +65,7 @@ def repo(tmp_path, monkeypatch, profile):
     monkeypatch.setenv("JOB_HUNTER_HOME", str(tmp_path))
     (tmp_path / paths.CV_DIR).mkdir()
     (tmp_path / paths.RUNS_DIR).mkdir()
-    profile_store.save(profile, profile_store.profile_path())
+    jobhunt.save(profile, paths.profile_path())
     return tmp_path
 
 

@@ -8,7 +8,6 @@ chomps in ways the writer here does not.
 """
 
 import pytest
-
 from jobhunt import YamlError, yaml_dump, yaml_load
 
 
@@ -75,7 +74,7 @@ def test_a_value_with_a_colon_is_quoted():
 def test_a_long_value_is_never_folded():
     """A folded achievement bullet is what someone then edits wrongly."""
     long = "Cut ETL runtime by 35% " * 12
-    assert len([l for l in yaml_dump({"b": long}).splitlines()]) == 1
+    assert len(yaml_dump({"b": long}).splitlines()) == 1
 
 
 def test_multi_line_text_round_trips():

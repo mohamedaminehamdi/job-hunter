@@ -1,8 +1,8 @@
 import pytest
-
-from job_hunter.jobs import fetch          # ported to core in the fetch layer
-from job_hunter.jobs.fetch import FetchError
 from jobhunt import Job, build
+
+from job_hunter.jobs import fetch  # ported to core in the fetch layer
+from job_hunter.jobs.fetch import FetchError
 
 FULL = {
     "title": "Data Engineer",

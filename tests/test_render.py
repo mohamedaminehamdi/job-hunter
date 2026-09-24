@@ -4,12 +4,9 @@ No PDF is produced here - that needs a browser and belongs in a manual check,
 not in a suite that has to run anywhere.
 """
 
+import jobhunt as render
 import pytest
-
-from job_hunter import render
-from job_hunter.generate import cover_letter, cv
-from job_hunter.profile.models import Profile
-from job_hunter.render import html
+from jobhunt import Profile
 
 CV_REPLY = {
     "summary": "Data engineer with production pipeline experience.",
@@ -26,12 +23,12 @@ LETTER_REPLY = {
 
 @pytest.fixture
 def document(profile, job):
-    return cv.assemble(profile, job, CV_REPLY)
+    return render.tailor(profile, job, CV_REPLY)
 
 
 @pytest.fixture
 def letter(profile, job):
-    return cover_letter.assemble(profile, job, LETTER_REPLY)
+    return render.write_letter(profile, job, LETTER_REPLY)
 
 
 def test_cv_html_carries_the_content(document):
@@ -68,7 +65,7 @@ def test_font_stack_survives_autoescaping(document):
 
 def test_user_content_is_escaped(job):
     """Everything except the theme is data: a profile is not allowed to inject HTML."""
-    nasty = Profile.model_validate({
+    nasty = render.build(Profile, {
         "personal": {"name": "<script>alert(1)</script>"},
         "summary": "5 > 3 & sensible",
     })
@@ -107,7 +104,7 @@ def test_screen_and_print_both_have_page_margins(document):
 
 
 def test_export_refuses_a_blocked_document(profile, job, tmp_path):
-    blocked = cv.assemble(profile, job, {**CV_REPLY, "summary": "Engineer at [Company]."})
+    blocked = render.tailor(profile, job, {**CV_REPLY, "summary": "Engineer at [Company]."})
     with pytest.raises(render.ExportBlocked) as caught:
         render.export(blocked, tmp_path / "cv.pdf")
 
@@ -118,7 +115,7 @@ def test_export_refuses_a_blocked_document(profile, job, tmp_path):
 
 def test_export_refuses_a_plain_profile_with_a_placeholder(profile, tmp_path):
     """A Profile declares no `blocking` list, and must still be checked."""
-    unfinished = profile.model_copy(deep=True)
+    unfinished = profile
     unfinished.personal.name = "[Your Name]"
 
     with pytest.raises(render.ExportBlocked):
@@ -150,23 +147,23 @@ def test_export_of_a_clean_document_reaches_the_pdf_step(document, tmp_path, mon
     ("", "7 September 2026"),
 ])
 def test_the_date_is_written_in_the_letter_s_language(language, expected):
-    assert html._long_date("2026-09-07", language) == expected
+    assert render._long_date("2026-09-07", language) == expected
 
 
 def test_the_french_first_of_the_month_is_ordinal():
-    assert html._long_date("2026-09-01", "fr") == "1er septembre 2026"
-    assert html._long_date("2026-09-01", "en") == "1 September 2026"
+    assert render._long_date("2026-09-01", "fr") == "1er septembre 2026"
+    assert render._long_date("2026-09-01", "en") == "1 September 2026"
 
 
 def test_something_that_is_not_a_date_passes_through():
-    assert html._long_date("whenever", "fr") == "whenever"
+    assert render._long_date("whenever", "fr") == "whenever"
 
 
 def test_the_subject_line_is_written_in_the_letter_s_language(letter):
-    french = letter.model_copy(update={"language": "fr", "role": "Ingénieur DevOps"})
+    french = render.clone(letter, **{"language": "fr", "role": "Ingénieur DevOps"})
     page = render.letter_html(french)
     assert "Objet&#32;:" in page or "Objet :" in page
     assert "Application:" not in page
 
-    english = letter.model_copy(update={"language": "en", "role": "Data Engineer"})
+    english = render.clone(letter, **{"language": "en", "role": "Data Engineer"})
     assert "Application:" in render.letter_html(english)

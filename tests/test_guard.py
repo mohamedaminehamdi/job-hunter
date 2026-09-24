@@ -1,9 +1,7 @@
 """The invention guard: what it catches, and what it must not flag."""
 
 import pytest
-
-from job_hunter.generate.guard import Support, check, check_all
-from job_hunter.profile.models import Profile, Severity
+from jobhunt import WARNING, Profile, Support, check, check_all
 
 
 def support_for(profile):
@@ -19,7 +17,7 @@ def test_invented_tool_is_flagged(profile):
     issues = check("Led the migration to Kubernetes.", support_for(profile), path="x")
     assert len(issues) == 1
     assert "Kubernetes" in issues[0].message
-    assert issues[0].severity == Severity.WARNING
+    assert issues[0].severity == WARNING
 
 
 def test_invented_figure_is_flagged(profile):
@@ -67,9 +65,9 @@ def test_requirements_are_deliberately_not_support(profile, job):
 
 def test_issue_messages_are_not_themselves_support(profile):
     """An Issue's text must never widen the vocabulary it is complaining about."""
-    from job_hunter.profile.models import Issue
+    from jobhunt import Issue
 
-    noisy = Issue(path="x", severity=Severity.WARNING, message="Kubernetes is missing")
+    noisy = Issue(path="x", severity=WARNING, message="Kubernetes is missing")
     support = Support.of(profile, [noisy])
     assert check("Ran Kubernetes.", support, path="x") != []
 

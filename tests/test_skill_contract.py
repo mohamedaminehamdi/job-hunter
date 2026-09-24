@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 import yaml
+from jobhunt import Job, fieldnames
 
 from job_hunter.generate import cover_letter, cv
-from job_hunter.jobs.models import Job
 from job_hunter.skill import __main__ as dispatcher
 
 SKILL = Path(".claude/skills/prep-apply/SKILL.md")
@@ -56,7 +56,7 @@ def test_the_letter_shape_is_exactly_what_assemble_reads():
 
 def test_the_job_shape_names_only_real_job_fields():
     shape, = fenced_json(REFERENCES / "job-extraction.md")
-    unknown = set(shape) - set(Job.model_fields)
+    unknown = set(shape) - fieldnames(Job)
     assert not unknown, f"job-extraction.md documents fields Job does not have: {unknown}"
 
 
