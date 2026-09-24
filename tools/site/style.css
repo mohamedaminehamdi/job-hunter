@@ -325,10 +325,16 @@ h1 em { font-style: italic; font-weight: 620; }
               font-weight: 500; }
 .score-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
              overflow: hidden; margin-top: 7px; }
+/* The width is in the markup and the growth is a keyframe, so the bar is the
+   right length whether or not a script ever runs. It used to be filled in by
+   JavaScript on an observer callback - and a bar stuck at zero beside a number
+   stuck at zero does not look like a missing animation, it looks like the
+   answer, which is worse than showing nothing. */
 .score-bar i { display: block; height: 100%; border-radius: 999px;
-               background: var(--accent); width: 0;
-               transition: width 1.1s var(--ease); }
+               background: var(--accent); width: var(--fill, 0);
+               animation: grow 1.1s var(--ease) both; }
 .score-bar.flat i { background: var(--ink-faint); }
+@keyframes grow { from { width: 0; } }
 .score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
 /* --- boards ------------------------------------------------------------- */
@@ -582,6 +588,7 @@ footer nav a { color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .js .up, .js .stagger > * { opacity: 1; transform: none; }
+  .score-bar i { animation: none; }
   *, *::before, *::after {
     animation-duration: .001ms !important; transition-duration: .001ms !important;
   }

@@ -135,34 +135,31 @@
   }
 
   // --- the two numbers ----------------------------------------------------
-  // They count up because the point of the pair is that one moves and one
-  // does not, and watching them settle says that faster than a caption.
+  // They count up because the point of the pair is that one moves and one does
+  // not, and watching them settle says that faster than a caption.
+  //
+  // The markup already holds the right numbers and the bars already hold their
+  // widths - this only replays them. If it never runs, or the observer never
+  // fires, the reader sees the correct figures without the animation, which is
+  // the only acceptable failure for a number.
 
   var counted = false;
   function fillScore() {
-    if (counted) return;
+    if (counted || still) return;
     counted = true;
-    // Set directly rather than inside requestAnimationFrame. The bar starts at
-    // width 0 in the stylesheet and has already been laid out, so the
-    // transition runs either way - and the rAF made the state impossible to
-    // observe, which is how this shipped broken twice.
-    document.querySelectorAll(".score-bar").forEach(function (bar) {
-      bar.querySelector("i").style.width = (bar.dataset.fill || 0) + "%";
-    });
     document.querySelectorAll(".score-num").forEach(function (el) {
-      var to = parseInt(el.dataset.count, 10) || 0;
+      var to = parseInt(el.dataset.count, 10);
+      if (!(to > 0)) return;
       var tail = el.querySelector("small");
       var suffix = tail ? tail.outerHTML : "";
-      if (still) { el.innerHTML = to + suffix; return; }
       var at = 0;
       var tick = setInterval(function () {
         at += 1;
         el.innerHTML = at + suffix;
         if (at >= to) clearInterval(tick);
-      }, 520 / Math.max(to, 1));
+      }, 520 / to);
     });
   }
-  if (still) fillScore();
 
   // --- the rail -----------------------------------------------------------
   // One continuous fill down the steps as you scroll past them, and each badge

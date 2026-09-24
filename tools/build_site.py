@@ -240,21 +240,21 @@ def build():
             <div class="score-row">
               <span class="score-label">Backed by your CV</span>
               <span class="score-num"
-                data-count="{fit['evidenced']}">0<small>/{fit['of']}</small></span>
+                data-count="{fit['evidenced']}">{fit['evidenced']}<small>/{fit['of']}</small></span>
             </div>
             <div class="score-bar flat"
-                 data-fill="{round(100 * fit['evidenced'] / fit['of'])}"><i></i></div>
+                 style="--fill:{round(100 * fit['evidenced'] / fit['of'])}%"><i></i></div>
             <p class="score-note">A fact about you. Tailoring cannot move it.</p>
           </div>
           <div>
             <div class="score-row">
               <span class="score-label">Seen in the first screenful</span>
               <span class="score-num"
-                data-count="{fit['after']}">0<small>/{fit['backed']}</small></span>
+                data-count="{fit['after']}">{fit['after']}<small>/{fit['backed']}</small></span>
               <span class="score-move">+{fit['after'] - fit['before']}</span>
             </div>
             <div class="score-bar"
-                 data-fill="{round(100 * fit['after'] / fit['backed'])}"><i></i></div>
+                 style="--fill:{round(100 * fit['after'] / fit['backed'])}%"><i></i></div>
             <p class="score-note">This is the one tailoring is for.</p>
           </div>
         </div>

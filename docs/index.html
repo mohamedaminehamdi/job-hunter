@@ -340,10 +340,16 @@ h1 em { font-style: italic; font-weight: 620; }
               font-weight: 500; }
 .score-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
              overflow: hidden; margin-top: 7px; }
+/* The width is in the markup and the growth is a keyframe, so the bar is the
+   right length whether or not a script ever runs. It used to be filled in by
+   JavaScript on an observer callback - and a bar stuck at zero beside a number
+   stuck at zero does not look like a missing animation, it looks like the
+   answer, which is worse than showing nothing. */
 .score-bar i { display: block; height: 100%; border-radius: 999px;
-               background: var(--accent); width: 0;
-               transition: width 1.1s var(--ease); }
+               background: var(--accent); width: var(--fill, 0);
+               animation: grow 1.1s var(--ease) both; }
 .score-bar.flat i { background: var(--ink-faint); }
+@keyframes grow { from { width: 0; } }
 .score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
 /* --- boards ------------------------------------------------------------- */
@@ -597,6 +603,7 @@ footer nav a { color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .js .up, .js .stagger > * { opacity: 1; transform: none; }
+  .score-bar i { animation: none; }
   *, *::before, *::after {
     animation-duration: .001ms !important; transition-duration: .001ms !important;
   }
@@ -673,21 +680,21 @@ footer nav a { color: var(--ink-soft); }
             <div class="score-row">
               <span class="score-label">Backed by your CV</span>
               <span class="score-num"
-                data-count="4">0<small>/9</small></span>
+                data-count="4">4<small>/9</small></span>
             </div>
             <div class="score-bar flat"
-                 data-fill="44"><i></i></div>
+                 style="--fill:44%"><i></i></div>
             <p class="score-note">A fact about you. Tailoring cannot move it.</p>
           </div>
           <div>
             <div class="score-row">
               <span class="score-label">Seen in the first screenful</span>
               <span class="score-num"
-                data-count="4">0<small>/4</small></span>
+                data-count="4">4<small>/4</small></span>
               <span class="score-move">+2</span>
             </div>
             <div class="score-bar"
-                 data-fill="100"><i></i></div>
+                 style="--fill:100%"><i></i></div>
             <p class="score-note">This is the one tailoring is for.</p>
           </div>
         </div>
@@ -952,34 +959,31 @@ footer nav a { color: var(--ink-soft); }
   }
 
   // --- the two numbers ----------------------------------------------------
-  // They count up because the point of the pair is that one moves and one
-  // does not, and watching them settle says that faster than a caption.
+  // They count up because the point of the pair is that one moves and one does
+  // not, and watching them settle says that faster than a caption.
+  //
+  // The markup already holds the right numbers and the bars already hold their
+  // widths - this only replays them. If it never runs, or the observer never
+  // fires, the reader sees the correct figures without the animation, which is
+  // the only acceptable failure for a number.
 
   var counted = false;
   function fillScore() {
-    if (counted) return;
+    if (counted || still) return;
     counted = true;
-    // Set directly rather than inside requestAnimationFrame. The bar starts at
-    // width 0 in the stylesheet and has already been laid out, so the
-    // transition runs either way - and the rAF made the state impossible to
-    // observe, which is how this shipped broken twice.
-    document.querySelectorAll(".score-bar").forEach(function (bar) {
-      bar.querySelector("i").style.width = (bar.dataset.fill || 0) + "%";
-    });
     document.querySelectorAll(".score-num").forEach(function (el) {
-      var to = parseInt(el.dataset.count, 10) || 0;
+      var to = parseInt(el.dataset.count, 10);
+      if (!(to > 0)) return;
       var tail = el.querySelector("small");
       var suffix = tail ? tail.outerHTML : "";
-      if (still) { el.innerHTML = to + suffix; return; }
       var at = 0;
       var tick = setInterval(function () {
         at += 1;
         el.innerHTML = at + suffix;
         if (at >= to) clearInterval(tick);
-      }, 520 / Math.max(to, 1));
+      }, 520 / to);
     });
   }
-  if (still) fillScore();
 
   // --- the rail -----------------------------------------------------------
   // One continuous fill down the steps as you scroll past them, and each badge

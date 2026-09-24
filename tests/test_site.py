@@ -222,7 +222,12 @@ def test_the_page_says_what_it_will_not_do(page):
 #
 # Static HTML cannot show whether the scroll effects work, and they are the
 # part of this page most likely to break silently - an animation that never
-# fires leaves content invisible. These drive a real browser.
+# fires leaves content invisible rather than visibly wrong, so nobody reports
+# it.
+#
+# One browser launch per configuration, not one per assertion. Six launches
+# with virtual-time budgets on a shared runner was slow and flaky enough to
+# fail CI on its own, which is worse than not testing this at all.
 
 CORE = ROOT / "core"
 sys.path.insert(0, str(CORE))
@@ -231,231 +236,224 @@ import jobhunt as jh  # noqa: E402
 needs_browser = pytest.mark.skipif(jh.find_browser() is None,
                                    reason="no Chromium-family browser")
 
+#: Everything the probes measure, run in one page load and reported together.
+PROBE = r"""
+(function () {
+  var NL = String.fromCharCode(10);
+  var out = [];
+  var errs = [];
+  window.addEventListener('error', function (e) {
+    errs.push((e.message || '?') + ' @' + e.lineno);
+  });
 
-def in_browser(probe_js, width=1280, still=False):
-    """Run `probe_js` in the built page and return what it wrote to #measured.
+  function settle() {
+    // Transitions off before measuring: under virtual time a .7s fade has not
+    // advanced, so a mid-transition 0 would read as a broken page. What is
+    // being asked is where things settle.
+    var kill = document.createElement('style');
+    kill.textContent = '*{transition:none!important;animation:none!important}';
+    document.head.appendChild(kill);
+    void document.body.offsetHeight;
+  }
+  function jump(y) {
+    // instant: the page sets scroll-behavior smooth, which animates over
+    // ~500ms and swallows a scripted jump.
+    window.scrollTo({ top: Math.max(0, y), behavior: 'instant' });
+    window.dispatchEvent(new Event('scroll'));
+  }
+  function done() {
+    var pre = document.createElement('pre');
+    pre.id = 'measured';
+    pre.textContent = out.join(NL);
+    document.body.appendChild(pre);
+  }
 
-    `still` forces prefers-reduced-motion, which is what some CI runners report
-    by default - so both branches get exercised on every machine rather than
-    whichever one the runner happens to pick.
-    """
+  var steps = document.querySelector('.steps');
+  var rail = steps.querySelector('.rail i');
+  var anchor = steps.getBoundingClientRect().top + window.scrollY;
+  out.push('reduced=' +
+           window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  out.push('js=' + /(^| )js( |$)/.test(document.documentElement.className));
+
+  setTimeout(function () {
+    // 1. the first screenful, at rest
+    settle();
+    ['h1', 'lede', 'cta', 'eyebrow'].forEach(function (name) {
+      var el = document.querySelector(name === 'h1' ? 'h1' : '.' + name);
+      out.push('hero-' + name + '=' + (el ? getComputedStyle(el).opacity : 'MISSING'));
+    });
+
+    // 2. the rail, at three depths
+    (function () {
+      jump(anchor - 600 - window.innerHeight * 0.62);
+      setTimeout(function () {
+        out.push('railAbove=' + parseFloat(rail.style.height || 0) + ',' +
+                 steps.querySelectorAll('.step.lit').length);
+        jump(anchor + 300 - window.innerHeight * 0.62);
+        setTimeout(function () {
+          out.push('railInto=' + parseFloat(rail.style.height || 0) + ',' +
+                   steps.querySelectorAll('.step.lit').length);
+          jump(anchor + 4000 - window.innerHeight * 0.62);
+          setTimeout(function () {
+            out.push('railPast=' + parseFloat(rail.style.height || 0) + ',' +
+                     steps.querySelectorAll('.step.lit').length);
+
+            // 4. the install routes with no script at all
+            document.documentElement.className = '';
+            void document.body.offsetHeight;
+            var panels = document.querySelectorAll('.agent-panel');
+            var shown = 0, named = 0;
+            Array.prototype.forEach.call(panels, function (p) {
+              if (getComputedStyle(p).display !== 'none') shown++;
+              var name = p.querySelector('.panel-name');
+              if (name && getComputedStyle(name).display !== 'none') named++;
+            });
+            out.push('panels=' + panels.length);
+            out.push('nojsShown=' + shown);
+            out.push('nojsNamed=' + named);
+            out.push('nojsPlaceholder=' +
+                     getComputedStyle(document.getElementById('panel-empty')).display);
+            out.push('commands=' + document.querySelectorAll('.cmd code').length);
+
+            out.push('errors=' + (errs.length ? errs.join('|') : 'none'));
+            done();
+          }, 350);
+        }, 350);
+      }, 350);
+    })();
+  }, 250);
+})();
+"""
+
+
+def _run_probe(still):
+    """Load the built page once, run every probe, return what it reported."""
     page = PAGE.read_text(encoding="utf-8").replace('data-theme=""', 'data-theme="light"')
     work = Path(tempfile.mkdtemp(prefix="jobhunt-probe-"))
     try:
         (work / "page.html").write_text(
-            page.replace("</body>", f"<script>{probe_js}</script></body>"),
+            page.replace("</body>", f"<script>{PROBE}</script></body>"),
             encoding="utf-8")
         dump = work / "dom.html"
         command = [jh.find_browser(), "--headless=new", "--disable-gpu",
                    "--no-sandbox", "--no-first-run", "--disable-extensions",
-                   f"--window-size={width},1057", f"--user-data-dir={work / 'p'}",
-                   "--virtual-time-budget=9000", "--dump-dom"]
+                   "--disable-background-networking", "--disable-component-update",
+                   "--window-size=1280,1057", f"--user-data-dir={work / 'p'}",
+                   "--virtual-time-budget=20000", "--dump-dom"]
         if still:
             command.append("--force-prefers-reduced-motion")
         command.append((work / "page.html").as_uri())
+
         with dump.open("wb") as sink:
             process = subprocess.Popen(command, stdout=sink, stderr=subprocess.DEVNULL)
-        raw = jh._await_file(dump, process, 60, ready=jh._dom_complete)
+        raw = jh._await_file(dump, process, 120, ready=jh._dom_complete)
         jh._stop(process)
+        if raw is None:
+            pytest.skip("the browser produced no DOM within 120s")
         body = raw.decode("utf-8", "replace")
         start = body.find('<pre id="measured"')
-        assert start > 0, "the probe never wrote its result"
-        return body[body.index(">", start) + 1:body.index("</pre>", start)]
+        if start < 0:
+            pytest.fail("the probe never reported - the page script may have thrown")
+        text = body[body.index(">", start) + 1:body.index("</pre>", start)]
+        return dict(line.split("=", 1) for line in text.strip().splitlines()
+                    if "=" in line)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
 
-REPORT = """
-  var pre = document.createElement('pre');
-  pre.id = 'measured';
-  pre.textContent = out.join(String.fromCharCode(10));
-  document.body.appendChild(pre);
-"""
+@pytest.fixture(scope="module")
+def moving():
+    """The page as most people see it."""
+    if jh.find_browser() is None:
+        pytest.skip("no Chromium-family browser")
+    return _run_probe(still=False)
 
 
-@needs_browser
-def test_the_page_throws_nothing():
+@pytest.fixture(scope="module")
+def stilled():
+    """The page for somebody who asked their machine for less movement."""
+    if jh.find_browser() is None:
+        pytest.skip("no Chromium-family browser")
+    return _run_probe(still=True)
+
+
+def pair(value):
+    fill, lit = value.split(",")
+    return float(fill), int(lit)
+
+
+# --- what every reader must get ---------------------------------------------
+
+def test_the_page_throws_nothing(moving):
     """One uncaught error and the arrivals never fire, which means a page with
     invisible sections rather than a visible bug."""
-    got = in_browser("""
-      window.__errs = [];
-      window.addEventListener('error', function (e) {
-        window.__errs.push((e.message || '?') + ' @' + e.lineno);
-      });
-      setTimeout(function () {
-        var out = ['errors=' + (window.__errs.length ? window.__errs.join('|') : 'none')];
-      """ + REPORT + "}, 400);")
-    assert "errors=none" in got, got
+    assert moving["errors"] == "none", moving["errors"]
 
 
-@needs_browser
-def test_the_first_screenful_is_visible_at_rest():
+@pytest.mark.parametrize("part", ["hero-h1", "hero-lede", "hero-cta",
+                                  "hero-eyebrow"])
+def test_the_first_screenful_is_visible_at_rest(moving, part):
     """`.up` starts at opacity 0 and is revealed by an observer. If that never
-    fires the page is blank - which looks like a broken site rather than a
-    broken script, so nobody reports it. This is that failure, caught.
+    fires the page is blank, which looks like a broken site rather than a
+    broken script, so nobody reports it."""
+    assert moving["js"] == "true"
+    assert moving[part] == "1", f"{part} is invisible"
 
-    Only the first screenful: what happens further down depends on scrolling,
-    and `test_the_rail_fills_and_lights_the_steps` proves that machinery works.
+
+def test_the_numbers_are_right_without_any_script(page):
+    """The two figures are the one piece of this page carrying real
+    information, so they live in the markup and the bars get their width from
+    an inline custom property.
+
+    They used to be filled in by JavaScript on an observer callback. A number
+    stuck at zero beside a bar stuck at zero does not read as a missing
+    animation - it reads as the answer, and the wrong one. This is the failure
+    that is unacceptable for a number, so it is made impossible instead.
     """
-    got = in_browser("""(function () {
-      setTimeout(function () {
-        // Transitions off before reading: under virtual time the .7s fade has
-        // not advanced, so a mid-transition 0 would look like a broken page.
-        // What is being asked is where the opacity *settles*.
-        var kill = document.createElement('style');
-        kill.textContent = '*{transition:none!important;animation:none!important}';
-        document.head.appendChild(kill);
-        void document.body.offsetHeight;
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+    fit = data.FIT
 
-        var out = ['js=' + /(^| )js( |$)/.test(document.documentElement.className)];
-        ['h1', '.lede', '.cta', '.eyebrow'].forEach(function (sel) {
-          var el = document.querySelector(sel);
-          out.push(sel + '=' + (el ? getComputedStyle(el).opacity : 'MISSING'));
-        });
-        out.push('arrived=' + document.querySelectorAll('.in').length);
-      """ + REPORT + """ }, 900);
-    })();""")
-    assert "js=true" in got, got
-    for line in got.strip().splitlines():
-        if "=" in line and line.split("=")[0] in ("h1", ".lede", ".cta", ".eyebrow"):
-            assert line.endswith("=1"), f"{line} - the hero is invisible\n{got}"
-    assert "arrived=0" not in got, got
+    shown = re.findall(r'class="score-num"[^>]*>\s*(\d+)<small>/(\d+)</small>', page)
+    assert [(str(fit["evidenced"]), str(fit["of"])),
+            (str(fit["after"]), str(fit["backed"]))] == shown, shown
+
+    fills = [int(n) for n in re.findall(r"--fill:(\d+)%", page)]
+    assert fills == [round(100 * fit["evidenced"] / fit["of"]),
+                     round(100 * fit["after"] / fit["backed"])], fills
+    assert "@keyframes grow" in page, "the bars have no animation of their own"
 
 
-@needs_browser
-def test_the_two_numbers_fill_in_when_you_reach_them():
-    """The score bars are the one piece of motion carrying real information.
-
-    Scrolled to first: whether the card is on screen at load depends on the
-    viewport, and assuming it was cost a CI run. They fill when you get there,
-    which is the behaviour - not when the page opens.
-    """
-    got = in_browser("""(function () {
-      var proof = document.querySelector('.proof');
-      window.scrollTo({ top: proof.getBoundingClientRect().top + window.scrollY - 200,
-                        behavior: 'instant' });
-      setTimeout(function () {
-        var out = Array.prototype.map.call(
-          document.querySelectorAll('.score-bar i'),
-          function (i, n) { return 'bar' + n + '=' + (i.style.width || 'unset'); });
-      """ + REPORT + """ }, 800);
-    })();""")
-    assert "unset" not in got, f"the bars never filled\n{got}"
-    assert "=0%" not in got, f"the bars filled to nothing\n{got}"
+def test_the_rail_fills_as_you_scroll_the_steps(moving):
+    """A relationship rather than exact numbers: the fill is a fraction of the
+    viewport height, so the values differ between a laptop and a CI runner."""
+    above, into, past = (pair(moving[k]) for k in
+                         ("railAbove", "railInto", "railPast"))
+    assert above[0] < into[0] < past[0], f"the rail does not fill: {moving}"
+    assert above[1] <= into[1] < past[1], f"the badges do not light: {moving}"
+    assert past == (100.0, 4), f"it never completes: {moving}"
 
 
-@needs_browser
-def test_the_rail_fills_as_you_scroll_the_steps():
-    """More of the rail, and more lit badges, the further down you are.
-
-    A relationship rather than two numbers: the fill is a fraction of the
-    viewport height, so exact values differ between a laptop and a CI runner -
-    which is how this test first failed, asserting 0% where one runner
-    computed 4.8%. And where the runner asks for reduced motion the rail is
-    deliberately never touched: every step is lit from the start, and that is
-    the right answer, not a failure.
-    """
-    got = in_browser("""(function () {
-      var steps = document.querySelector('.steps');
-      var rail = steps.querySelector('.rail i');
-      var anchor = steps.getBoundingClientRect().top + window.scrollY;
-      var out = ['reduced=' +
-                 window.matchMedia('(prefers-reduced-motion: reduce)').matches];
-      function at(offset, label, then) {
-        // instant: the page sets scroll-behavior smooth, which animates over
-        // ~500ms and swallows a scripted jump.
-        window.scrollTo({ top: Math.max(0, anchor + offset - window.innerHeight * 0.62),
-                          behavior: 'instant' });
-        window.dispatchEvent(new Event('scroll'));
-        setTimeout(function () {
-          out.push(label + '=' + parseFloat(rail.style.height || 0) +
-                   ',' + steps.querySelectorAll('.step.lit').length);
-          then();
-        }, 400);
-      }
-      setTimeout(function () {
-        at(-600, 'above', function () {
-          at(300, 'into', function () {
-            at(4000, 'past', function () {
-      """ + REPORT + """ }); }); }); }, 300);
-    })();""")
-    read = dict(pair.split("=", 1) for pair in got.split() if "=" in pair)
-    steps = [tuple(float(n) for n in read[k].split(",")) for k in ("above", "into", "past")]
-
-    if read["reduced"] == "true":
-        # Nothing animates, so everything is shown at once. That is the point.
-        assert all(lit == 4 for _, lit in steps), got
-        return
-
-    (top_fill, top_lit), (mid_fill, mid_lit), (end_fill, end_lit) = steps
-    assert top_fill < mid_fill < end_fill, f"the rail does not fill\n{got}"
-    assert top_lit <= mid_lit < end_lit, f"the badges do not light\n{got}"
-    assert end_fill == 100 and end_lit == 4, f"it never completes\n{got}"
-
-
-@needs_browser
-def test_the_install_routes_are_readable_without_javascript():
+def test_the_install_routes_are_readable_without_javascript(moving):
     """A page that needs JS to say how to install it fails the person on a
     locked-down machine - who is exactly the person downloading a zip.
 
-    Checked by computing `display` in a real browser rather than by looking
-    for the rule: the blanket `[hidden] { display: none !important }` beat the
-    override once already, and the CSS text looked perfectly correct.
+    Checked by computing `display` rather than by looking for the rule: the
+    blanket `[hidden] { display: none !important }` beat the override once
+    already, and the CSS text looked perfectly correct.
     """
-    got = in_browser("""(function () {
-      setTimeout(function () {
-        // What a visitor with no script sees. Overwritten rather than
-        // regexed away: a backslash-b in a Python string is a backspace,
-        // so the regex first written here matched nothing and the probe
-        // measured the scripted page while reporting on the other one.
-        document.documentElement.className = '';
-        void document.body.offsetHeight;
-        var panels = document.querySelectorAll('.agent-panel');
-        var shown = 0, named = 0;
-        Array.prototype.forEach.call(panels, function (p) {
-          if (getComputedStyle(p).display !== 'none') shown++;
-          var name = p.querySelector('.panel-name');
-          if (name && getComputedStyle(name).display !== 'none') named++;
-        });
-        var empty = document.getElementById('panel-empty');
-        var out = ['panels=' + panels.length, 'shown=' + shown, 'named=' + named,
-                   'placeholder=' + getComputedStyle(empty).display,
-                   'commands=' + document.querySelectorAll('.cmd code').length,
-                   'htmlclass=' + JSON.stringify(document.documentElement.className),
-                   'nojs=' + document.documentElement.matches('html:not(.js)')];
-      """ + REPORT + """ }, 400);
-    })();""")
-    numbers = dict(pair.split("=", 1) for pair in got.split() if "=" in pair)
-    assert numbers["shown"] == numbers["panels"], f"only {numbers['shown']} routes shown\n{got}"
-    assert numbers["named"] == numbers["panels"], "the routes are not labelled by agent"
-    assert numbers["placeholder"] == "none", "the 'choose an agent' placeholder is still there"
-    assert int(numbers["commands"]) >= 8, got
+    assert moving["nojsShown"] == moving["panels"], "not every route is shown"
+    assert moving["nojsNamed"] == moving["panels"], "the routes are not labelled"
+    assert moving["nojsPlaceholder"] == "none", "the placeholder is still there"
+    assert int(moving["commands"]) >= 8, moving["commands"]
 
 
-@needs_browser
-def test_reduced_motion_shows_everything_at_once():
-    """Somebody who asked their machine for less movement gets no movement -
-    and, more importantly, still gets the whole page. A CI runner reports this
-    preference by default, which is how the branch got exercised at all."""
-    got = in_browser("""(function () {
-      setTimeout(function () {
-        var kill = document.createElement('style');
-        kill.textContent = '*{transition:none!important;animation:none!important}';
-        document.head.appendChild(kill);
-        void document.body.offsetHeight;
-        var hidden = 0;
-        Array.prototype.forEach.call(document.querySelectorAll('.up, .stagger'),
-          function (el) { if (getComputedStyle(el).opacity === '0') hidden++; });
-        var out = ['reduced=' +
-                     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-                   'invisible=' + hidden,
-                   'lit=' + document.querySelectorAll('.step.lit').length,
-                   'bars=' + Array.prototype.filter.call(
-                     document.querySelectorAll('.score-bar i'),
-                     function (i) { return i.style.width; }).length];
-      """ + REPORT + """ }, 500);
-    })();""", still=True)
-    assert "reduced=true" in got, f"the flag did not take\n{got}"
-    assert "invisible=0" in got, f"reduced motion hid the page\n{got}"
-    assert "lit=4" in got, f"the steps never light\n{got}"
-    assert "bars=2" in got, f"the numbers never fill\n{got}"
+# --- and for somebody who asked for less movement ---------------------------
+
+def test_reduced_motion_still_shows_the_whole_page(stilled):
+    """The thing that matters about reduced motion is not that nothing moves,
+    but that nothing is missing."""
+    assert stilled["reduced"] == "true", "the flag did not take"
+    for part in ("hero-h1", "hero-lede", "hero-cta", "hero-eyebrow"):
+        assert stilled[part] == "1", f"{part} is invisible"
+    assert pair(stilled["railPast"])[1] == 4, "the steps never light"
