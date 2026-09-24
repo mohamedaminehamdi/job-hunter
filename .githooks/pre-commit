@@ -7,8 +7,10 @@
 #
 # Turn it on with:  git config core.hooksPath .githooks
 
+# Anchored at the repo root: `plugins/jobhunt/` is the shipped plugin, and an
+# unanchored 'jobhunt/' would refuse every commit that touches it.
 private=$(git diff --cached --name-only \
-          | grep -E '^(cv/|runs/|profile\.yaml$)' \
+          | grep -E '^(jobhunt/|cv/|runs/|profile\.yaml$)' \
           | grep -vE '^cv/README\.md$|^runs/\.gitkeep$')
 
 if [ -n "$private" ]; then

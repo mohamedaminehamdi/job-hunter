@@ -202,3 +202,36 @@ def test_wording_it_differently_is_not_excusing_it():
                   path="answer", asked=asked)
     assert any("Workday" in i.message for i in found)
 
+
+
+# --- naming a requirement in order to deny it -------------------------------
+
+def test_a_letter_may_name_the_postings_words_without_them_becoming_support(profile, job):
+    """A good letter says "I have not used Kafka" - the word cannot be avoided.
+
+    Found end to end: the letter that was honest about not knowing SQL got told
+    to delete "SQL", which would have turned a straight sentence into a vague
+    one. The claim is still surfaced; only the advice changes.
+    """
+    from jobhunt import write_letter
+    honest = write_letter(profile, job, {"paragraphs": [
+        "I have not used Kafka, and would rather say so than imply otherwise."]})
+    assert len(honest.issues) == 1
+    assert "posting's own term" in honest.issues[0].message
+    assert "check this does not claim it" in honest.issues[0].message
+
+
+def test_the_posting_still_never_becomes_support(profile, job):
+    """The dishonest version is flagged too. The guard is lexical - it cannot
+    tell a denial from a boast, and it does not pretend to."""
+    from jobhunt import write_letter
+    claimed = write_letter(profile, job, {"paragraphs": [
+        "I am deeply experienced in Kafka and have run it in production."]})
+    assert [i.message for i in claimed.issues] != []
+
+
+def test_a_word_the_posting_never_used_is_flatly_unsupported(profile, job):
+    from jobhunt import write_letter
+    invented = write_letter(profile, job, {"paragraphs": [
+        "I led the OpenStack migration."]})
+    assert "does not appear in your profile" in invented.issues[0].message

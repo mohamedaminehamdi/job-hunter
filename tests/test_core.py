@@ -272,6 +272,8 @@ def test_it_runs_on_the_python_macos_ships():
         elif isinstance(node, ast.Name):
             used.add(node.id)
         elif isinstance(node, ast.ImportFrom) and node.module == "datetime":
-            used |= {a.name for a in node.names if a.name == "UTC"}
+            # `from datetime import UTC` is the same 3.11 name by another route,
+            # and it is the one ruff's UP017 reaches for.
+            used |= {f"datetime.{a.name}" for a in node.names if a.name == "UTC"}
     banned = used & (TOO_NEW | {"datetime.UTC"})
     assert not banned, f"needs a Python newer than 3.9: {sorted(banned)}"

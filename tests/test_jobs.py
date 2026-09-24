@@ -1,8 +1,6 @@
+import jobhunt as fetch
 import pytest
-from jobhunt import Job, build
-
-from job_hunter.jobs import fetch  # ported to core in the fetch layer
-from job_hunter.jobs.fetch import FetchError
+from jobhunt import FetchError, Job, build
 
 FULL = {
     "title": "Data Engineer",
@@ -58,22 +56,22 @@ def test_bad_urls_rejected(given, message):
 
 def test_empty_page_tells_the_user_to_paste():
     with pytest.raises(FetchError, match="Paste the job description"):
-        fetch._check("https://example.com/j/1", "   ")
+        fetch.check_posting("https://example.com/j/1", "   ")
 
 
 def test_login_wall_named_as_such():
     text = "Sign in to continue to your feed. " * 5
     with pytest.raises(FetchError, match="login or bot check"):
-        fetch._check("https://example.com/j/1", text)
+        fetch.check_posting("https://example.com/j/1", text)
 
 
 def test_thin_page_reports_its_size():
     with pytest.raises(FetchError, match="characters came back"):
-        fetch._check("https://example.com/j/1", "Data Engineer. Apply now.")
+        fetch.check_posting("https://example.com/j/1", "Data Engineer. Apply now.")
 
 
 def test_real_looking_page_passes():
-    assert fetch._check("https://example.com/j/1", "Data Engineer. " * 100) is None
+    assert fetch.check_posting("https://example.com/j/1", "Data Engineer. " * 100) is None
 
 
 # --- Job: shapes models actually return ---
@@ -172,3 +170,52 @@ def test_long_text_keeps_both_ends():
     assert "TITLE Data Engineer" in trimmed   # the role is at the top
     assert "REQUIRED Python" in trimmed       # the requirements are at the bottom
     assert "characters omitted" in trimmed
+
+
+# --- html_to_text: what replaced innerText ---------------------------------
+
+def test_whitespace_between_inline_tags_survives():
+    """`<bdi>$405,000</bdi> <bdi>USD</bdi>` - the space is all that separates them.
+
+    Found by scraping a real posting both ways: dropping whitespace-only data
+    because it strips to nothing ran the salary into its currency.
+    """
+    body, _, _ = fetch.html_to_text(
+        "<p><bdi>$320,000</bdi> - <bdi>$405,000</bdi> <bdi>USD</bdi></p>")
+    assert body == "$320,000 - $405,000 USD"
+
+
+def test_a_bulleted_list_keeps_one_requirement_per_line():
+    body, _, _ = fetch.html_to_text("<ul><li>Strong Python</li><li>Strong SQL</li></ul>")
+    assert body.splitlines() == ["Strong Python", "Strong SQL"]
+
+
+def test_page_furniture_is_dropped():
+    body, _, _ = fetch.html_to_text(
+        "<nav>Home Jobs</nav><script>track()</script><style>a{}</style>"
+        "<main>Data Engineer</main><footer>Privacy</footer>")
+    assert body == "Data Engineer"
+
+
+def test_the_title_and_theme_colour_are_read_not_guessed():
+    _, title, brand = fetch.html_to_text(
+        '<head><title>Data Engineer - Acme</title>'
+        '<meta name="theme-color" content="#7B2FF7"></head><body>x</body>')
+    assert title == "Data Engineer - Acme"
+    assert brand == "#7b2ff7"
+
+
+def test_a_theme_colour_that_is_not_a_colour_is_dropped():
+    """It reaches a stylesheet, so it is validated at the door."""
+    _, _, brand = fetch.html_to_text('<meta name="theme-color" content="red;}body{">')
+    assert brand == ""
+
+
+def test_entities_are_decoded():
+    body, _, _ = fetch.html_to_text("<p>R&amp;D at Zeta &mdash; 35&#37; faster</p>")
+    assert body == "R&D at Zeta — 35% faster"
+
+
+def test_a_page_that_never_closes_is_still_read():
+    body, _, _ = fetch.html_to_text("<html><body><p>Data Engineer at Acme")
+    assert "Data Engineer at Acme" in body
