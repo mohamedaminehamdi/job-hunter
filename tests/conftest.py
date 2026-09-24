@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# `core/jobhunt.py` is the source of truth; the copies under
+# plugins/*/skills/*/lib/ are generated from it by tools/sync.py.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
+
 """Fixtures shared across the suite.
 
 There is no model to stub any more - Claude Code writes JSON files and Python
