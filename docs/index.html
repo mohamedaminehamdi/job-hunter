@@ -959,11 +959,12 @@ footer nav a { color: var(--ink-soft); }
   function fillScore() {
     if (counted) return;
     counted = true;
+    // Set directly rather than inside requestAnimationFrame. The bar starts at
+    // width 0 in the stylesheet and has already been laid out, so the
+    // transition runs either way - and the rAF made the state impossible to
+    // observe, which is how this shipped broken twice.
     document.querySelectorAll(".score-bar").forEach(function (bar) {
-      var to = bar.dataset.fill || 0;
-      requestAnimationFrame(function () {
-        bar.querySelector("i").style.width = to + "%";
-      });
+      bar.querySelector("i").style.width = (bar.dataset.fill || 0) + "%";
     });
     document.querySelectorAll(".score-num").forEach(function (el) {
       var to = parseInt(el.dataset.count, 10) || 0;
