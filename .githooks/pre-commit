@@ -3,20 +3,23 @@
 #
 # .gitignore already lists these, but .gitignore is advice and `git add -f` is
 # one keystroke. This is the layer that says no. CI checks the tracked file
-# list as well, for the fork where nobody ran the git config line.
+# list as well, for the fork where nobody ran the git config.
 #
 # Turn it on with:  git config core.hooksPath .githooks
 
-# Anchored at the repo root: `plugins/jobhunt/` is the shipped plugin, and an
-# unanchored 'jobhunt/' would refuse every commit that touches it.
-private=$(git diff --cached --name-only \
-          | grep -E '^(jobhunt/|cv/|runs/|profile\.yaml$)' \
-          | grep -vE '^cv/README\.md$|^runs/\.gitkeep$')
+set -eu
+
+# Anchored at the repo root on purpose: `plugins/jobhunt/` is the shipped
+# plugin, and an unanchored 'jobhunt/' would refuse every commit touching it.
+# --diff-filter=d excludes deletions: *removing* one of these is the right
+# thing to do, and a hook that blocks its own cleanup is a hook people disable.
+private=$(git diff --cached --name-only --diff-filter=d \
+          | grep -E '^(jobhunt/|cv/|runs/|profile\.yaml$)' || true)
 
 if [ -n "$private" ]; then
-  echo "refusing to commit files that are yours, not the repo's:"
-  printf '  %s\n' $private
-  echo
-  echo "If you really mean it: git commit --no-verify"
+  echo "refusing to commit files that are yours, not the repo's:" >&2
+  printf '%s\n' "$private" | sed 's/^/  /' >&2
+  echo >&2
+  echo "If you really mean it: git commit --no-verify" >&2
   exit 1
 fi

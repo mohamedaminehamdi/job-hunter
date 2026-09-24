@@ -16,13 +16,15 @@ htmlcov/
 # This is the first of three layers, and the weakest: .gitignore is advisory,
 # so .githooks/pre-commit refuses the commit and CI checks the tracked file
 # list. Across ten forks one `git add -f` is inevitable.
+# `jobhunt/` is where a workspace lands now. /cv, /runs and /profile.yaml are
+# the layout this used to have, kept ignored so an older checkout cannot commit
+# one by accident.
+#
 # Anchored with a leading slash on purpose: `plugins/jobhunt/` is the shipped
 # plugin and must stay tracked. An unanchored `jobhunt/` would swallow it.
 /jobhunt/
-/cv/*
-!/cv/README.md
-/runs/*
-!/runs/.gitkeep
+/cv/
+/runs/
 /profile.yaml
 .env
 *.pdf
