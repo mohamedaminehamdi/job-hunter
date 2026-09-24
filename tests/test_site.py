@@ -273,16 +273,25 @@ def test_the_first_screenful_is_visible_at_rest():
 
 
 @needs_browser
-def test_the_two_numbers_fill_in():
-    """The score bars are the one piece of motion carrying real information."""
-    got = in_browser("""
+def test_the_two_numbers_fill_in_when_you_reach_them():
+    """The score bars are the one piece of motion carrying real information.
+
+    Scrolled to first: whether the card is on screen at load depends on the
+    viewport, and assuming it was cost a CI run. They fill when you get there,
+    which is the behaviour - not when the page opens.
+    """
+    got = in_browser("""(function () {
+      var proof = document.querySelector('.proof');
+      window.scrollTo({ top: proof.getBoundingClientRect().top + window.scrollY - 200,
+                        behavior: 'instant' });
       setTimeout(function () {
         var out = Array.prototype.map.call(
           document.querySelectorAll('.score-bar i'),
           function (i, n) { return 'bar' + n + '=' + (i.style.width || 'unset'); });
-      """ + REPORT + "}, 700);")
-    assert "unset" not in got, got
-    assert "0%" not in got.replace("100%", ""), got
+      """ + REPORT + """ }, 800);
+    })();""")
+    assert "unset" not in got, f"the bars never filled\n{got}"
+    assert "=0%" not in got, f"the bars filled to nothing\n{got}"
 
 
 @needs_browser
