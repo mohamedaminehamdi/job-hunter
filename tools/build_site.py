@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Build docs/index.html - the page someone lands on before installing anything.
+"""Build docs/index.html - one page, for someone looking for a job.
 
-Generated rather than hand-written so it cannot advertise a skill that does not
-exist or describe one that has changed: every card is read from that skill's own
-SKILL.md, and the build fails if a skill is added without being listed.
+Generated from the skills themselves, so it cannot advertise one that does not
+exist or describe one that has changed. The build fails if a skill is added
+without being listed in tools/site/data.py.
 
     python tools/build_site.py
     python tools/build_site.py --check    exit 1 if docs/ is stale
 """
 
 import html
-import re
 import sys
 from pathlib import Path
 
@@ -23,134 +22,111 @@ SITE = Path(__file__).resolve().parent / "site"
 REPO = data.REPO
 RAW = f"https://raw.githubusercontent.com/{REPO}/main"
 
+#: A dot in the accent, as a data URI - one request fewer and nothing to 404.
+FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' "
+           "viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%2312664a'/>"
+           "</svg>")
+
 
 def e(value):
     return html.escape(str(value), quote=True)
 
 
-ICONS = {
-    "tick": '<path d="M2.5 8.2l3.6 3.6L13.5 4.4" fill="none" stroke="currentColor" '
-            'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
-    "copy": '<rect x="5.5" y="5.5" width="8" height="8" rx="1.6" fill="none" '
-            'stroke="currentColor" stroke-width="1.5"/><path d="M10.5 3.5h-6a1 1 0 '
-            '00-1 1v6" fill="none" stroke="currentColor" stroke-width="1.5" '
-            'stroke-linecap="round"/>',
-    "down": '<path d="M8 2.5v8m0 0L4.8 7.3M8 10.5l3.2-3.2M2.5 13.5h11" fill="none" '
-            'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" '
-            'stroke-linejoin="round"/>',
-    "sun":  '<circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" '
-            'stroke-width="1.5"/><path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1'
-            'M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2L3.1 3.1" '
-            'stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
-    "moon": '<path d="M13.2 9.6A5.7 5.7 0 016.4 2.8a5.8 5.8 0 106.8 6.8z" '
-            'fill="none" stroke="currentColor" stroke-width="1.5" '
-            'stroke-linejoin="round"/>',
-    "point": '<path d="M8 1.8l5.6 3.2v6L8 14.2 2.4 11V5z" fill="none" '
-             'stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
-}
+def icon(name, extra=""):
+    """A Phosphor glyph, inlined. Drawn by them, not by me."""
+    klass = f"ico {extra}".strip()
+    return (f'<svg class="{klass}" viewBox="0 0 256 256" aria-hidden="true">'
+            f"{data.ICONS[name]}</svg>")
 
 
-def icon(name, cls=""):
-    klass = f' class="{cls}"' if cls else ""
-    return (f'<svg{klass} viewBox="0 0 16 16" aria-hidden="true">{ICONS[name]}</svg>')
+def brand(key):
+    mark = data.BRANDS[key]
+    return (f'<span class="board"><svg viewBox="0 0 24 24" aria-hidden="true">'
+            f'<path d="{mark["path"]}"/></svg>'
+            f'<span>{e(mark["title"])}</span></span>')
 
 
-def colour(block):
-    """Mark up a captured terminal block: figures, findings, headings."""
-    out = e(block)
-    out = re.sub(r"^(\$ .+)$", r"<b>\1</b>", out, flags=re.M)
-    out = re.sub(r"(\+\d+)", r'<span class="ok">\1</span>', out)
-    out = re.sub(r"^(\s*·.*)$", r'<span class="no">\1</span>', out, flags=re.M)
-    out = re.sub(r"^(The figure .+|&#x27;.+?&#x27; (?:does not|is the) .+)$",
-                 r'<span class="no">\1</span>', out, flags=re.M)
-    out = re.sub(r"(\(unchanged by tailoring[^)]*\)|\(judge these yourself\))",
-                 r'<span class="fade">\1</span>', out)
-    return out
-
-
-def terminal(label, block):
-    return (f'<div class="term"><div class="term-head"><i></i><i></i><i></i>'
-            f"<b>{e(label)}</b></div><pre>{colour(block)}</pre></div>")
-
-
-def command_block(text, label="command"):
+def command(text, label="command"):
     return (f'<div class="cmd"><code>{e(text)}</code>'
-            f'<button class="copy" data-copy="{e(text)}" type="button" '
-            f'aria-label="Copy {e(label)}">'
-            f'{icon("copy", "i-copy")}{icon("tick", "i-copied")}'
-            f"<span>Copy</span></button></div>")
+            f'<button class="copy" type="button" data-copy="{e(text)}" '
+            f'aria-label="Copy {e(label)}">{icon("copy", "i-copy")}'
+            f'{icon("check", "i-done")}<span>Copy</span></button></div>')
 
 
-def routes_for(agent, skills):
-    """Every way of installing, for one agent, best first."""
-    out = []
-    n = 0
+def routes(agent):
+    """Every way of installing, for one agent, easiest first."""
+    out, n = [], 0
 
     if agent["plugin"]:
         n += 1
         out.append(
             f'<div class="route"><h3><span class="num">{n}</span>'
-            f'From inside {e(agent["name"])}<span class="best">easiest</span></h3>'
-            "<p>Paste this at the prompt. It installs all eleven and keeps them "
-            "up to date.</p>"
-            + command_block(f"/plugin marketplace add {REPO}", "plugin command")
-            + command_block("/plugin install jobhunt@jobhunt", "install command")
+            f'Inside {e(agent["name"])}<span class="best">easiest</span></h3>'
+            "<p>Paste these at the prompt. You get all eleven, and updates with "
+            "one command.</p>"
+            + command(f"/plugin marketplace add {REPO}", "marketplace command")
+            + command("/plugin install jobhunt@jobhunt", "install command")
             + "</div>")
 
     n += 1
-    # `sh -s -- <args>` is only needed when there are arguments to pass. A bare
-    # trailing `--` reads as a command that got cut off.
-    if agent["scope"] != "project":
-        # Global, or an agent we do not know: no --to, because install.sh finds
-        # what is there on its own and says so plainly when it finds nothing.
-        shell, scope = "sh", ""
-        best = "" if agent["plugin"] else "<span class='best'>easiest</span>"
-    else:
+    if agent["scope"] == "project":
         shell = f'sh -s -- --to {agent["path"].split("/")[0]}'
-        scope = " Run it in the folder you want to use for your job search."
-        best = "<span class='best'>easiest</span>"
+        where = " Run it in the folder you want to use for your job search."
+        best = '<span class="best">easiest</span>'
+    else:
+        # No --to: install.sh finds what is there, and says so plainly when it
+        # finds nothing.
+        shell, where = "sh", ""
+        best = "" if agent["plugin"] else '<span class="best">easiest</span>'
     out.append(
-        f'<div class="route"><h3><span class="num">{n}</span>One command in your '
-        f"terminal{best}</h3>"
-        f"<p>Works on macOS and Linux. It finds your agent and copies the "
-        f"skills in.{scope}</p>"
-        + command_block(f"curl -fsSL {RAW}/install.sh | {shell}", "install command")
+        f'<div class="route"><h3><span class="num">{n}</span>'
+        f"One line in your terminal{best}</h3>"
+        f"<p>macOS and Linux. It finds your agent and copies the skills in.{where}</p>"
+        + command(f"curl -fsSL {RAW}/install.sh | {shell}", "install command")
         + "</div>")
 
     n += 1
-    where = e(agent["path"]) if agent["path"] else "wherever your agent reads skills from"
+    place = (f"<code>{e(agent['path'])}</code>" if agent["path"]
+             else "wherever your agent reads skills from")
     out.append(
-        f'<div class="route"><h3><span class="num">{n}</span>Download a folder'
-        "</h3><p>No terminal. Unzip it and put the folder in "
-        f"<code>{where}</code> — make that directory if it is not there yet.</p>"
-        f'<p style="margin-top:12px"><a class="btn btn-ghost" '
-        f'href="download/jobhunt-all.zip" download>{icon("down")}'
+        f'<div class="route"><h3><span class="num">{n}</span>Download a folder</h3>'
+        f"<p>No terminal at all. Unzip it and put the folder in {place} — make "
+        "that directory if it is not there yet.</p>"
+        f'<p style="margin-top:14px"><a class="btn btn-quiet" '
+        f'href="download/jobhunt-all.zip" download>{icon("download-simple")}'
         "All eleven skills</a></p></div>")
 
-    if agent["note"]:
-        # The warning colour is for the thing people get wrong - skills that
-        # live in the project rather than in your home directory. Everything
-        # else is just information and is styled as such.
-        cls = "scope-note warn" if agent["scope"] == "project" else "scope-note"
-        label = "Per project, not per user. " if agent["scope"] == "project" else ""
-        out.append(f'<div class="{cls}">'
-                   + (f"<b>{label}</b>" if label else "")
-                   + f'{e(agent["note"])}</div>')
-
+    warn = " warn" if agent["scope"] == "project" else ""
+    lead = "<b>Per project, not per user.</b> " if agent["scope"] == "project" else ""
+    out.append(f'<div class="note{warn}">{lead}{e(agent["note"])}</div>')
     return "".join(out)
-
-
-#: A dot in the accent, as a data URI - one request fewer and nothing to 404.
-FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' "
-           "viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%2314664a'/>"
-           "</svg>")
 
 
 def build():
     skills = data.read_skills()
-    favicon = FAVICON
     css = (SITE / "style.css").read_text(encoding="utf-8")
     js = (SITE / "app.js").read_text(encoding="utf-8")
+    fit = data.FIT
+
+    headline = "".join(f"<span>{e(line)}</span>" for line in data.HEADLINE)
+
+    boards = "".join(brand(key) for key in data.BOARDS)
+    boards += '<span class="board-more">…or any job URL</span>'
+
+    three = "".join(
+        f'<article class="card"><div class="badge">{icon(r["icon"])}</div>'
+        f'<h3>{e(r["title"])}</h3><p>{e(r["body"])}</p></article>'
+        for r in data.REASONS)
+
+    steps = "".join(
+        f'<div class="step"><div class="badge">{icon(s["icon"])}</div>'
+        f'<div><span class="n">STEP {i + 1}</span><h3>{e(s["title"])}</h3>'
+        f'<p>{e(s["body"])}</p></div></div>'
+        for i, s in enumerate(data.STEPS))
+
+    findings = "".join(
+        f'<p class="finding">{icon("warning-circle")}<span>{e(f)}</span></p>'
+        for f in data.FLAG["findings"])
 
     agent_buttons = []
     for group, label in (("global", "Installs everywhere"),
@@ -162,56 +138,43 @@ def build():
         for agent in members:
             agent_buttons.append(
                 f'<button type="button" role="tab" data-agent="{e(agent["id"])}" '
-                f'aria-selected="false">{icon("tick", "tick")}'
+                f'aria-selected="false">{icon("check", "tick")}'
                 f'<span>{e(agent["name"])}</span></button>')
 
-    # Every panel carries its agent's name, shown only when the script has not
-    # run. Without JS all the panels are displayed at once, and an unlabelled
-    # stack of install routes is useless.
     panels = "".join(
         f'<div class="agent-panel" data-for="{e(a["id"])}" hidden>'
-        f'<div class="panel-name">{e(a["name"])}</div>'
-        f"{routes_for(a, skills)}</div>" for a in data.AGENTS)
+        f'<div class="panel-name">{e(a["name"])}</div>{routes(a)}</div>'
+        for a in data.AGENTS)
 
     cards = []
     for skill in skills:
-        wide = ' wide' if skill["name"] == "jobhunt" else ""
-        runs = ('<span class="runs">runs the rest</span>' if skill["name"] == "jobhunt"
-                else "")
+        wide = " wide" if skill["name"] == "jobhunt" else ""
         cards.append(
-            f'<article class="skill{wide} rise">'
-            f'<div class="skill-top"><h3>{e(skill["headline"])}</h3>'
-            f'<span class="id">{e(skill["name"])}</span>{runs}</div>'
+            f'<a class="skill{wide}" href="download/{e(skill["name"])}.zip" '
+            f'download><div class="badge">{icon(skill["icon"])}</div>'
+            f'<div class="say"><h3>{e(skill["headline"])}</h3>'
             f'<p>{e(skill["plain"])}</p>'
-            f'<a class="get" href="download/{e(skill["name"])}.zip" download>'
-            f'{icon("down")}Download this one</a></article>')
-
-    files = "".join(
-        f'<li><code>{e(name)}</code><span>{e(what)}</span></li>'
-        for name, what in data.RUN_FILES)
-
-    reasons = "".join(
-        f"<div><h3>{e(r['title'])}</h3><p>{r['body']}</p></div>" for r in data.REASONS)
+            f'<span class="id">{e(skill["name"])}</span></div></a>')
 
     page = f"""<!doctype html>
 <html lang="en" data-theme="">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>jobhunt — job application skills for your coding agent</title>
+<title>jobhunt — job applications you can stand behind</title>
 <meta name="description" content="{e(data.SUB)}">
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="jobhunt">
-<meta property="og:description" content="{e(data.HEADLINE)}">
+<meta property="og:description" content="{e(' '.join(data.HEADLINE))}">
 <meta property="og:type" content="website">
-<link rel="icon" href="{favicon}">
+<link rel="icon" href="{FAVICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <style>{css}</style>
 <script>
-  /* Before first paint: marks that script runs, so the entrance animation may
-     hide things, and applies a saved theme so the page does not flash. */
+  /* Before first paint: marks that script runs, so the motion may hide things,
+     and applies a saved theme so the page does not flash the wrong one. */
   (function () {{
     var r = document.documentElement;
     r.className += " js";
@@ -228,11 +191,11 @@ def build():
   <div class="wrap">
     <a class="mark" href="#top"><span class="dot"></span>jobhunt</a>
     <nav>
-      <a href="#install">Install</a>
-      <a href="#skills">Skills</a>
       <a href="#how" class="hide-sm">How it works</a>
+      <a href="#skills" class="hide-sm">Skills</a>
       <a href="https://github.com/{REPO}" class="hide-sm">GitHub</a>
-      <button class="theme-toggle" type="button" id="theme" aria-label="Switch theme">
+      <a href="#install">Install</a>
+      <button class="tog" type="button" id="theme" aria-label="Switch theme">
         {icon("sun", "i-sun")}{icon("moon", "i-moon")}
       </button>
     </nav>
@@ -243,56 +206,101 @@ def build():
 
 <div class="hero">
   <div class="wrap">
-    <div>
-      <span class="eyebrow">No API key</span>
-      <h1>Job applications that <em class="hard">can't</em> claim things you haven't done.</h1>
-      <p class="lede">{e(data.SUB)}</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="#install">{icon("down")}Install</a>
-        <a class="btn btn-ghost" href="#how">See how it works</a>
-      </div>
-      <p class="hero-note">
-        <span>{icon("tick")}Claude Code, Codex, Cursor, Gemini CLI</span>
-        <span>{icon("tick")}macOS and Linux</span>
-        <span>{icon("tick")}Nothing to install</span>
-      </p>
+    <span class="eyebrow up">{icon("briefcase")}Works with any job link</span>
+    <h1 class="up">{headline}</h1>
+    <p class="lede up">{e(data.SUB)}</p>
+    <div class="cta up">
+      <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
+      <a class="btn btn-quiet" href="#how">See how it works</a>
     </div>
-    <div>
-      {terminal("fit-after.md", data.FIT_OUTPUT)}
-      <div class="tree">
-        <div class="tree-head">One folder per job</div>
-        <ul>{files}</ul>
+    <p class="cta-note up">Free. No API key. Nothing to install.</p>
+
+    <div class="proof up">
+      <div class="proof-head">{icon("folder-simple")}
+        2026-09-24-acme-senior-data-engineer</div>
+      <div class="proof-body">
+        <div>
+          <h3>What it caught</h3>
+          <p class="claim">{e(data.FLAG["claim"])}</p>
+          {findings}
+        </div>
+        <div>
+          <h3>How you actually match</h3>
+          <div class="score">
+            <div>
+              <div class="score-row">
+                <span class="score-label">Backed by your CV</span>
+                <span class="score-num"
+                  data-count="{fit['evidenced']}">0<small>/{fit['of']}</small></span>
+              </div>
+              <div class="score-bar flat"
+                   data-fill="{round(100 * fit['evidenced'] / fit['of'])}"><i></i></div>
+              <p class="score-note">A fact about you. Tailoring cannot move it.</p>
+            </div>
+            <div>
+              <div class="score-row">
+                <span class="score-label">Seen in the first screenful</span>
+                <span class="score-num"
+                  data-count="{fit['after']}">0<small>/{fit['backed']}</small></span>
+                <span class="score-move">+{fit['after'] - fit['before']}</span>
+              </div>
+              <div class="score-bar"
+                   data-fill="{round(100 * fit['after'] / fit['backed'])}"><i></i></div>
+              <p class="score-note">This is the one tailoring is for.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
+<div class="boards">
+  <div class="wrap">
+    <p class="up">Paste a link from</p>
+    <div class="board-row stagger">{boards}</div>
+  </div>
+</div>
+
 <section id="why">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">Why this one</div>
-      <h2>Every CV tool will happily write you a better career.</h2>
-      <p>This one is built so it can't. Three decisions do most of that work.</p>
+    <div class="sec-head up">
+      <span class="kicker">{icon("shield-check")}Why this one</span>
+      <h2>Every CV tool will write you a better career.</h2>
+      <p>This one can't. Three decisions do most of that work.</p>
     </div>
-    <div class="reasons rise">{reasons}</div>
+    <div class="three stagger">{three}</div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("cursor-click")}How it works</span>
+      <h2>You bring the link. It brings the evidence.</h2>
+    </div>
+    <div class="steps">
+      <div class="rail"><i></i></div>
+      {steps}
+    </div>
   </div>
 </section>
 
 <section id="install">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">Install</div>
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("download-simple")}Install</span>
       <h2>Which agent do you use?</h2>
-      <p>Pick one and you'll get the exact command. Every route installs the
-         same eleven skills — there's no paid tier and nothing to sign up for.</p>
+      <p>Pick one and copy the command. Every route gives you the same eleven
+         skills — there is no paid tier and nothing to sign up for.</p>
     </div>
-    <div class="picker">
+    <div class="picker up">
       <div class="agents" role="tablist" aria-label="Choose your coding agent">
         {"".join(agent_buttons)}
       </div>
       <div class="panel" id="panel">
         <div class="panel-empty" id="panel-empty">
-          <div>{icon("point")}<p>Choose your agent on the left.</p></div>
+          {icon("cursor-click")}<p>Choose your agent on the left.</p>
         </div>
         {panels}
       </div>
@@ -302,90 +310,62 @@ def build():
 
 <section id="skills">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">Eleven skills</div>
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("briefcase")}Eleven skills</span>
       <h2>Take all of them, or take one.</h2>
-      <p>Each one works on its own — you can install just the guard to check a
-         letter you wrote yourself, or just the fit score to decide whether a
-         job is worth an evening.</p>
+      <p>Each works on its own. Install just the checker to look over a letter
+         you wrote yourself, or just the score to decide whether a job is worth
+         an evening.</p>
     </div>
-    <div class="skills">{"".join(cards)}</div>
-  </div>
-</section>
-
-<section id="how">
-  <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">How it works</div>
-      <h2>You bring the link. It brings the evidence.</h2>
-    </div>
-    <ol class="steps rise">
-      <li><b>Your CV becomes a profile, once.</b><span>Your agent reads it and
-        writes one YAML file. You check that file — and everything after is
-        built only from what's in it.</span></li>
-      <li><b>The posting gets read properly.</b><span>In the browser you already
-        have, because job boards render their descriptions with JavaScript and a
-        plain fetch gets a spinner.</span></li>
-      <li><b>You find out where you stand before anything is written.</b>
-        <span>Including the gaps. If a job needs something you haven't done,
-        it says so instead of writing around it.</span></li>
-      <li><b>The CV is rebuilt from your own bullets.</b><span>Selected,
-        reordered, reworded — never invented. The employers, titles and dates
-        are copied across, not generated.</span></li>
-      <li><b>Every sentence is checked back against your profile.</b>
-        <span>Figures and names that aren't in it get flagged, with the sentence
-        they're in, for you to read again.</span></li>
-      <li><b>You get the files.</b><span>PDF and markdown, in a folder for that
-        job, next to the score and the critique. Nothing is sent.</span></li>
-    </ol>
-    <div class="proof rise" style="margin-top:40px">
-      {terminal("checking a draft", data.GUARD_OUTPUT)}
-      {terminal("an honest no", data.ANSWER_OUTPUT)}
-    </div>
+    <div class="grid stagger">{"".join(cards)}</div>
   </div>
 </section>
 
 <section id="faq">
   <div class="wrap">
-    <div class="sec-head">
-      <div class="kicker">Questions</div>
+    <div class="sec-head up">
+      <span class="kicker">{icon("warning-circle")}Questions</span>
       <h2>The ones worth asking first.</h2>
     </div>
-    <div class="faq">
+    <div class="faq up">
       <details><summary>Does it apply to jobs for me?</summary>
-        <p>No, and it won't be made to. It produces the documents; you send
-        them. Some employers disqualify applications the applicant didn't
-        write, and that's their call to make.</p></details>
-      <details><summary>Do I need an API key or a subscription?</summary>
+        <p>No, and it won't be made to. It makes the documents; you send them.
+        Some employers disqualify applications the applicant didn't write, and
+        that's their call to make.</p></details>
+      <details><summary>Do I need to pay for anything?</summary>
         <p>No. Your coding agent is the model, so whatever you already pay for
         covers it. There's no provider to sign up to, no token bill, and nothing
         is uploaded anywhere.</p></details>
       <details><summary>Does it scrape LinkedIn?</summary>
         <p>No. LinkedIn walls and throttles automated access and the risk of
         working around that would land on your account. It works out who's worth
-        messaging, builds the search, and drafts something specific — you run the
-        search and press send.</p></details>
-      <details><summary>What do I actually need installed?</summary>
-        <p>Python 3.9 or newer, which macOS and every Linux already has, and a
-        Chromium-family browser — Chrome, Chromium, Edge or Brave — for reading
-        job pages and making PDFs. Without a browser you still get markdown.</p>
-        </details>
+        messaging and builds the search — you run it and press send.</p></details>
+      <details><summary>What do I need installed?</summary>
+        <p>Python 3.9 or newer, which macOS and every Linux already has, and
+        Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
+        Without a browser you still get markdown.</p></details>
       <details><summary>Where does my CV go?</summary>
         <p>Into a <code>jobhunt/</code> folder in whatever directory you work in,
-        and nowhere else. It never leaves your machine. The repo has three
-        separate guards against your own profile being committed to git by
-        accident.</p></details>
-      <details><summary>Can I just use one skill?</summary>
-        <p>Yes — that's what the per-skill downloads are for. Each folder carries
-        its own copy of the library and imports nothing from its siblings, so one
-        skill installed alone works exactly the same as all eleven.</p></details>
+        and nowhere else. It never leaves your machine.</p></details>
       <details><summary>Will it make my CV good?</summary>
-        <p>It will make your CV <em>accurate</em>, and put your strongest
-        evidence where a reader meets it. It can't give you experience you don't
-        have, and it will tell you plainly when a job needs some.</p></details>
+        <p>It will make your CV <b>accurate</b>, and put your strongest evidence
+        where a reader meets it. It can't give you experience you don't have, and
+        it will tell you plainly when a job needs some.</p></details>
     </div>
   </div>
 </section>
+
+<div class="closer">
+  <div class="wrap up">
+    <h2>Your next application, in one command.</h2>
+    <p>Eleven skills, no account, nothing to install. It applies to nothing —
+       that part stays yours.</p>
+    <div class="cta">
+      <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
+      <a class="btn btn-quiet" href="https://github.com/{REPO}">Read the source</a>
+    </div>
+  </div>
+</div>
 
 </main>
 

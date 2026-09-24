@@ -1,16 +1,12 @@
-/* The picker, the theme, and one entrance animation.
-   No framework: the page is 40KB of static HTML on GitHub Pages and a
-   dependency would be most of its weight. */
+/* The picker, the theme, and the movement.
+   No framework: this is one static page on GitHub Pages, and a library would
+   be most of its weight. */
 
 (function () {
   "use strict";
 
-  // --- theme --------------------------------------------------------------
-  // Three states, like the OS: light, dark, and "whatever the system says".
-  // Stored so it survives a reload; wrapped because a browser set to block
-  // site data throws on the read rather than returning null.
-
   var root = document.documentElement;
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function stored(key) {
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -19,8 +15,9 @@
     try { localStorage.setItem(key, value); } catch (e) { /* private window */ }
   }
 
-  // The saved theme is applied by the inline script in <head>, before first
-  // paint, so the page does not flash the wrong one.
+  // --- theme --------------------------------------------------------------
+  // Three states, like the OS: light, dark, and whatever the system says. The
+  // saved one is applied by the inline script in <head>, before first paint.
 
   var toggle = document.getElementById("theme");
   if (toggle) {
@@ -62,14 +59,13 @@
     });
   });
 
-  // Come back to the agent you picked last time. A person installing on a
-  // second machine should not have to find their row again.
+  // Come back to the agent you picked last time: installing on a second
+  // machine should not mean finding your row again.
   var last = stored("jobhunt-agent");
   if (last && buttons.some(function (b) { return b.dataset.agent === last; })) {
     show(last);
   }
-
-  // Deep link: /#install?agent=codex, so the README can point straight at one.
+  // Deep link, so the README can point straight at one: /#install?agent=codex
   var asked = (location.hash.split("agent=")[1] || "").split("&")[0];
   if (asked && buttons.some(function (b) { return b.dataset.agent === asked; })) {
     show(asked);
@@ -81,63 +77,125 @@
     var button = event.target.closest ? event.target.closest(".copy") : null;
     if (!button) return;
 
-    var text = button.dataset.copy || "";
     var label = button.querySelector("span");
-
-    function done(ok) {
-      button.dataset.state = ok ? "copied" : "";
-      if (label) label.textContent = ok ? "Copied" : "Press Cmd+C";
+    function settle(text) {
+      if (label) label.textContent = text;
       setTimeout(function () {
         button.dataset.state = "";
         if (label) label.textContent = "Copy";
-      }, 1800);
+      }, 1900);
+    }
+    // Clipboard access is refused over plain http and inside some embedded
+    // views. Selecting the text is the honest fallback - they press Cmd+C.
+    function select() {
+      var code = button.parentNode.querySelector("code");
+      if (!code) return settle("Copy");
+      var range = document.createRange();
+      range.selectNodeContents(code);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      settle("Press Cmd+C");
     }
 
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(function () { done(true); },
-                                               function () { select(button); });
+      navigator.clipboard.writeText(button.dataset.copy || "").then(function () {
+        button.dataset.state = "copied";
+        settle("Copied");
+      }, select);
     } else {
-      select(button);
+      select();
     }
   });
 
-  // Clipboard access is refused over plain http and in some embedded views.
-  // Selecting the text is the honest fallback - the person presses Cmd+C.
-  function select(button) {
-    var code = button.parentNode.querySelector("code");
-    if (!code) return;
-    var range = document.createRange();
-    range.selectNodeContents(code);
-    var selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    var label = button.querySelector("span");
-    if (label) label.textContent = "Press Cmd+C";
-    setTimeout(function () { if (label) label.textContent = "Copy"; }, 2400);
-  }
-
-  // --- chrome -------------------------------------------------------------
+  // --- the bar ------------------------------------------------------------
 
   var bar = document.querySelector(".bar");
   if (bar) {
-    var onScroll = function () {
-      bar.classList.toggle("stuck", window.scrollY > 8);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    var stick = function () { bar.classList.toggle("stuck", window.scrollY > 8); };
+    stick();
+    window.addEventListener("scroll", stick, { passive: true });
   }
 
-  var rising = document.querySelectorAll(".rise");
-  if (!("IntersectionObserver" in window)) {
-    Array.prototype.forEach.call(rising, function (el) { el.classList.add("in"); });
+  // --- arrivals -----------------------------------------------------------
+
+  var arriving = document.querySelectorAll(".up, .stagger");
+  if (still || !("IntersectionObserver" in window)) {
+    Array.prototype.forEach.call(arriving, function (el) { el.classList.add("in"); });
   } else {
     var watcher = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
         entry.target.classList.add("in");
         watcher.unobserve(entry.target);
+        if (entry.target.classList.contains("proof")) fillScore();
       });
-    }, { rootMargin: "0px 0px -8% 0px" });
-    Array.prototype.forEach.call(rising, function (el) { watcher.observe(el); });
+    }, { rootMargin: "0px 0px -10% 0px", threshold: 0.1 });
+    Array.prototype.forEach.call(arriving, function (el) { watcher.observe(el); });
+  }
+
+  // --- the two numbers ----------------------------------------------------
+  // They count up because the point of the pair is that one moves and one
+  // does not, and watching them settle says that faster than a caption.
+
+  var counted = false;
+  function fillScore() {
+    if (counted) return;
+    counted = true;
+    document.querySelectorAll(".score-bar").forEach(function (bar) {
+      var to = bar.dataset.fill || 0;
+      requestAnimationFrame(function () {
+        bar.querySelector("i").style.width = to + "%";
+      });
+    });
+    document.querySelectorAll(".score-num").forEach(function (el) {
+      var to = parseInt(el.dataset.count, 10) || 0;
+      var tail = el.querySelector("small");
+      var suffix = tail ? tail.outerHTML : "";
+      if (still) { el.innerHTML = to + suffix; return; }
+      var at = 0;
+      var tick = setInterval(function () {
+        at += 1;
+        el.innerHTML = at + suffix;
+        if (at >= to) clearInterval(tick);
+      }, 520 / Math.max(to, 1));
+    });
+  }
+  if (still) fillScore();
+
+  // --- the rail -----------------------------------------------------------
+  // One continuous fill down the steps as you scroll past them, and each badge
+  // lights as the fill reaches it. Cheaper than four separate observers, and
+  // it reads as one movement rather than four.
+
+  var steps = document.querySelector(".steps");
+  var rail = steps && steps.querySelector(".rail i");
+  if (steps && rail && !still) {
+    var badges = Array.prototype.slice.call(steps.querySelectorAll(".step"));
+
+    // Synchronous, not throttled through requestAnimationFrame: the browser
+    // already coalesces scroll events to the frame rate, and this reads five
+    // rects. The rAF version bought nothing and made the state impossible to
+    // observe - which is to say, impossible to test.
+    var draw = function () {
+      var box = steps.getBoundingClientRect();
+      var middle = window.innerHeight * 0.62;
+      var past = middle - box.top;
+      var fraction = Math.max(0, Math.min(1, past / box.height));
+      rail.style.height = (fraction * 100).toFixed(1) + "%";
+
+      var reached = box.top + box.height * fraction;
+      badges.forEach(function (step) {
+        var at = step.getBoundingClientRect();
+        step.classList.toggle("lit", reached >= at.top + at.height / 2);
+      });
+    };
+    draw();
+    window.addEventListener("scroll", draw, { passive: true });
+    window.addEventListener("resize", draw, { passive: true });
+  } else if (steps) {
+    Array.prototype.forEach.call(steps.querySelectorAll(".step"), function (s) {
+      s.classList.add("lit");
+    });
   }
 })();

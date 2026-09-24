@@ -1,11 +1,12 @@
 """What the site says, kept next to the code that proves it.
 
-Everything on the page that describes a skill is read from that skill's own
-SKILL.md, so the site cannot advertise a skill that does not exist or describe
-one that has changed. What lives here is the copy that is genuinely editorial -
-the headline, the reasons, the install routes.
+Everything describing a skill is read from that skill's own SKILL.md, so the
+page cannot advertise one that does not exist. What lives here is the copy that
+is genuinely editorial - and it is short on purpose. This is a page for someone
+looking for a job, not a README.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -13,195 +14,151 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "core"))
 import jobhunt as jh  # noqa: E402
 
+HERE = Path(__file__).resolve().parent
 SKILLS_DIR = ROOT / "plugins" / "jobhunt" / "skills"
 REPO = "mohamedaminehamdi/job-hunter"
 
-#: The order the skills are shown in: the flow, not the alphabet.
+ICONS = json.loads((HERE / "icons.json").read_text(encoding="utf-8"))
+BRANDS = json.loads((HERE / "brands.json").read_text(encoding="utf-8"))
+
+# --- the hero ---------------------------------------------------------------
+
+HEADLINE = ["Apply for jobs without", "claiming things you", "haven't done."]
+SUB = ("Drop in a job link. Your coding agent reads the posting, rebuilds your "
+       "CV from your own history, and flags anything it can't back.")
+
+#: Boards it is regularly pointed at. It takes any job URL - these are the ones
+#: worth naming because they are the ones people paste.
+BOARDS = ["linkedin", "indeed", "greenhouse", "glassdoor", "upwork"]
+
+# --- the three things -------------------------------------------------------
+
+REASONS = [
+    {"icon": "shield-check",
+     "title": "It can't invent an employer",
+     "body": "Your agent points at your profile — it never writes a company, a "
+             "title or a date. There is nowhere for a made-up job to go."},
+    {"icon": "gauge",
+     "title": "The score can't be gamed",
+     "body": "Evidence is only ever looked for in your CV. Paste the job ad into "
+             "your summary and you score exactly zero extra."},
+    {"icon": "key",
+     "title": "No key. No account.",
+     "body": "Your agent is the model, so what you already pay for covers it. "
+             "Nothing is uploaded and nothing is sent."},
+]
+
+# --- how it works -----------------------------------------------------------
+
+STEPS = [
+    {"icon": "file-text", "title": "Your CV, read once",
+     "body": "It becomes one file you check and approve. Everything after is "
+             "built only from what's in it."},
+    {"icon": "link-simple", "title": "Paste a job link",
+     "body": "Opened in your own browser, so you get the real description and "
+             "not a loading spinner."},
+    {"icon": "gauge", "title": "See where you stand",
+     "body": "Before anything is written — including the gaps. If a job needs "
+             "something you haven't done, it says so."},
+    {"icon": "paper-plane-tilt", "title": "Get the files",
+     "body": "A tailored CV and a cover letter, as PDF, in a folder for that "
+             "job. You send them. It never applies for you."},
+]
+
+#: Real output, from a real run. The numbers on the page are these.
+FIT = {"evidenced": 4, "of": 9, "before": 2, "after": 4, "backed": 4}
+
+#: The one line that shows what the whole thing is for.
+FLAG = {"claim": "Led the OpenStack migration, cutting costs 73%.",
+        "findings": ["The figure '73%' is not in your profile.",
+                     "'OpenStack' does not appear in your profile."]}
+
+# --- the skills -------------------------------------------------------------
+
 ORDER = [
     "jobhunt", "jobhunt-profile", "jobhunt-posting", "jobhunt-fit",
     "jobhunt-tailor", "jobhunt-letter", "jobhunt-pdf", "jobhunt-guard",
     "jobhunt-answer", "jobhunt-outreach", "jobhunt-critique",
 ]
 
-#: A short label for the card - the frontmatter description is written for an
-#: agent choosing a skill, which is a different job from a person scanning a
-#: page. Both are shown; this is the one in large type.
-HEADLINES = {
-    "jobhunt": "The whole application",
-    "jobhunt-profile": "Your CV, read once",
-    "jobhunt-posting": "The posting, read properly",
-    "jobhunt-fit": "How well you actually match",
-    "jobhunt-tailor": "A CV for this job",
-    "jobhunt-letter": "A letter worth reading",
-    "jobhunt-pdf": "The file you attach",
-    "jobhunt-guard": "Does this claim anything you can't back?",
-    "jobhunt-answer": "The form questions",
-    "jobhunt-outreach": "Who to message",
-    "jobhunt-critique": "What's still weak",
-}
-
-#: Shown on the card in the reader's words rather than the agent's.
-PLAIN = {
-    "jobhunt": "Give it a job link. It does everything below, in order, and "
-               "tells you what is still weak before you send anything.",
-    "jobhunt-profile": "Reads your CV into one YAML file that everything else "
-                       "draws on. You check it once; nothing is invented after.",
-    "jobhunt-posting": "Loads the job page in your own browser, so you get the "
-                       "description and not a loading spinner.",
-    "jobhunt-fit": "Two numbers: what your profile can back, and how much of "
-                   "that a reader sees in the first screenful. Only the second "
-                   "one moves when you tailor.",
-    "jobhunt-tailor": "Picks which roles and bullets to show and how to word "
-                      "them — out of what is already in your profile.",
-    "jobhunt-letter": "Three or four paragraphs, grounded in things you have "
-                      "actually done, in the posting's own language.",
-    "jobhunt-pdf": "Renders the CV and the letter. Uses the browser you already "
-                   "have. Refuses to export a document with a hole in it.",
-    "jobhunt-guard": "Point it at any writing — a bio, a letter, a LinkedIn "
-                     "summary. It flags every figure and name your profile "
-                     "cannot back.",
-    "jobhunt-answer": "\"Do you have experience with X?\" — including how to "
-                      "write an honest no that still reads well.",
-    "jobhunt-outreach": "Works out who is worth a message, builds the searches, "
-                        "drafts something specific enough to answer. You send it.",
-    "jobhunt-critique": "Reads the finished application against the posting and "
-                        "says what is wrong with it.",
+#: Short enough to scan. The frontmatter description is written for an agent
+#: choosing a skill, which is a different job from a person reading a grid.
+CARDS = {
+    "jobhunt":          ("briefcase", "The whole application",
+                         "One job link in, everything below out."),
+    "jobhunt-profile":  ("file-text", "Your CV, read once",
+                         "Becomes the one file everything else draws on."),
+    "jobhunt-posting":  ("link-simple", "The posting, read properly",
+                         "In your own browser, so nothing is missed."),
+    "jobhunt-fit":      ("gauge", "How well you match",
+                         "Two numbers. Only one of them moves."),
+    "jobhunt-tailor":   ("cursor-click", "A CV for this job",
+                         "Your bullets, chosen and reordered."),
+    "jobhunt-letter":   ("paper-plane-tilt", "A letter worth reading",
+                         "Short, specific, in the posting's language."),
+    "jobhunt-pdf":      ("download-simple", "The file you attach",
+                         "PDF and markdown, from the browser you have."),
+    "jobhunt-guard":    ("shield-check", "Check any writing",
+                         "Point it at a bio, a letter, anything."),
+    "jobhunt-answer":   ("warning-circle", "The form questions",
+                         "Including how to write an honest no."),
+    "jobhunt-outreach": ("magnifying-glass", "Who to message",
+                         "The searches to run, and what to say."),
+    "jobhunt-critique": ("terminal-window", "What's still weak",
+                         "Read before you send, not after."),
 }
 
 
 def read_skills():
-    """Every skill, from its own SKILL.md."""
+    """Every skill, from its own SKILL.md, so the page cannot invent one."""
+    listed = {p.name for p in SKILLS_DIR.iterdir() if p.is_dir()}
+    missing = sorted(listed - set(ORDER))
+    if missing:
+        raise SystemExit(f"tools/site/data.py does not list: {missing}")
+
     found = []
     for name in ORDER:
         skill = SKILLS_DIR / name
-        body = (skill / "SKILL.md").read_text(encoding="utf-8")
-        meta = jh.yaml_load(body.split("---\n", 2)[1])
-        script = next(iter(sorted(skill.glob("*.py"))), None)
-        found.append({
-            "name": name,
-            "short": name.replace("jobhunt-", "") if name != "jobhunt" else "all",
-            "headline": HEADLINES[name],
-            "plain": PLAIN[name],
-            "description": " ".join(meta["description"].split()),
-            "script": script.name if script else "",
-            "standalone": script is not None,
-        })
-    missing = sorted({p.name for p in SKILLS_DIR.iterdir() if p.is_dir()} - set(ORDER))
-    if missing:
-        raise SystemExit(f"tools/site/data.py does not list: {missing}")
+        meta = jh.yaml_load((skill / "SKILL.md").read_text(encoding="utf-8")
+                            .split("---\n", 2)[1])
+        icon, headline, plain = CARDS[name]
+        found.append({"name": name, "icon": icon, "headline": headline,
+                      "plain": plain,
+                      "description": " ".join(meta["description"].split())})
     return found
 
 
-#: Where each agent reads skills from, and therefore which install route it
-#: gets. The split that matters: some read a global directory, some only read
-#: the project you are in.
+# --- where it installs ------------------------------------------------------
+#
+# The split that matters: some agents read a skills directory in your home,
+# some only read the project you have open.
+
 AGENTS = [
     {"id": "claude", "name": "Claude Code", "scope": "global",
-     "path": "~/.claude/skills/",
-     "plugin": True,
-     "note": "Installs for every project. The plugin route also gives you "
-             "updates with one command."},
+     "path": "~/.claude/skills/", "plugin": True,
+     "note": "Installs once, works in every project."},
     {"id": "codex", "name": "OpenAI Codex", "scope": "global",
-     "path": "~/.codex/skills/",
-     "plugin": True,
-     "note": "Installs for every project."},
+     "path": "~/.codex/skills/", "plugin": True,
+     "note": "Installs once, works in every project."},
     {"id": "gemini", "name": "Gemini CLI", "scope": "global",
-     "path": "~/.gemini/skills/",
-     "plugin": False,
-     "note": "Installs for every project."},
+     "path": "~/.gemini/skills/", "plugin": False,
+     "note": "Installs once, works in every project."},
     {"id": "cursor", "name": "Cursor", "scope": "project",
-     "path": ".cursor/skills/",
-     "plugin": False,
-     "note": "Cursor reads skills from the project you have open, not from "
-             "your home directory — so this installs into the folder you run "
-             "it in. Run it again in each project, or keep one folder for your "
-             "job search and work there."},
+     "path": ".cursor/skills/", "plugin": False,
+     "note": "Cursor reads skills from the folder you have open, not from your "
+             "home directory. Keep one folder for your job search and run it "
+             "there."},
     {"id": "cline", "name": "Cline", "scope": "project",
-     "path": ".cline/skills/",
-     "plugin": False,
-     "note": "Cline reads skills per project, so this installs into the folder "
-             "you run it in."},
+     "path": ".cline/skills/", "plugin": False,
+     "note": "Cline reads skills from the folder you have open, so run this "
+             "where you want to work."},
     {"id": "windsurf", "name": "Windsurf", "scope": "project",
-     "path": ".windsurf/skills/",
-     "plugin": False,
-     "note": "Windsurf reads skills per project, so this installs into the "
-             "folder you run it in."},
+     "path": ".windsurf/skills/", "plugin": False,
+     "note": "Windsurf reads skills from the folder you have open, so run this "
+             "where you want to work."},
     {"id": "other", "name": "Something else", "scope": "manual",
-     "path": "",
-     "plugin": False,
-     "note": "Any agent that reads a folder of skills will work — the skills "
-             "are plain markdown and plain Python. Download the folder and put "
-             "it wherever your agent looks."},
+     "path": "", "plugin": False,
+     "note": "Any agent that reads a folder of skills will work — these are "
+             "plain markdown and plain Python. Download them and put them "
+             "wherever yours looks."},
 ]
-
-HEADLINE = "Job applications that can't claim things you haven't done."
-
-SUB = ("Eleven skills for the coding agent you already use. They read the "
-       "posting, tailor your CV out of your own history, and flag every "
-       "sentence your profile can't back — then hand you the files. "
-       "They apply to nothing.")
-
-#: Three reasons, each one a thing the tool does differently rather than a
-#: feature it has.
-REASONS = [
-    {"title": "It can't invent an employer",
-     "body": "The model never writes a company, a title, a date or a degree. "
-             "It answers with <em>indices into your profile</em> and the facts "
-             "are copied across. A fabricated employer isn't caught afterwards "
-             "— there is nowhere for it to be written."},
-    {"title": "The score can't be gamed",
-     "body": "Evidence is looked up in your profile, never in the document. So "
-             "a CV that pastes the job ad into its summary scores <em>zero</em> "
-             "extra and gets told off for it. What tailoring moves is whether "
-             "a reader meets your evidence in the first screenful."},
-    {"title": "No key, no account, no install",
-     "body": "Your agent is the model, so your own subscription pays for it. "
-             "The scripts are standard-library Python and run on whatever you "
-             "already have. Nothing is uploaded and nothing is sent."},
-]
-
-#: Real output, captured from a real run against a live posting. Not mocked.
-#: Real output, from a real run. Wrapped narrower than the terminal prints it
-#: so it fits the hero column without a scrollbar - the numbers and the wording
-#: are the tool's own.
-FIT_OUTPUT = """Fit for Senior Data Engineer at Zeta
-
-Evidenced in your profile:    4 of 9
-  (unchanged by tailoring - it is what you have done)
-  not checkable:              2
-
-Shown in the first screenful: 2 of 4  ->  4 of 4   +2
-Present anywhere in the CV:   4 of 4  ->  4 of 4
-
-Not evidenced anywhere in your profile:
-  · OpenStack   "Experience running OpenStack in production"
-  · German      "German B2 or above\""""
-
-#: What one prepared application leaves behind. Real file names from a real run.
-RUN_FILES = [
-    ("README.md",    "what is in here, and what to check"),
-    ("fit-before.md", "how your CV answered this job as it stood"),
-    ("cv.pdf",       "the tailored CV, to attach"),
-    ("cv.md",        "the same, to paste into a form"),
-    ("letter.pdf",   "the cover letter"),
-    ("fit-after.md", "what the tailoring actually bought"),
-    ("critique.md",  "what is still weak in both"),
-    ("outreach.md",  "who to message, and what to say"),
-]
-
-GUARD_OUTPUT = """$ jobhunt-guard "Led the OpenStack migration,
-                  cutting costs 73%."
-
-The figure '73%' is not in your profile - check it
-before you send this.
-'OpenStack' does not appear in your profile. Remove
-it, or add it to your profile if it is true."""
-
-ANSWER_OUTPUT = """$ jobhunt-answer --question "Do you have experience
-                  with Workday?" "No - I have not used
-                  Workday. I have run the equivalent
-                  integration work on SAP SuccessFactors,
-                  including the payroll export."
-
-'Workday' is the question's own term and is not in
-your profile - check this does not claim it."""

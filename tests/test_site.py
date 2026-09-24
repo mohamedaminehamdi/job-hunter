@@ -8,8 +8,10 @@ installer would reject.
 
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -60,8 +62,7 @@ def test_a_new_skill_cannot_be_forgotten():
     sys.path.insert(0, str(ROOT / "tools" / "site"))
     import data
     assert set(data.ORDER) == set(SKILLS)
-    assert set(data.HEADLINES) == set(SKILLS)
-    assert set(data.PLAIN) == set(SKILLS)
+    assert set(data.CARDS) == set(SKILLS)
 
 
 # --- the page describes what actually ships --------------------------------
@@ -150,13 +151,6 @@ def test_it_is_one_self_contained_file_plus_the_archives(page):
     assert "<script src=" not in page                        # JS is inlined
 
 
-def test_nothing_is_hidden_behind_javascript(page):
-    """A page that needs JS to say how to install it fails the person on a
-    locked-down machine - who is exactly the person downloading a zip."""
-    assert "html:not(.js) .agent-panel[hidden] { display: block; }" in page
-    assert "[hidden] { display: none !important; }" in page
-
-
 def test_both_themes_define_every_colour(page):
     css = page.split("<style>", 1)[1].split("</style>")[0]
     light = set(re.findall(r"(--[a-z-]+):", css.split("@media")[0]))
@@ -169,5 +163,190 @@ def test_both_themes_define_every_colour(page):
 
 def test_the_page_says_what_it_will_not_do(page):
     """The claims that make this tool worth using have to survive a redesign."""
-    for promise in ("apply to nothing", "No API key", "scrape LinkedIn"):
-        assert promise.lower() in page.lower(), promise
+    for promise in ("applies to nothing", "no api key", "scrape linkedin",
+                    "never leaves your machine"):
+        assert promise in page.lower(), promise
+
+
+# --- the motion, in a real browser -----------------------------------------
+#
+# Static HTML cannot show whether the scroll effects work, and they are the
+# part of this page most likely to break silently - an animation that never
+# fires leaves content invisible. These drive a real browser.
+
+CORE = ROOT / "core"
+sys.path.insert(0, str(CORE))
+import jobhunt as jh  # noqa: E402
+
+needs_browser = pytest.mark.skipif(jh.find_browser() is None,
+                                   reason="no Chromium-family browser")
+
+
+def in_browser(probe_js, width=1280):
+    """Run `probe_js` in the built page and return what it wrote to #measured."""
+    page = PAGE.read_text(encoding="utf-8").replace('data-theme=""', 'data-theme="light"')
+    work = Path(tempfile.mkdtemp(prefix="jobhunt-probe-"))
+    try:
+        (work / "page.html").write_text(
+            page.replace("</body>", f"<script>{probe_js}</script></body>"),
+            encoding="utf-8")
+        dump = work / "dom.html"
+        command = [jh.find_browser(), "--headless=new", "--disable-gpu",
+                   "--no-sandbox", "--no-first-run", "--disable-extensions",
+                   f"--window-size={width},1057", f"--user-data-dir={work / 'p'}",
+                   "--virtual-time-budget=9000", "--dump-dom",
+                   (work / "page.html").as_uri()]
+        with dump.open("wb") as sink:
+            process = subprocess.Popen(command, stdout=sink, stderr=subprocess.DEVNULL)
+        raw = jh._await_file(dump, process, 60, ready=jh._dom_complete)
+        jh._stop(process)
+        body = raw.decode("utf-8", "replace")
+        start = body.find('<pre id="measured"')
+        assert start > 0, "the probe never wrote its result"
+        return body[body.index(">", start) + 1:body.index("</pre>", start)]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+REPORT = """
+  var pre = document.createElement('pre');
+  pre.id = 'measured';
+  pre.textContent = out.join(String.fromCharCode(10));
+  document.body.appendChild(pre);
+"""
+
+
+@needs_browser
+def test_the_page_throws_nothing():
+    """One uncaught error and the arrivals never fire, which means a page with
+    invisible sections rather than a visible bug."""
+    got = in_browser("""
+      window.__errs = [];
+      window.addEventListener('error', function (e) {
+        window.__errs.push((e.message || '?') + ' @' + e.lineno);
+      });
+      setTimeout(function () {
+        var out = ['errors=' + (window.__errs.length ? window.__errs.join('|') : 'none')];
+      """ + REPORT + "}, 400);")
+    assert "errors=none" in got, got
+
+
+@needs_browser
+def test_the_first_screenful_is_visible_at_rest():
+    """`.up` starts at opacity 0 and is revealed by an observer. If that never
+    fires the page is blank - which looks like a broken site rather than a
+    broken script, so nobody reports it. This is that failure, caught.
+
+    Only the first screenful: what happens further down depends on scrolling,
+    and `test_the_rail_fills_and_lights_the_steps` proves that machinery works.
+    """
+    got = in_browser("""(function () {
+      setTimeout(function () {
+        // Transitions off before reading: under virtual time the .7s fade has
+        // not advanced, so a mid-transition 0 would look like a broken page.
+        // What is being asked is where the opacity *settles*.
+        var kill = document.createElement('style');
+        kill.textContent = '*{transition:none!important;animation:none!important}';
+        document.head.appendChild(kill);
+        void document.body.offsetHeight;
+
+        var out = ['js=' + /(^| )js( |$)/.test(document.documentElement.className)];
+        ['h1', '.lede', '.cta', '.eyebrow'].forEach(function (sel) {
+          var el = document.querySelector(sel);
+          out.push(sel + '=' + (el ? getComputedStyle(el).opacity : 'MISSING'));
+        });
+        out.push('arrived=' + document.querySelectorAll('.in').length);
+      """ + REPORT + """ }, 900);
+    })();""")
+    assert "js=true" in got, got
+    for line in got.strip().splitlines():
+        if "=" in line and line.split("=")[0] in ("h1", ".lede", ".cta", ".eyebrow"):
+            assert line.endswith("=1"), f"{line} - the hero is invisible\n{got}"
+    assert "arrived=0" not in got, got
+
+
+@needs_browser
+def test_the_two_numbers_fill_in():
+    """The score bars are the one piece of motion carrying real information."""
+    got = in_browser("""
+      setTimeout(function () {
+        var out = Array.prototype.map.call(
+          document.querySelectorAll('.score-bar i'),
+          function (i, n) { return 'bar' + n + '=' + (i.style.width || 'unset'); });
+      """ + REPORT + "}, 700);")
+    assert "unset" not in got, got
+    assert "0%" not in got.replace("100%", ""), got
+
+
+@needs_browser
+def test_the_rail_fills_and_lights_the_steps():
+    """Both ends of the scroll: nothing at the top, everything past the bottom.
+    The frames between are not observable in headless - rAF is coalesced - but
+    the fill is linear between these two."""
+    # Wrapped in a function: at global scope `var top` is an assignment to
+    # window.top, which is read-only and fails silently, so every offset came
+    # out NaN and the page looked broken when the probe was.
+    got = in_browser("""(function () {
+      var steps = document.querySelector('.steps');
+      var rail = steps.querySelector('.rail i');
+      var anchor = steps.getBoundingClientRect().top + window.scrollY;
+      var out = [];
+      function at(offset, label, then) {
+        // instant: the page sets scroll-behavior smooth, which animates over
+        // ~500ms and swallows a scripted jump.
+        window.scrollTo({ top: Math.max(0, anchor + offset - window.innerHeight * 0.62),
+                          behavior: 'instant' });
+        window.dispatchEvent(new Event('scroll'));
+        setTimeout(function () {
+          out.push(label + ' rail=' + (rail.style.height || 'unset') +
+                   ' lit=' + steps.querySelectorAll('.step.lit').length);
+          then();
+        }, 400);
+      }
+      setTimeout(function () {
+        at(0, 'top', function () {
+          at(4000, 'past', function () {
+      """ + REPORT + """ }); }); }, 300);
+    })();""")
+    lines = dict(line.split(" ", 1) for line in got.strip().splitlines())
+    assert "rail=0" in lines["top"] and "lit=0" in lines["top"], got
+    assert "rail=100%" in lines["past"] and "lit=4" in lines["past"], got
+
+
+@needs_browser
+def test_the_install_routes_are_readable_without_javascript():
+    """A page that needs JS to say how to install it fails the person on a
+    locked-down machine - who is exactly the person downloading a zip.
+
+    Checked by computing `display` in a real browser rather than by looking
+    for the rule: the blanket `[hidden] { display: none !important }` beat the
+    override once already, and the CSS text looked perfectly correct.
+    """
+    got = in_browser("""(function () {
+      setTimeout(function () {
+        // What a visitor with no script sees. Overwritten rather than
+        // regexed away: a backslash-b in a Python string is a backspace,
+        // so the regex first written here matched nothing and the probe
+        // measured the scripted page while reporting on the other one.
+        document.documentElement.className = '';
+        void document.body.offsetHeight;
+        var panels = document.querySelectorAll('.agent-panel');
+        var shown = 0, named = 0;
+        Array.prototype.forEach.call(panels, function (p) {
+          if (getComputedStyle(p).display !== 'none') shown++;
+          var name = p.querySelector('.panel-name');
+          if (name && getComputedStyle(name).display !== 'none') named++;
+        });
+        var empty = document.getElementById('panel-empty');
+        var out = ['panels=' + panels.length, 'shown=' + shown, 'named=' + named,
+                   'placeholder=' + getComputedStyle(empty).display,
+                   'commands=' + document.querySelectorAll('.cmd code').length,
+                   'htmlclass=' + JSON.stringify(document.documentElement.className),
+                   'nojs=' + document.documentElement.matches('html:not(.js)')];
+      """ + REPORT + """ }, 400);
+    })();""")
+    numbers = dict(pair.split("=", 1) for pair in got.split() if "=" in pair)
+    assert numbers["shown"] == numbers["panels"], f"only {numbers['shown']} routes shown\n{got}"
+    assert numbers["named"] == numbers["panels"], "the routes are not labelled by agent"
+    assert numbers["placeholder"] == "none", "the 'choose an agent' placeholder is still there"
+    assert int(numbers["commands"]) >= 8, got
