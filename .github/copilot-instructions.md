@@ -1,16 +1,16 @@
-# job-hunter
+# jobhunt — for GitHub Copilot
 
-This repository prepares **one job application** from a job URL: it reads the
-posting, scores how well the user's CV answers it before and after tailoring,
-writes a tailored CV and cover letter, critiques them, and drafts LinkedIn
-outreach.
+The full instructions are in [AGENTS.md](../AGENTS.md). Read that file.
 
-It **applies to nothing and submits nothing.**
+In short: this repo is eleven skills for preparing job applications. Each lives
+in `plugins/jobhunt/skills/<name>/` with a `SKILL.md` saying when to use it and
+a Python script beside it that needs no API key and nothing installed.
 
-**Read [`AGENTS.md`](../AGENTS.md) in the project root and follow it.** That file
-has the procedure, the exit codes, the prohibitions, and the tool-name mapping.
+Four rules hold wherever you enter, and they are the same four in
+[AGENTS.md](../AGENTS.md):
 
-The short version: the exact half is a plain CLI —
-`python -m job_hunter.skill <verb>` — and your job is the judgement, written to
-four JSON files. Never write `cv.md` or `letter.md` yourself; never invent a
-claim the user's profile does not back; never apply to anything.
+1. **Never apply to anything.** Produce the documents; the person sends them.
+2. **Never invent.** Every claim traces to their profile.
+3. **Never write `cv.md` or `letter.md` yourself.** They are rendered from
+   `cv.yaml`; writing one by hand hands the employers and dates back to a model.
+4. **Never work around a login wall.** Ask for the description as text instead.

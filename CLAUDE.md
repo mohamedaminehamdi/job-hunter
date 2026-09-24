@@ -1,19 +1,20 @@
-# job-hunter
+# jobhunt — for Claude Code
 
-This repo is a Claude Code skill. Open it and run:
+Everything is in [AGENTS.md](AGENTS.md), which is written for every harness
+including this one. Read that.
+
+Two things specific to Claude Code:
+
+**The skills are a plugin.** From this repo you can load them directly:
 
 ```
-/prep-apply <job-url>
+/plugin marketplace add mohamedaminehamdi/job-hunter
+/plugin install jobhunt@jobhunt
 ```
 
-It prepares one job application end to end — reads the posting, scores how well
-the CV answers it before and after tailoring, writes a tailored CV and cover
-letter, critiques them, and drafts LinkedIn outreach. It applies to nothing.
+Then `jobhunt <job-url>` runs the whole flow, or ask for any one skill by
+what you want — each `SKILL.md` describes when it applies.
 
-The skill is `.claude/skills/prep-apply/SKILL.md`; its rules are in
-`references/` beside it. **If you are working on this repo** rather than using
-it, read [CONTRIBUTING.md](CONTRIBUTING.md) — particularly that there is no
-model in this codebase, and why `assemble()` is the reason an invented employer
-cannot be expressed.
-
-Other agents (Codex, Copilot, Cursor, Cline, Aider) use [AGENTS.md](AGENTS.md).
+**Without installing**, the skills are plain files. Read
+`plugins/jobhunt/skills/<name>/SKILL.md` and follow it; the scripts beside
+them need no key and no install.

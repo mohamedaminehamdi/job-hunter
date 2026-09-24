@@ -1,77 +1,35 @@
-# job-hunter
+# jobhunt
 
-One command that prepares one job application, inside Claude Code.
+Eleven skills for the coding agent you already use. They read a job posting,
+tailor your CV out of your own history, flag every sentence your profile can't
+back, and hand you the files.
 
-```
-/prep-apply https://boards.greenhouse.io/acme/jobs/42
-```
+**They apply to nothing.** You send them.
 
-It reads the posting, tells you how well your CV answers it **before** you
-change anything, tailors the CV and writes a cover letter, tells you how much
-that actually helped, critiques both, and works out who to message on LinkedIn.
-
-**No API key.** Claude Code is the model, so your own subscription pays for it.
-There is no provider to sign up to and no token bill.
-
-**It never applies to anything.** It makes the documents. You send them.
+**[Install →](https://mohamedaminehamdi.github.io/job-hunter/)** · pick your
+agent and copy one command.
 
 ---
 
-## What you get
+## The idea
 
-One directory per job:
+Every CV tool will happily write you a better career. This one is built so it
+can't.
+
+**The model never writes an employer.** It answers with *indices into your
+profile* and the facts are copied across. A fabricated employer isn't caught
+afterwards — there is nowhere for it to be written. What's left is free text,
+and that gets checked word by word against your profile:
 
 ```
-runs/2026-09-23-acme-senior-data-engineer/
-├── README.md         what is in here, and what to check before sending
-├── fit-before.md     how your CV answered this job as it stood
-├── cv.pdf  cv.md     the tailored CV, to attach or to paste
-├── letter.pdf .md    the cover letter
-├── fit-after.md      what the tailoring actually bought
-├── critique.md       what is still weak in both
-├── outreach.md       who to message, the searches to run, what to say
-└── job.yaml          the posting, as read
+The figure '73%' is not in your profile - check it before you send this.
+'OpenStack' does not appear in your profile. Remove it, or add it to your
+profile if it is true.
 ```
 
-## Works in any coding agent
-
-Claude Code gets a slash command. Everything else reads
-[AGENTS.md](AGENTS.md), which is the same procedure without the
-Claude-specific bits:
-
-| | |
-|---|---|
-| **Claude Code** | `/prep-apply <url>` |
-| **OpenAI Codex, Cursor, Cline, Aider, Gemini CLI, Windsurf** | read `AGENTS.md` from the project root automatically — just ask for a URL to be prepared |
-| **GitHub Copilot** | reads `.github/copilot-instructions.md` |
-
-That works because the exact half of this is a plain command-line program —
-`python -m job_hunter.skill <verb>`, argv in, JSON out, no model and no vendor
-inside it. The agent supplies judgement as four JSON files; everything that must
-be reproducible is the program's job. Porting to a new harness is a paragraph in
-`AGENTS.md`, not a rewrite.
-
-## Setup
-
-Four commands, once.
-
-```bash
-git clone https://github.com/mohamedaminehamdi/job-hunter && cd job-hunter
-pip install -e .
-playwright install chromium          # it drives a real browser to read job pages
-git config core.hooksPath .githooks  # stops you ever committing your own CV
-```
-
-Then drop your CV into `cv/` — pdf, docx, txt, md, whatever it is called — open
-Claude Code in this folder, and run `/prep-apply <url>`.
-
-The first run reads your CV and writes `profile.yaml`, then **stops and asks you
-to check it**. A model read your CV; you check it once, and everything after is
-built on facts you have approved.
-
-## Reading the fit score
-
-The part worth understanding, because it is the part that tells you something.
+**The score can't be gamed.** Evidence is looked up in your profile, never in
+the document, so a CV that pastes the job ad into its summary scores zero extra
+and gets told off for it.
 
 ```
 Evidenced in your profile:    4 of 9   (unchanged by tailoring - it is what you have done)
@@ -85,101 +43,121 @@ Not evidenced anywhere in your profile:
   · German      "German B2 or above"
 ```
 
-Two numbers, because they answer different questions.
+Two numbers, because they answer different questions. **Evidenced** is what
+your profile can back — a fact about you, and it does not move when the CV is
+rewritten. **Shown** is how much of that a reader meets in the first screenful,
+and that is the one tailoring moves: the evidence was already there, buried at
+bullet nine.
 
-**Evidenced** is how much of what this job asks for your *profile* can back. It
-is a fact about you, and **it does not move when the CV is rewritten** — that is
-deliberate. If a tailored CV could raise this number, the number would be
-measuring how well the CV copies the posting, which is exactly the thing you do
-not want it to reward.
+A **gap** is something the job needs that nothing in your profile backs. Two
+honest responses: close it, or stop applying for jobs that need it. Claiming it
+anyway is not one this tool will help with.
 
-**Shown** is how much of that a reader meets in the first screenful. This is the
-one tailoring moves, and moving it is the whole job: the evidence was already
-there, buried at bullet nine.
+## Install
 
-So a CV that pastes the job's requirements into its summary scores **zero** extra
-and gets told off for it — that appears as *claimed but not evidenced*.
+Pick your agent on **[the install page](https://mohamedaminehamdi.github.io/job-hunter/)**,
+or:
 
-**Not checkable** is requirements like "strong communication skills". Nothing
-concrete to look for, so they leave the denominator rather than being counted as
-failures. You judge those.
+```bash
+# any agent, macOS or Linux
+curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh
 
-A **gap** is a thing this job asks for that nothing in your profile backs. Two
-honest responses: close it, or stop applying for jobs that need it. The one
-response this tool will not help you with is claiming it anyway.
-
-## Your profile is the source of truth
-
-`profile.yaml`, at the repo root, next to your CV. Plain YAML — edit it by hand
-whenever that is faster.
-
-Two fields carry most of the weight. **Bullets** are the only material the
-tailorer has: it selects, reorders and rewords them, and cannot write new ones.
-**Skills** are what the fit score is measured against. A thin profile produces
-thin documents, and no amount of prompting fixes that.
-
-## How it avoids inventing things
-
-The model never gets to write an employer, a title, a date, a degree or a
-certification. It answers with *indices* into your profile, and those fields are
-copied across verbatim — so a fabricated employer isn't something that gets
-caught after the fact, it can't be expressed.
-
-What is left is free text — a summary, reworded bullets, letter paragraphs — and
-that is checked word by word against your profile. Figures and proper nouns that
-appear nowhere in it are flagged:
-
-```
-[warning] summary: The figure '6' is not in your profile - check it before you send this.
+# Cursor, Cline and Windsurf read skills per project, not per user
+curl -fsSL .../install.sh | sh -s -- --to .cursor
 ```
 
-The check reads English and French. It does not read languages that capitalise
-every noun, German among them — there it says so once and leaves the reading to
-you, rather than burying a correct letter under a hundred false findings.
+Inside Claude Code or Codex you can install it as a plugin instead:
 
-## LinkedIn
+```
+/plugin marketplace add mohamedaminehamdi/job-hunter
+/plugin install jobhunt@jobhunt
+```
 
-It does not scrape LinkedIn. LinkedIn walls and throttles automated access, and
-the risk of working around that lands on *your* account.
+Or download a folder from the install page and drop it in. No terminal needed.
 
-What it does instead: works out which roles at that company are worth a message
-— alumni from your university first, because that is what actually gets replies
-— builds the searches, and drafts something specific enough to answer. You run
-the search and press send.
+**What it needs:** Python 3.9 or newer, which macOS and every Linux already
+has, and Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
+No API key — your agent is the model, so whatever you already pay for covers
+it.
+
+## Using it
+
+Put your CV somewhere, open your agent in a folder you want to work in, and
+say what you want:
+
+> prepare an application for https://boards.greenhouse.io/acme/jobs/42
+
+The first run reads your CV, writes `jobhunt/profile.yaml`, and **stops and
+asks you to check it**. A model just read your career; you approve it once, and
+everything after is built on facts you have agreed to.
+
+Then you get a folder per job:
+
+```
+jobhunt/runs/2026-09-24-acme-senior-data-engineer/
+├── fit-before.md     how your CV answered this job as it stood
+├── cv.pdf  cv.md     the tailored CV
+├── letter.pdf .md    the cover letter
+├── fit-after.md      what the tailoring actually bought
+├── critique.md       what is still weak in both
+├── outreach.md       who to message, the searches to run, what to say
+└── job.yaml          the posting, as read
+```
+
+## The eleven
+
+Each works on its own. Install just the guard to check a letter you wrote
+yourself, or just the fit score to decide whether a job is worth an evening.
+
+| | |
+|---|---|
+| `jobhunt` | the whole thing, in order |
+| `jobhunt-profile` | your CV → one YAML file everything else reads |
+| `jobhunt-posting` | a job URL → structured posting, in your own browser |
+| `jobhunt-fit` | how well you match, before and after |
+| `jobhunt-tailor` | a CV for this job, out of what you have already done |
+| `jobhunt-letter` | three or four paragraphs worth reading |
+| `jobhunt-pdf` | the files to attach |
+| `jobhunt-guard` | does this writing claim anything you can't back? |
+| `jobhunt-answer` | form questions, including how to write an honest no |
+| `jobhunt-outreach` | who to message, and what to say |
+| `jobhunt-critique` | what's still wrong, before you send it |
 
 ## What it deliberately does not do
 
-- **Apply to anything.** Some employers disqualify applications that were not
-  written by the applicant. That is their call, and honouring it is yours.
+- **Apply to anything.** Some employers disqualify applications the applicant
+  didn't write. That is their call, and honouring it is yours.
+- **Scrape LinkedIn.** LinkedIn walls and throttles automated access and the
+  risk lands on *your* account. It builds the searches; you run them.
 - **Search for jobs.** You bring the link. There are better job boards than
   anything this would be.
 - **Track your applications**, beyond one line per run in `runs/log.md`. It is
   markdown; type what happened next into it.
-- **Have a UI.** One command.
+
+## A word on honesty
+
+This makes it easy to produce a polished CV quickly. It does not make it safe
+to send one you haven't read.
+
+Generated text can still contain claims your profile doesn't support. It tries
+hard to surface those — unfilled placeholders block export, the fit score names
+what you cannot back, the critique says what is weak — but the last check is
+yours. Read what you send.
 
 ## When it goes wrong
 
 | What you see | What it means |
 |---|---|
-| `Chromium cannot start` | `playwright install chromium` |
-| `Only 300 characters came back` | The posting is behind a login wall. Paste the description when it asks — that path is fully supported |
-| `No profile yet` | Put a CV in `cv/` and run it again |
-| `This posting has no description` | Same: paste the text |
+| `No Chrome, Chromium, Edge or Brave found` | Install any of them, or set `JOBHUNT_BROWSER`. You still get markdown without one |
+| `Only 300 characters came back` | The posting is behind a login wall. Paste the description — that path is fully supported |
+| `No profile at ...` | Put a CV somewhere and ask for a profile first |
+| `is YAML this reader does not do` | Hand-edited `profile.yaml` using a `{a: b}` map. Use block style |
 | The fit score says `0 of 0` | The posting stated no requirements, so it fell back to keywords. Coarser, and it says so |
-
-## A word on honesty
-
-This tool makes it easy to produce a polished CV quickly. It does not make it
-safe to send one you haven't read.
-
-Generated text can contain claims your profile doesn't support. It tries hard to
-surface those — unfilled placeholders block export, the fit score names what you
-cannot back, and the critique says what is weak — but the last check is yours.
-Read what you send.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Tests: `pytest`. Lint: `ruff check job_hunter tests`.
+See [CONTRIBUTING.md](CONTRIBUTING.md), and [AGENTS.md](AGENTS.md) for how the
+repo is laid out. `pytest` — 373 tests, on Python 3.9 and up.
 
 ## License
 

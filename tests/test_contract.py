@@ -169,3 +169,57 @@ def test_the_files_the_skills_name_are_the_ones_the_scripts_write():
     for name in ("job.yaml", "cv.yaml", "letter.yaml", "outreach.md",
                  "critique.md", "page.txt", "fit-before.md", "fit-after.md"):
         assert name in written, f"nothing writes {name}"
+
+
+# --- the documents that point at each other --------------------------------
+
+DOCS = ["README.md", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md",
+        ".github/copilot-instructions.md"]
+
+#: Paths the docs name that belong to the *user*, not to this repo. They are
+#: gitignored by design, so a file check would fail on a correct sentence.
+THEIRS = {"jobhunt/profile.yaml", "jobhunt/runs/log.md", "runs/log.md",
+          "lib/jobhunt.py", "cv.yaml", "letter.yaml", "cv.md", "letter.md"}
+
+
+@pytest.mark.parametrize("doc", DOCS)
+def test_every_link_resolves(doc):
+    for label, target in re.findall(r"\[([^\]]+)\]\(([^)]+)\)",
+                                    Path(ROOT / doc).read_text(encoding="utf-8")):
+        if target.startswith(("http", "#")):
+            continue
+        assert ((ROOT / doc).parent / target).exists(), f"{doc}: [{label}]({target})"
+
+
+@pytest.mark.parametrize("doc", DOCS)
+def test_every_repo_file_they_name_exists(doc):
+    """A rename that leaves the docs pointing at nothing is the usual way
+    instructions rot, and it is silent."""
+    text = Path(ROOT / doc).read_text(encoding="utf-8")
+    for path in re.findall(r"`([a-z_][\w/.-]*\.(?:py|md|sh|toml|yaml|json))`", text):
+        if path in THEIRS or "<" in path or "/" not in path:
+            continue
+        assert (ROOT / path).exists(), f"{doc} names `{path}`, which does not exist"
+
+
+def test_the_entry_points_agree_on_the_four_rules():
+    """Three harnesses read three different files. They must say the same thing."""
+    for doc in ("AGENTS.md", ".github/copilot-instructions.md"):
+        text = Path(ROOT / doc).read_text(encoding="utf-8").lower()
+        for rule in ("never apply", "never invent", "login wall"):
+            assert rule.split()[-1] in text, f"{doc} drops '{rule}'"
+        assert "cv.md" in text and "letter.md" in text, doc
+
+
+def test_claude_md_does_not_fork_the_instructions():
+    """It points at AGENTS.md rather than copying it, so the two cannot drift."""
+    text = Path(ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "AGENTS.md" in text
+    assert len(text.splitlines()) < 40, "CLAUDE.md is growing its own copy"
+
+
+def test_the_readme_install_command_is_the_real_one():
+    readme = Path(ROOT / "README.md").read_text(encoding="utf-8")
+    assert "install.sh | sh" in readme
+    for flag in re.findall(r"sh -s -- (--[a-z-]+)", readme):
+        assert flag in Path(ROOT / "install.sh").read_text(encoding="utf-8"), flag
