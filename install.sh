@@ -70,6 +70,15 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+# JOBHUNT_SOURCE points at a checkout to copy from instead of downloading. It
+# is checked here rather than inside find_source, because `die` in a command
+# substitution kills only the subshell - the script would then have carried on
+# and quietly downloaded, which is not what someone naming a source asked for.
+if [ -n "${JOBHUNT_SOURCE:-}" ]; then
+  [ -d "$JOBHUNT_SOURCE/plugins/jobhunt/skills/jobhunt" ] \
+    || die "JOBHUNT_SOURCE=$JOBHUNT_SOURCE has no plugins/jobhunt/skills in it"
+fi
+
 # --- what to install -------------------------------------------------------
 
 if [ -n "$only" ]; then
@@ -86,15 +95,6 @@ fi
 # --- where the files come from ---------------------------------------------
 
 find_source() {
-  # A checkout to copy from, if there is one. JOBHUNT_SOURCE points at a clone
-  # somewhere else - it is how the download path is tested without pushing, and
-  # it is useful to anyone who already has the repo.
-  if [ -n "${JOBHUNT_SOURCE:-}" ]; then
-    [ -d "$JOBHUNT_SOURCE/plugins/jobhunt/skills/jobhunt" ] \
-      || die "JOBHUNT_SOURCE=$JOBHUNT_SOURCE has no plugins/jobhunt/skills in it"
-    printf '%s' "$JOBHUNT_SOURCE/plugins/jobhunt/skills"
-    return 0
-  fi
   # A clone next to this script.
   self=$(dirname "$0" 2>/dev/null) || self="."
   case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
@@ -208,7 +208,9 @@ if [ "$mode" = "uninstall" ]; then
   exit 0
 fi
 
-if ! source_dir=$(find_source); then
+if [ -n "${JOBHUNT_SOURCE:-}" ]; then
+  source_dir="$JOBHUNT_SOURCE/plugins/jobhunt/skills"
+elif ! source_dir=$(find_source); then
   say "${dim}Downloading...${off}"
   source_dir=$(download_source)
 fi

@@ -4,13 +4,14 @@
 
 ```bash
 git clone https://github.com/mohamedaminehamdi/job-hunter && cd job-hunter
-pip install -e ".[dev]"          # pytest, ruff, and pyyaml as a test oracle
+pip install -r requirements-dev.txt   # pytest, ruff, and pyyaml as a test oracle
 git config core.hooksPath .githooks
 pytest
 ```
 
-Nothing that ships needs any of those. The skills are standard library only —
-that is the product, not an aesthetic.
+There is nothing to `pip install .` — no package, no `[project]` table. The
+skills are copied, not packaged, and standard library only. That is the
+product, not an aesthetic.
 
 ## The two rules that are not obvious
 

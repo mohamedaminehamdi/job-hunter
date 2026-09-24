@@ -24,10 +24,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # pytest, ruff and pyyaml. Nothing that ships needs any of them - pyyaml
-      # is the oracle the hand-written YAML reader is tested against.
+      # There is no package to install - see pyproject.toml. Just the tools.
       - name: Install the contributor tools
-        run: python -m pip install --quiet ".[dev]"
+        run: python -m pip install --quiet -r requirements-dev.txt
 
       # Chrome renders the PDFs and loads job pages. Both runners already have
       # a Chromium-family browser, which is the point: users install nothing.
@@ -54,7 +53,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.13" }
-      - run: python -m pip install --quiet ".[dev]"
+      - run: python -m pip install --quiet -r requirements-dev.txt
 
       - name: Lint
         run: ruff check core plugins tools tests

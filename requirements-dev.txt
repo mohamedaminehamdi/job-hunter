@@ -1,0 +1,10 @@
+# For contributors. Nothing that ships needs any of this - the skills are
+# standard library only, which is the product rather than an aesthetic.
+
+pytest>=8.3
+ruff>=0.6
+
+# An oracle, not a dependency. The hand-written YAML reader in core/jobhunt.py
+# is tested by comparing it against pyyaml on real files, which is how ten bugs
+# in it were found. Nothing shipped imports it.
+pyyaml>=6.0
