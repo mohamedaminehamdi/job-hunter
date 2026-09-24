@@ -340,8 +340,12 @@ def _run_probe(still):
                    "--disable-background-networking", "--disable-component-update",
                    "--window-size=1280,1057", f"--user-data-dir={work / 'p'}",
                    "--virtual-time-budget=20000", "--dump-dom"]
-        if still:
-            command.append("--force-prefers-reduced-motion")
+        # Both directions are forced. A CI runner reports reduced motion by
+        # default, which silently turned the "moving" run into a second still
+        # one - so the rail test was asserting movement against a page built
+        # not to move.
+        command.append("--force-prefers-reduced-motion" if still
+                       else "--force-prefers-no-reduced-motion")
         command.append((work / "page.html").as_uri())
 
         with dump.open("wb") as sink:
@@ -366,7 +370,12 @@ def moving():
     """The page as most people see it."""
     if jh.find_browser() is None:
         pytest.skip("no Chromium-family browser")
-    return _run_probe(still=False)
+    got = _run_probe(still=False)
+    assert got["reduced"] == "false", (
+        "the browser still reports reduced motion - --force-prefers-no-reduced-"
+        "motion may have been dropped, and these tests would quietly measure "
+        "the wrong page")
+    return got
 
 
 @pytest.fixture(scope="module")
@@ -374,7 +383,9 @@ def stilled():
     """The page for somebody who asked their machine for less movement."""
     if jh.find_browser() is None:
         pytest.skip("no Chromium-family browser")
-    return _run_probe(still=True)
+    got = _run_probe(still=True)
+    assert got["reduced"] == "true", "--force-prefers-reduced-motion did not take"
+    return got
 
 
 def pair(value):
