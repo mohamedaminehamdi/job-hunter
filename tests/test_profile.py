@@ -1,11 +1,19 @@
 from pathlib import Path
 
-from job_hunter.profile import store
-from job_hunter.profile.models import Education, Personal, Profile, Role, Severity
+from jobhunt import (
+    BLOCKING,
+    Education,
+    Personal,
+    Profile,
+    Role,
+    build,
+    load,
+    save,
+)
 
 
 def blocking(profile: Profile) -> list[str]:
-    return [i.path for i in profile.report() if i.severity == Severity.BLOCKING]
+    return [i.path for i in profile.report() if i.severity == BLOCKING]
 
 
 def messages(profile: Profile) -> str:
@@ -80,7 +88,7 @@ def test_issues_are_sorted_worst_first():
     p = Profile()
     rank = {"blocking": 0, "warning": 1, "info": 2}
     severities = [i.severity for i in p.report()]
-    assert severities == sorted(severities, key=lambda s: rank[s.value])
+    assert severities == sorted(severities, key=lambda s: rank[s])
 
 
 def test_round_trip_through_yaml(tmp_path: Path):
@@ -89,30 +97,30 @@ def test_round_trip_through_yaml(tmp_path: Path):
         experience=[Role(position="DevSecOps Engineer", company="EcoG", bullets=["Owned CI/CD."])],
         skills=["Kubernetes", "Terraform"],
     )
-    path = store.save(p, tmp_path / "profile.yaml")
-    back = store.load(path)
+    path = save(p, tmp_path / "profile.yaml")
+    back = load(Profile, path)
     assert back == p
     assert back.personal.full_name == "Mohamed Amine Hamdi"
 
 
 def test_load_missing_file_gives_empty_profile(tmp_path: Path):
-    assert store.load(tmp_path / "nope.yaml") == Profile()
+    assert load(Profile, tmp_path / "nope.yaml") == Profile()
 
 
 def test_load_malformed_yaml_gives_empty_profile(tmp_path: Path):
     bad = tmp_path / "profile.yaml"
     bad.write_text("this: [unclosed", encoding="utf-8")
-    assert store.load(bad) == Profile()
+    assert load(Profile, bad) == Profile()
 
 
 def test_unknown_keys_are_dropped_not_fatal():
-    p = store.from_dict({"skills": ["Go"], "favourite_colour": "blue"})
+    p = build(Profile, {"skills": ["Go"], "favourite_colour": "blue"})
     assert p.skills == ["Go"]
 
 
 def test_partial_section_salvaged_when_another_is_broken():
     """Hand-edited YAML and LLM extraction both produce half-valid documents."""
-    p = store.from_dict({"skills": ["Go"], "experience": "not a list"})
+    p = build(Profile, {"skills": ["Go"], "experience": "not a list"})
     assert p.skills == ["Go"]
     assert p.experience == []
 

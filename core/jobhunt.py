@@ -380,3 +380,387 @@ def yaml_dump(data, indent=0):
                 written = _scalar(item) or '""'
                 out.append(f"{pad}- {written}")
     return "\n".join(out)
+
+
+# --- model ------------------------------------------------------------------
+#
+# Loading a profile or a posting NEVER raises. Intake produces partial, messy
+# data - a half-parsed PDF, a template with placeholders still in it, a posting
+# behind a login wall - and the right response is a checklist the user can act
+# on, not a stack trace. Validation reports; it does not reject.
+
+#: Deliberately loose: these catch obvious junk without rejecting unusual-but-real
+#: values. Someone's email really can have a + and four dots in it.
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
+_URL = re.compile(r"^https?://\S+$")
+_PLACEHOLDER = re.compile(r"\[.*?\]|^your |^enter |\bTBD\b|\bXXX\b", re.IGNORECASE)
+_SLUG_STRIP = re.compile(r"[^a-z0-9]+")
+_HEX = re.compile(r"^#(?:[0-9a-f]{3}|[0-9a-f]{6})$", re.IGNORECASE)
+
+#: Severities, worst first. Plain strings because 3.9 has no StrEnum and these
+#: are written to YAML, read back, and compared against literals in templates.
+BLOCKING = "blocking"   # no usable document can be produced
+WARNING = "warning"     # usable, but visibly worse
+INFO = "info"           # worth filling in eventually
+SEVERITIES = (BLOCKING, WARNING, INFO)
+
+
+@dataclass
+class Issue:
+    """One problem with one field, addressed to the person fixing it."""
+
+    path: str = ""
+    severity: str = WARNING
+    message: str = ""
+
+    def __str__(self):
+        return f"[{self.severity}] {self.path}: {self.message}"
+
+
+def placeholder_issues(value, path=""):
+    """Every string inside `value` that is still template text, e.g. '[Your Name]'.
+
+    This is the failure that silently reached a real PDF in the tool this one
+    replaces, so it is checked explicitly rather than hoped about - on profiles,
+    and on everything a generator writes.
+    """
+    found = []
+
+    def walk(current, at):
+        if isinstance(current, Issue):
+            return  # diagnostics describe content; they are not content
+        if isinstance(current, str):
+            if current and _PLACEHOLDER.search(current):
+                found.append(Issue(at or "text", BLOCKING,
+                                   f"Unfilled placeholder text: {current[:40]!r}"))
+        elif dataclasses.is_dataclass(current):
+            for f in fields(current):
+                walk(getattr(current, f.name), f"{at}.{f.name}" if at else f.name)
+        elif isinstance(current, dict):
+            for key, item in current.items():
+                walk(item, f"{at}.{key}" if at else str(key))
+        elif isinstance(current, (list, tuple)):
+            for i, item in enumerate(current):
+                walk(item, f"{at}[{i}]")
+
+    walk(value, path)
+    return found
+
+
+def _period(start, end):
+    return f"{start} - {end}" if start and end else (start or end)
+
+
+@dataclass
+class Personal:
+    name: str = ""
+    surname: str = ""
+    headline: str = ""
+    email: str = ""
+    phone: str = ""
+    city: str = ""
+    country: str = ""
+    github: str = ""
+    linkedin: str = ""
+    website: str = ""
+
+    @property
+    def full_name(self):
+        return " ".join(p for p in (self.name, self.surname) if p)
+
+
+@dataclass
+class Role:
+    position: str = ""
+    company: str = ""
+    start: str = ""
+    end: str = ""
+    location: str = ""
+    industry: str = ""
+    #: Free-text achievements. The tailorer selects and rewrites these; it must
+    #: not introduce claims absent from here.
+    bullets: list = field(default_factory=list)
+    skills: list = field(default_factory=list)
+
+    SHAPE = {"bullets": "lines", "skills": "lines"}
+
+    @property
+    def period(self):
+        return _period(self.start, self.end)
+
+
+@dataclass
+class Education:
+    level: str = ""
+    institution: str = ""
+    field_of_study: str = ""
+    start: str = ""
+    end: str = ""
+    grade: str = ""
+    location: str = ""
+    #: Named courses. Empty means "omit the section" - never "invent some".
+    courses: list = field(default_factory=list)
+
+    SHAPE = {"courses": "lines"}
+
+    @property
+    def period(self):
+        return _period(self.start, self.end)
+
+
+@dataclass
+class Project:
+    name: str = ""
+    description: str = ""
+    link: str = ""
+    tech: list = field(default_factory=list)
+
+    SHAPE = {"tech": "lines"}
+
+
+@dataclass
+class Certification:
+    name: str = ""
+    issuer: str = ""
+    year: str = ""
+    description: str = ""
+
+
+@dataclass
+class Language:
+    name: str = ""
+    level: str = ""
+
+
+@dataclass
+class Profile:
+    """Everything known about the user. Every field optional by construction."""
+
+    personal: Personal = field(default_factory=Personal)
+    summary: str = ""
+    experience: list = field(default_factory=list)
+    education: list = field(default_factory=list)
+    projects: list = field(default_factory=list)
+    skills: list = field(default_factory=list)
+    certifications: list = field(default_factory=list)
+    languages: list = field(default_factory=list)
+
+    SHAPE = {
+        "personal": "raw",
+        "experience": (list, Role),
+        "education": (list, Education),
+        "projects": (list, Project),
+        "certifications": (list, Certification),
+        "languages": (list, Language),
+        "skills": "lines",
+    }
+    COERCE = {"personal": lambda v: build(Personal, v)}
+
+    def report(self):
+        """Every problem worth showing the user, worst first."""
+        issues = []
+        p = self.personal
+
+        if not p.full_name:
+            issues.append(Issue("personal.name", BLOCKING,
+                                "A name is required to render a CV."))
+        if not self.experience and not self.education:
+            issues.append(Issue("experience", BLOCKING,
+                                "Add at least one role or one degree."))
+
+        if not p.email:
+            issues.append(Issue("personal.email", WARNING,
+                                "No email - employers cannot reply."))
+        elif not _EMAIL.match(p.email):
+            issues.append(Issue("personal.email", WARNING,
+                                f"{p.email!r} does not look like an email address."))
+
+        for name in ("github", "linkedin", "website"):
+            value = getattr(p, name)
+            if value and not _URL.match(value):
+                issues.append(Issue(f"personal.{name}", WARNING,
+                                    f"{value!r} should start with http:// or https://."))
+
+        for i, role in enumerate(self.experience):
+            where = f"experience[{i}]"
+            if not role.position or not role.company:
+                issues.append(Issue(where, WARNING,
+                                    "Role needs both a position and a company."))
+            if not role.bullets:
+                issues.append(Issue(f"{where}.bullets", WARNING,
+                                    f"No achievements for {role.company or 'this role'} - "
+                                    "the tailorer has nothing to work with."))
+
+        issues.extend(placeholder_issues(self))
+
+        if not self.skills:
+            issues.append(Issue("skills", INFO,
+                                "Listing skills improves keyword matching."))
+        if not self.summary:
+            issues.append(Issue("summary", INFO,
+                                "A summary gives the tailorer a voice to match."))
+
+        order = {BLOCKING: 0, WARNING: 1, INFO: 2}
+        return sorted(issues, key=lambda i: order.get(i.severity, 3))
+
+    def blocking_issues(self):
+        """The issues that stop a document being exported."""
+        return [i for i in self.report() if i.severity == BLOCKING]
+
+    @property
+    def is_renderable(self):
+        """True when nothing blocking remains."""
+        return not self.blocking_issues()
+
+
+#: Long enough to tailor against. Below this the description is a stub or a
+#: cookie banner, and generating from it produces confident nonsense.
+MIN_DESCRIPTION = 120
+
+
+def _colour(value):
+    """Only a hex colour survives: this reaches a stylesheet."""
+    body = text(value)
+    if body.startswith("#") and len(body) == 4:  # #abc -> #aabbcc
+        body = "#" + "".join(c * 2 for c in body[1:])
+    return body.lower() if _HEX.match(body) else ""
+
+
+@dataclass
+class Job:
+    """One posting, as far as we understand it."""
+
+    url: str = ""
+    title: str = ""
+    company: str = ""
+    location: str = ""
+    #: remote / hybrid / on-site, in the posting's own words where it says.
+    workplace: str = ""
+    employment_type: str = ""
+    salary: str = ""
+    #: What the role is, in a paragraph or two.
+    description: str = ""
+    responsibilities: list = field(default_factory=list)
+    #: Stated as required. The tailorer answers these first.
+    requirements: list = field(default_factory=list)
+    nice_to_have: list = field(default_factory=list)
+    #: Terms worth mirroring *where the profile supports them* - never otherwise.
+    keywords: list = field(default_factory=list)
+    #: Language the posting is written in, so we can answer in it.
+    language: str = ""
+    #: The company's colour, read off the page - not guessed by a model.
+    brand_color: str = ""
+    #: The page text the model read. Kept so review can show its working.
+    source_text: str = ""
+    fetched_at: str = ""
+
+    SHAPE = {
+        "responsibilities": "lines", "requirements": "lines",
+        "nice_to_have": "lines", "keywords": "lines",
+    }
+    COERCE = {"brand_color": _colour}
+
+    def __post_init__(self):
+        # The one field worth coercing even on direct construction: it reaches a
+        # stylesheet. `render.branded` refuses non-hex too - this is the inner of
+        # the two checks, so a Job never carries a colour that is not one.
+        self.brand_color = _colour(self.brand_color)
+
+    @property
+    def label(self):
+        """One line naming the job, for logs, menus and page titles."""
+        if self.title and self.company:
+            return f"{self.title} at {self.company}"
+        return self.title or self.company or self.url or "Untitled job"
+
+    @property
+    def slug(self):
+        """Filesystem-safe stem for the documents generated for this job."""
+        stem = _SLUG_STRIP.sub("-", f"{self.company} {self.title}".lower()).strip("-")
+        return stem[:60] or "job"
+
+    @property
+    def detail_lines(self):
+        """Every stated requirement and responsibility, in priority order."""
+        return [*self.requirements, *self.responsibilities, *self.nice_to_have]
+
+    def missing(self):
+        """Why this job cannot be tailored against, or None to proceed."""
+        if not (self.description or self.detail_lines):
+            return ("This posting has no description to work from. Paste the job "
+                    "description text instead of the URL.")
+        if len(self.description) < MIN_DESCRIPTION and len(self.detail_lines) < 3:
+            return ("Only a fragment of this posting came through - probably a login "
+                    "wall or a page that renders its description late. Paste the job "
+                    "description text instead.")
+        return None
+
+    @property
+    def is_usable(self):
+        return self.missing() is None
+
+    def brief(self):
+        """The job as a prompt block: compact, ordered, no empty sections.
+
+        Every generator builds its prompt from this, so a change to how a job is
+        presented to a model happens once.
+        """
+        head = [
+            ("Role", self.title),
+            ("Company", self.company),
+            ("Location", " - ".join(p for p in (self.location, self.workplace) if p)),
+            ("Employment", self.employment_type),
+            ("Salary", self.salary),
+            ("Posting language", self.language),
+        ]
+        parts = [f"{name}: {value}" for name, value in head if value]
+        for name, body in (("Responsibilities", self.responsibilities),
+                           ("Requirements", self.requirements),
+                           ("Nice to have", self.nice_to_have)):
+            if body:
+                parts.append(f"\n{name}:\n" + "\n".join(f"- {line}" for line in body))
+        if self.description:
+            parts.append(f"\nDescription:\n{self.description}")
+        if self.keywords:
+            parts.append(f"\nKeywords: {', '.join(self.keywords)}")
+        return "\n".join(parts).strip()
+
+
+# --- documents on disk ------------------------------------------------------
+#
+# One pair of functions for every record this project stores, because they are
+# all the same shape: a dataclass, a YAML file, and a rule that reading must
+# never raise. A malformed file is an empty record plus an issue to show, not a
+# traceback - the file is somebody's hand-edited YAML as often as ours.
+
+
+def load(cls, path, **overrides):
+    """Read a record from YAML. Returns an empty one if there is nothing there.
+
+    Malformed YAML yields an empty record rather than raising: something always
+    has to be shown to the user, and `report()` is where they find out what is
+    wrong with it.
+    """
+    path = Path(path)
+    if not path.exists():
+        return build(cls, {}, **overrides)
+    try:
+        raw = yaml_load(path.read_text(encoding="utf-8"))
+    except (YamlError, OSError, UnicodeDecodeError):
+        raw = {}
+    return build(cls, raw, **overrides)
+
+
+def save(obj, path):
+    """Write a record as YAML, creating the directory if needed.
+
+    Written to a temporary file and moved into place, so an interrupted write
+    cannot leave a half-written profile where a whole one used to be.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = yaml_dump(asdict(obj))
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(body + "\n", encoding="utf-8")
+    tmp.replace(path)
+    return path

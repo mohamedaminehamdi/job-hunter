@@ -1,8 +1,8 @@
 import pytest
 
-from job_hunter.jobs import fetch, models
+from job_hunter.jobs import fetch          # ported to core in the fetch layer
 from job_hunter.jobs.fetch import FetchError
-from job_hunter.jobs.models import Job
+from jobhunt import Job, build
 
 FULL = {
     "title": "Data Engineer",
@@ -79,26 +79,25 @@ def test_real_looking_page_passes():
 # --- Job: shapes models actually return ---
 
 def test_string_field_given_a_dict_keeps_the_numbers():
-    job = models.from_dict({"salary": {"min": 60000, "max": 80000, "currency": "EUR"}})
+    job = build(Job, {"salary": {"min": 60000, "max": 80000, "currency": "EUR"}})
     assert job.salary == "min: 60000, max: 80000, currency: EUR"
 
 
 def test_list_field_given_a_blob_splits_and_debullets():
-    job = models.from_dict({"requirements": "- Python\n* SQL\n1. dbt\n\n  \n- \n"})
+    job = build(Job, {"requirements": "- Python\n* SQL\n1. dbt\n\n  \n- \n"})
     assert job.requirements == ["Python", "SQL", "dbt"]
 
 
 def test_unknown_keys_dropped_and_overrides_win():
-    job = models.from_dict(
-        {"title": "Data Engineer", "url": "https://spam.example", "confidence": 0.9},
-        url="https://real.example/j/1",
-    )
+    job = build(Job, {"title": "Data Engineer", "url": "https://spam.example",
+                      "confidence": 0.9},
+                url="https://real.example/j/1")
     assert job.title == "Data Engineer"
     assert job.url == "https://real.example/j/1"  # we know this; the model guessed
 
 
 def test_one_broken_field_does_not_lose_the_posting():
-    job = models.from_dict({"title": "Data Engineer", "requirements": object()})
+    job = build(Job, {"title": "Data Engineer", "requirements": object()})
     assert job.title == "Data Engineer"
 
 
