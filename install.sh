@@ -8,6 +8,9 @@
 #   ./install.sh --only jobhunt-guard,jobhunt-fit
 #   ./install.sh --uninstall
 #
+# JOBHUNT_SOURCE=/path/to/clone  copies from a checkout you already have
+# rather than downloading.
+#
 # POSIX sh on purpose: /bin/sh is dash on Debian and bash on macOS, and this
 # has to run on both without anybody choosing an interpreter. No bashisms, no
 # arrays, no `local` outside functions that declare it.
@@ -83,7 +86,16 @@ fi
 # --- where the files come from ---------------------------------------------
 
 find_source() {
-  # A clone next to this script, if there is one.
+  # A checkout to copy from, if there is one. JOBHUNT_SOURCE points at a clone
+  # somewhere else - it is how the download path is tested without pushing, and
+  # it is useful to anyone who already has the repo.
+  if [ -n "${JOBHUNT_SOURCE:-}" ]; then
+    [ -d "$JOBHUNT_SOURCE/plugins/jobhunt/skills/jobhunt" ] \
+      || die "JOBHUNT_SOURCE=$JOBHUNT_SOURCE has no plugins/jobhunt/skills in it"
+    printf '%s' "$JOBHUNT_SOURCE/plugins/jobhunt/skills"
+    return 0
+  fi
+  # A clone next to this script.
   self=$(dirname "$0" 2>/dev/null) || self="."
   case "$self" in /*) ;; *) self="$PWD/$self" ;; esac
   if [ -d "$self/plugins/jobhunt/skills/jobhunt" ]; then

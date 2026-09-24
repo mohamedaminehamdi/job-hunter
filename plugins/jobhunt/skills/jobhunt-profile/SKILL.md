@@ -77,10 +77,18 @@ there is no profile, or something blocking is missing.
        link: https://github.com/ada/pipe
        tech: [Python]
    certifications:
-     - {name: dbt Analytics Engineer, issuer: dbt Labs, year: "2023"}
+     - name: dbt Analytics Engineer
+       issuer: dbt Labs
+       year: "2023"
    languages:
-     - {name: English, level: fluent}
+     - name: English
+       level: fluent
    ```
+
+   Block style throughout, as above. `{name: X, level: Y}` on one line is
+   valid YAML and this tool will not read it — it keeps a deliberately small
+   subset so it can ship with nothing installed. It says so rather than
+   guessing, but the error is avoidable.
 
 4. Normalise and check:
 

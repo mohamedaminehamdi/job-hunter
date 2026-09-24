@@ -1,81 +1,69 @@
+"""Getting somebody's CV into a profile.
 
+The split that matters: a YAML profile is read deterministically and needs no
+model, and a CV in any other format is words the agent has to map onto the
+schema itself. Nothing here calls a model, and nothing here guesses.
+"""
+
+import jobhunt as jh
 import pytest
 
-from job_hunter.profile import intake
-from job_hunter.profile.intake import IntakeError
+
+def test_a_yaml_profile_needs_no_model(tmp_path):
+    path = tmp_path / "profile.yaml"
+    path.write_text("personal:\n  name: Ada\n  surname: Lovelace\n"
+                    "skills: [Go, Kubernetes]\n", encoding="utf-8")
+    profile = jh.load(jh.Profile, path)
+    assert profile.personal.full_name == "Ada Lovelace"
+    assert profile.skills == ["Go", "Kubernetes"]
 
 
-def test_yaml_intake_needs_no_model(tmp_path):
-    path = tmp_path / "me.yaml"
-    path.write_text(
-        "personal:\n  name: Ada\n  surname: Lovelace\nskills: [Go, Kubernetes]\n",
-        encoding="utf-8",
-    )
-    result = intake.from_file(path)
-    assert result.profile.personal.full_name == "Ada Lovelace"
-    assert result.profile.skills == ["Go", "Kubernetes"]
-    assert result.extracted is False  # no model touched it
+def test_yaml_that_is_not_a_mapping_gives_an_empty_profile(tmp_path):
+    """Reading never raises: the report is where the user finds out."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("- just\n- a list\n", encoding="utf-8")
+    profile = jh.load(jh.Profile, path)
+    assert profile == jh.Profile()
+    assert not profile.is_renderable
 
 
-def test_unsupported_extension_rejected(tmp_path):
-    path = tmp_path / "cv.pages"
-    path.write_text("x", encoding="utf-8")
-    with pytest.raises(IntakeError, match="Unsupported file type"):
-        intake.from_file(path)
-
-
-def test_missing_file_rejected(tmp_path):
-    with pytest.raises(IntakeError, match="No such file"):
-        intake.from_file(tmp_path / "ghost.pdf")
-
-
-def test_yaml_that_is_not_a_mapping_rejected(tmp_path):
-    path = tmp_path / "me.yaml"
-    path.write_text("- just\n- a\n- list\n", encoding="utf-8")
-    with pytest.raises(IntakeError, match="mapping"):
-        intake.from_file(path)
-
-
-def test_plain_text_read_verbatim(tmp_path):
+def test_plain_text_is_read_verbatim(tmp_path):
     path = tmp_path / "cv.txt"
-    path.write_text("Ada Lovelace\nEngineer", encoding="utf-8")
-    assert "Ada Lovelace" in intake.read_text(path)
+    path.write_text("Ada Lovelace\nWrote note G.\n", encoding="utf-8")
+    assert jh.read_cv_text(path) == "Ada Lovelace\nWrote note G.\n"
 
 
-def test_a_cv_is_not_a_profile(tmp_path):
-    """Reading a CV needs a model; this module deliberately has none."""
-    cv = tmp_path / "cv.pdf"
-    cv.write_bytes(b"%PDF-1.4 whatever")
-    with pytest.raises(IntakeError, match="is a CV, not a profile"):
-        intake.from_file(cv)
+def test_an_unreadable_format_says_what_is_readable(tmp_path):
+    path = tmp_path / "cv.pages"
+    path.write_text("x")
+    with pytest.raises(jh.IntakeError, match="Readable here"):
+        jh.read_cv_text(path)
 
 
-# --- parse_json: models do not respect "return only JSON" ---
-
-def test_parse_plain_json():
-    assert intake.parse_json('{"skills": ["Go"]}') == {"skills": ["Go"]}
-
-
-def test_parse_json_in_code_fence():
-    raw = '```json\n{"skills": ["Go"]}\n```'
-    assert intake.parse_json(raw) == {"skills": ["Go"]}
+def test_a_missing_file_says_so(tmp_path):
+    with pytest.raises(jh.IntakeError, match="No such file"):
+        jh.read_cv_text(tmp_path / "nope.pdf")
 
 
-def test_parse_json_wrapped_in_prose():
-    raw = 'Here is the profile:\n{"skills": ["Go"]}\nHope that helps!'
-    assert intake.parse_json(raw) == {"skills": ["Go"]}
+# --- links a printed CV loses ----------------------------------------------
+
+def test_a_scheme_stripped_by_printing_is_put_back():
+    """A CV this tool rendered, printed, and read back in arrives bare, and the
+    check would then complain about three links that were right all along."""
+    profile = jh.Profile(personal=jh.Personal(
+        github="github.com/ada", linkedin="www.linkedin.com/in/ada",
+        website="ada.dev/about"))
+    fixed = jh.restore_scheme(profile).personal
+    assert fixed.github == "https://github.com/ada"
+    assert fixed.linkedin == "https://www.linkedin.com/in/ada"
+    assert fixed.website == "https://ada.dev/about"
 
 
-def test_parse_json_rejects_non_object():
-    with pytest.raises(IntakeError, match="JSON object"):
-        intake.parse_json("[1, 2, 3]")
+def test_a_link_that_already_has_one_is_left_alone():
+    profile = jh.Profile(personal=jh.Personal(github="http://github.com/ada"))
+    assert jh.restore_scheme(profile).personal.github == "http://github.com/ada"
 
 
-def test_parse_json_reports_when_no_json_present():
-    with pytest.raises(IntakeError, match="did not return JSON"):
-        intake.parse_json("I'm sorry, I can't help with that.")
-
-
-def test_parse_json_reports_malformed():
-    with pytest.raises(IntakeError, match="malformed JSON"):
-        intake.parse_json('{"skills": [')
+def test_something_that_is_not_a_url_is_not_made_into_one():
+    profile = jh.Profile(personal=jh.Personal(website="ask me"))
+    assert jh.restore_scheme(profile).personal.website == "ask me"

@@ -2921,65 +2921,6 @@ def note(run, label, url, base=None):
     return log
 
 
-# --- what a skill script exits with -----------------------------------------
-#
-# Quoted in every SKILL.md, so the two cannot drift apart without somebody
-# noticing. The split that matters is 1 against 2: "the tool cannot continue"
-# and "your draft is not fit to send" need opposite responses, and collapsing
-# them teaches the model to retry things that will never work.
-
-OK = 0
-#: A precondition the *user* has to fix: no profile, no CV, a login wall, a
-#: posting too thin to work from. Stop and relay the message. Never work around
-#: it - working around a login wall means inventing the job description.
-BLOCKED = 1
-#: A document was produced and is not fit to export: a blocking issue, or a
-#: message over a hard length cap. Rewrite the JSON that produced it, once.
-UNFIT = 2
-#: The JSON could not be read at all - fenced, truncated, or not JSON. Write it
-#: again, once.
-UNREADABLE = 3
-
-MEANING = {
-    OK: "fine",
-    BLOCKED: "the user must fix something; stop and tell them",
-    UNFIT: "the draft is not fit to send; rewrite it once",
-    UNREADABLE: "the JSON could not be read; write it again once",
-}
-
-#: Everything raised on purpose here. All carry a message meant for a person.
-USER_ERRORS = (IntakeError, ParseError, ExportBlocked, PdfError,
-               ValueError, FileNotFoundError)
-
-
-def emit(payload):
-    """One line of JSON on stdout. The agent reads this; a person reads stderr."""
-    print(json.dumps(payload, ensure_ascii=False, default=str))
-
-
-def fail(message, code=BLOCKED):
-    print(message, file=sys.stderr)
-    return code
-
-
-def run_cli(work, argv=None):
-    """Run one skill's `work(args)` and turn whatever it raises into an exit code.
-
-    Every skill script ends with `raise SystemExit(jobhunt.run_cli(work))`, so
-    the exit codes above mean the same thing in all eleven of them.
-    """
-    try:
-        return work(argv if argv is not None else sys.argv[1:])
-    except ParseError as exc:
-        return fail(str(exc), UNREADABLE)
-    except (ExportBlocked, PdfError) as exc:
-        return fail(str(exc), UNFIT)
-    except USER_ERRORS as exc:
-        return fail(str(exc), BLOCKED)
-    except KeyboardInterrupt:
-        return fail("interrupted", BLOCKED)
-
-
 # --- outreach ---------------------------------------------------------------
 #
 # No scraping. LinkedIn walls and throttles automated access, and the risk of
@@ -3476,3 +3417,65 @@ def check_posting(url, body):
         raise FetchError(
             f"Only {len(body)} characters came back from {url} - not enough to be "
             "a job description. Paste the description text instead.")
+
+
+# --- what a skill script exits with -----------------------------------------
+#
+# Quoted in every SKILL.md, so the two cannot drift apart without somebody
+# noticing. The split that matters is 1 against 2: "the tool cannot continue"
+# and "your draft is not fit to send" need opposite responses, and collapsing
+# them teaches the model to retry things that will never work.
+
+OK = 0
+#: A precondition the *user* has to fix: no profile, no CV, a login wall, a
+#: posting too thin to work from. Stop and relay the message. Never work around
+#: it - working around a login wall means inventing the job description.
+BLOCKED = 1
+#: A document was produced and is not fit to export: a blocking issue, or a
+#: message over a hard length cap. Rewrite the JSON that produced it, once.
+UNFIT = 2
+#: The JSON could not be read at all - fenced, truncated, or not JSON. Write it
+#: again, once.
+UNREADABLE = 3
+
+MEANING = {
+    OK: "fine",
+    BLOCKED: "the user must fix something; stop and tell them",
+    UNFIT: "the draft is not fit to send; rewrite it once",
+    UNREADABLE: "the JSON could not be read; write it again once",
+}
+
+#: Everything raised on purpose here. All carry a message meant for a person,
+#: and every one must be listed: an omission does not fail loudly, it prints a
+#: traceback where a sentence should be. FetchError was missing, so a login
+#: wall - the most ordinary failure there is - came out as a stack trace.
+USER_ERRORS = (IntakeError, ParseError, FetchError, ExportBlocked, PdfError,
+               YamlError, ValueError, FileNotFoundError)
+
+
+def emit(payload):
+    """One line of JSON on stdout. The agent reads this; a person reads stderr."""
+    print(json.dumps(payload, ensure_ascii=False, default=str))
+
+
+def fail(message, code=BLOCKED):
+    print(message, file=sys.stderr)
+    return code
+
+
+def run_cli(work, argv=None):
+    """Run one skill's `work(args)` and turn whatever it raises into an exit code.
+
+    Every skill script ends with `raise SystemExit(jobhunt.run_cli(work))`, so
+    the exit codes above mean the same thing in all eleven of them.
+    """
+    try:
+        return work(argv if argv is not None else sys.argv[1:])
+    except ParseError as exc:
+        return fail(str(exc), UNREADABLE)
+    except (ExportBlocked, PdfError) as exc:
+        return fail(str(exc), UNFIT)
+    except USER_ERRORS as exc:
+        return fail(str(exc), BLOCKED)
+    except KeyboardInterrupt:
+        return fail("interrupted", BLOCKED)

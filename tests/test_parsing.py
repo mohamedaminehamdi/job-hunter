@@ -1,7 +1,13 @@
-import pytest
+"""Reading what a model wrote back.
 
-from job_hunter.generate import parsing
-from job_hunter.generate.parsing import ParseError
+Every skill asks for JSON and gets fenced JSON, JSON with an apology in front
+of it, or JSON that ran out of tokens halfway. Forgiving on purpose - the
+instruction reduces the noise but never removes it.
+"""
+
+import jobhunt as parsing
+import pytest
+from jobhunt import ParseError
 
 
 def test_plain_json():

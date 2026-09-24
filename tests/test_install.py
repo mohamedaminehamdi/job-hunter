@@ -148,3 +148,61 @@ def test_it_offers_every_skill_that_exists():
     listed = body.split("SKILLS=", 1)[1].split("\n\n", 1)[0]
     for skill in SKILLS:
         assert skill in listed, f"install.sh never offers {skill}"
+
+
+# --- piped from curl, which is how the website says to run it --------------
+
+def piped(home, *args, cwd=None, source=None):
+    """`curl ... | sh -s -- <args>`, with the download replaced by a checkout.
+
+    The shape of the pipe is what is being tested - `sh -s --` argument passing
+    is easy to get wrong and silently drops everything after it.
+    """
+    env = {"PATH": os.environ.get("PATH", ""), "HOME": str(home), "NO_COLOR": "1",
+           "JOBHUNT_SOURCE": str(source or ROOT)}
+    return subprocess.run(
+        f'cat "{INSTALL}" | sh -s -- ' + " ".join(args),
+        shell=True, capture_output=True, text=True, cwd=str(cwd or ROOT), env=env)
+
+
+def test_the_command_the_site_gives_global_agents_works(home):
+    done = piped(home)
+    assert done.returncode == 0, done.stderr
+    assert len(list((home / ".claude" / "skills").iterdir())) == len(SKILLS)
+
+
+def test_the_command_the_site_gives_cursor_users_works(home, tmp_path):
+    """`| sh -s -- --to .cursor` - the arguments must survive the pipe."""
+    project = tmp_path / "project"
+    project.mkdir()
+    done = piped(home, "--to", ".cursor", cwd=project)
+    assert done.returncode == 0, done.stderr
+    assert (project / ".cursor" / "skills" / "jobhunt-guard" / "guard.py").exists()
+
+
+def test_every_command_the_site_prints_is_one_the_installer_accepts():
+    """The page is generated; the flags it prints must still exist here."""
+    import html as H
+    import re
+    page = ROOT / "docs" / "index.html"
+    if not page.exists():
+        pytest.skip("site not built")
+    body = INSTALL.read_text(encoding="utf-8")
+    for command in {H.unescape(m) for m in re.findall(r'data-copy="([^"]+)"',
+                                                      page.read_text(encoding="utf-8"))}:
+        if "install.sh" not in command:
+            continue
+        for flag in re.findall(r"(--[a-z-]+)", command.split("--", 1)[-1]):
+            assert flag in body, f"the site prints {flag}, install.sh has no such option"
+        # and no flag is handed an empty value
+        assert not re.search(r"--\w[\w-]*\s*$", command.replace("sh -s --", "")), command
+
+
+def test_the_source_override_is_checked_before_it_is_used(home, tmp_path):
+    done = subprocess.run(
+        ["sh", str(INSTALL), "--only", "jobhunt-guard"],
+        capture_output=True, text=True, cwd=str(ROOT),
+        env={"PATH": os.environ.get("PATH", ""), "HOME": str(home), "NO_COLOR": "1",
+             "JOBHUNT_SOURCE": str(tmp_path / "not-a-clone")})
+    assert done.returncode != 0
+    assert "has no plugins/jobhunt/skills" in done.stderr

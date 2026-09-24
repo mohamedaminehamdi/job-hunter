@@ -7,51 +7,76 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # 3.11 is the floor declared in pyproject.toml. Development happens on
-        # 3.12, so without this matrix the floor is a claim nobody checks.
-        python-version: ["3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest]
+        # 3.9 is the floor, and it is the one that matters: it is what macOS
+        # ships and what a friend on a fresh laptop has. Developing on 3.12
+        # and claiming 3.9 without checking is how `datetime.UTC` got in.
+        python-version: ["3.9", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Into the venv setup-uv already made, not --system: the runner's
-      # interpreters are externally managed and uv refuses to write to them.
-      - name: Install the project
+      # pytest, ruff and pyyaml. Nothing that ships needs any of them - pyyaml
+      # is the oracle the hand-written YAML reader is tested against.
+      - name: Install the contributor tools
+        run: python -m pip install --quiet ".[dev]"
+
+      # Chrome renders the PDFs and loads job pages. Both runners already have
+      # a Chromium-family browser, which is the point: users install nothing.
+      - name: Point at the browser that is already here
+        shell: bash
         run: |
-          echo "$VIRTUAL_ENV/bin" >> "$GITHUB_PATH"
-          uv pip install -e ".[dev]"
-
-      # The renderer and the job fetcher drive a real browser, so the tests that
-      # cover them need one. Cached because it is a ~150MB download.
-      - name: Cache Chromium
-        id: chromium-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
-
-      - name: Install Chromium
-        if: steps.chromium-cache.outputs.cache-hit != 'true'
-        run: playwright install --with-deps chromium
-
-      - name: Install Chromium system dependencies
-        if: steps.chromium-cache.outputs.cache-hit == 'true'
-        run: playwright install-deps chromium
-
-      - name: Lint
-        run: ruff check job_hunter tests
+          for candidate in \
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+            /usr/bin/google-chrome /usr/bin/chromium-browser /usr/bin/chromium; do
+            if [ -x "$candidate" ]; then
+              echo "JOBHUNT_BROWSER=$candidate" >> "$GITHUB_ENV"
+              echo "using $candidate"
+              exit 0
+            fi
+          done
+          echo "no browser on this runner; the PDF tests will skip"
 
       - name: Test
         run: pytest -q
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: python -m pip install --quiet ".[dev]"
+
+      - name: Lint
+        run: ruff check core plugins tools tests
+
+      # Each of these regenerates something checked into the repo. A stale
+      # copy is the failure mode that duplication invites, so it fails the
+      # build rather than waiting to be noticed.
+      - name: The library copies match core/jobhunt.py
+        run: python tools/sync.py --check
+
+      - name: The download archives match the skills
+        run: python tools/build_archives.py --check
+
+      - name: The site matches the skills
+        run: python tools/build_site.py --check
+
+      - name: The installer is clean shell
+        run: |
+          sudo apt-get install -y --no-install-recommends shellcheck >/dev/null
+          shellcheck -s sh install.sh
+          shellcheck -s dash install.sh
+          shellcheck -s bash install.sh
 
   private:
     # Nobody's CV, profile or generated documents may ever be tracked. The

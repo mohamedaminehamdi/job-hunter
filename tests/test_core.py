@@ -277,3 +277,26 @@ def test_it_runs_on_the_python_macos_ships():
             used |= {f"datetime.{a.name}" for a in node.names if a.name == "UTC"}
     banned = used & (TOO_NEW | {"datetime.UTC"})
     assert not banned, f"needs a Python newer than 3.9: {sorted(banned)}"
+
+
+# --- what run_cli turns an exception into ----------------------------------
+
+def test_every_error_the_library_raises_is_one_run_cli_handles():
+    """An omission here does not fail loudly - it prints a traceback where a
+    sentence should be. FetchError was missing, so a login wall, the most
+    ordinary failure there is, came out as a stack trace."""
+    raised = {jh.IntakeError, jh.ParseError, jh.FetchError, jh.ExportBlocked,
+              jh.PdfError, jh.YamlError}
+    for error in raised:
+        assert issubclass(error, jh.USER_ERRORS), error.__name__
+
+
+@pytest.mark.parametrize("error, code", [
+    (lambda: (_ for _ in ()).throw(jh.FetchError("behind a login wall")), jh.BLOCKED),
+    (lambda: (_ for _ in ()).throw(jh.ParseError("not JSON")), jh.UNREADABLE),
+    (lambda: (_ for _ in ()).throw(jh.PdfError("no browser")), jh.UNFIT),
+    (lambda: (_ for _ in ()).throw(jh.IntakeError("no such file")), jh.BLOCKED),
+])
+def test_each_error_gets_the_exit_code_the_skills_document(error, code, capsys):
+    assert jh.run_cli(lambda argv: error(), []) == code
+    assert "Traceback" not in capsys.readouterr().err
