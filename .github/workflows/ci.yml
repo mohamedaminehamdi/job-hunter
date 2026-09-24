@@ -48,7 +48,7 @@ jobs:
         run: playwright install-deps chromium
 
       - name: Lint
-        run: ruff check src tests
+        run: ruff check job_hunter tests
 
       - name: Test
         run: pytest -q

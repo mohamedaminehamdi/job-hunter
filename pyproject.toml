@@ -39,11 +39,10 @@ Homepage = "https://github.com/mohamedaminehamdi/job-hunter"
 Issues = "https://github.com/mohamedaminehamdi/job-hunter/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/job_hunter"]
+packages = ["job_hunter"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100

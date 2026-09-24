@@ -161,7 +161,7 @@ Read what you send.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Tests: `pytest`. Lint: `ruff check src tests`.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Tests: `pytest`. Lint: `ruff check job_hunter tests`.
 
 ## License
 

@@ -10,7 +10,7 @@ git config core.hooksPath .githooks
 pytest
 ```
 
-CI runs `ruff check src tests` and `pytest` on 3.11 and 3.12, and separately
+CI runs `ruff check job_hunter tests` and `pytest` on 3.11 and 3.12, and separately
 builds a wheel and installs it somewhere with no source tree — the Jinja
 templates are package data, and an editable install hides it when they go
 missing.
@@ -90,7 +90,7 @@ ordering.
 
 ## Before you push
 
-`ruff check src tests` and `pytest` cover everything but judgement. The half a
+`ruff check job_hunter tests` and `pytest` cover everything but judgement. The half a
 test cannot reach needs four minutes by hand:
 
 1. a fresh clone, `pip install -e .`, `playwright install chromium`
@@ -104,5 +104,5 @@ Nobody can automate the Claude Code half, and a mock would only test the mock.
 
 ## Style
 
-PEP 8, `ruff check src tests`, line length 100. Docstrings on public functions
+PEP 8, `ruff check job_hunter tests`, line length 100. Docstrings on public functions
 saying what and why, not restating the signature.
