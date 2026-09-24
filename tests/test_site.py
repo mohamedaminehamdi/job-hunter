@@ -411,28 +411,48 @@ def test_the_first_screenful_is_visible_at_rest(moving, part):
     assert moving[part] == "1", f"{part} is invisible"
 
 
-def test_the_numbers_are_right_without_any_script(page):
-    """The two figures are the one piece of this page carrying real
-    information, so they live in the markup and the bars get their width from
-    an inline custom property.
+def test_the_two_cvs_are_right_without_any_script(page):
+    """The comparison is the argument the whole page makes, so its figures live
+    in the markup and each bar takes its width from an inline property.
 
-    They used to be filled in by JavaScript on an observer callback. A number
-    stuck at zero beside a bar stuck at zero does not read as a missing
-    animation - it reads as the answer, and the wrong one. This is the failure
-    that is unacceptable for a number, so it is made impossible instead.
+    They used to be filled in by JavaScript on an observer callback. A score
+    stuck at zero beside an empty bar does not read as a missing animation -
+    it reads as the answer, and the wrong one.
     """
     sys.path.insert(0, str(ROOT / "tools" / "site"))
     import data
-    fit = data.FIT
 
-    shown = re.findall(r'class="score-num"[^>]*>\s*(\d+)<small>/(\d+)</small>', page)
-    assert [(str(fit["evidenced"]), str(fit["of"])),
-            (str(fit["after"]), str(fit["backed"]))] == shown, shown
+    want = []
+    for cv in (data.GENERIC, data.TAILORED):
+        _, hits, total = data.cv_lines(cv)
+        want.append((str(hits), str(total)))
+    assert re.findall(r"<b>(\d+)<small>/(\d+)</small></b>", page) == want
 
     fills = [int(n) for n in re.findall(r"--fill:(\d+)%", page)]
-    assert fills == [round(100 * fit["evidenced"] / fit["of"]),
-                     round(100 * fit["after"] / fit["backed"])], fills
+    assert fills == [round(100 * int(h) / int(t)) for h, t in want], fills
     assert "@keyframes grow" in page, "the bars have no animation of their own"
+
+
+def test_the_tailored_cv_adds_nothing(page):
+    """The page's whole claim is that tailoring reorders rather than invents.
+    If the example broke that, the page would be arguing against itself - and
+    it did: the tailored card once showed a line the other never had.
+    """
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+
+    assert sorted(data.GENERIC["order"]) == sorted(data.TAILORED["order"]), \
+        "the two cards are not the same lines"
+    assert sorted(data.GENERIC["order"]) == list(range(len(data.POOL))), \
+        "one of them drops a line from the pool"
+
+    _, weak, total = data.cv_lines(data.GENERIC)
+    _, strong, _ = data.cv_lines(data.TAILORED)
+    assert strong > weak, "tailoring changed nothing"
+    assert strong == total, "the tailored one still buries something"
+
+    # and the page says as much, in words
+    assert "same six lines" in page.lower() or "same" in data.COMPARE_NOTE.lower()
 
 
 def test_the_rail_fills_as_you_scroll_the_steps(moving):

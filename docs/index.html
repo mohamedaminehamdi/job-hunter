@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jobhunt — job applications you can stand behind</title>
-<meta name="description" content="Drop in a job link. Your coding agent reads the posting, rebuilds your CV from your own history, and flags anything it can&#x27;t back.">
+<meta name="description" content="Keep everything you have ever done in one place. Paste a job link and get a CV built for it, the recruiters worth messaging, and the message to send them — in about a minute.">
 <meta name="color-scheme" content="light dark">
 <meta property="og:title" content="jobhunt">
-<meta property="og:description" content="Apply for jobs without claiming things you haven&#x27;t done.">
+<meta property="og:description" content="Stop rewriting your CV for every single job.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%2312664a'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -146,10 +146,10 @@ svg { display: block; }
     radial-gradient(120% 90% at 50% 28%, var(--field-lift), transparent 72%),
     var(--field-base);
   color: var(--on-field);
-  padding: 118px 0 96px;
+  padding: 118px 0 74px;
   overflow: hidden;
 }
-@media (max-width: 720px) { .field { padding: 104px 0 72px; } }
+@media (max-width: 720px) { .field { padding: 104px 0 56px; } }
 
 /* Frosted, with somewhere to fall back to. `backdrop-filter` is unsupported
    in a few places and switched off by people who asked for less transparency;
@@ -203,8 +203,12 @@ svg { display: block; }
 .bar.stuck .mark .dot { background: var(--accent); opacity: 1; }
 
 .bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.bar nav a { color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
-             border-radius: 999px; transition: opacity .18s, background .18s; }
+/* inline-flex, or an icon inside the link makes it two lines high. */
+.bar nav a { display: inline-flex; align-items: center; gap: 7px;
+             color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
+             border-radius: 999px; white-space: nowrap;
+             transition: opacity .18s, background .18s; }
+.bar nav a .ico { width: 15px; height: 15px; flex: none; }
 .bar nav a:hover { opacity: 1; background: rgba(255, 255, 255, .12);
                    text-decoration: none; }
 .bar.stuck nav a:hover { background: var(--rule-soft); }
@@ -291,68 +295,94 @@ h1 em { font-style: italic; font-weight: 620; }
        justify-content: center; }
 .cta-note { margin-top: 20px; font-size: 14px; color: var(--on-field-dim); }
 
-/* --- the proof card ----------------------------------------------------- */
-/* Lifted out of the field and over its bottom edge, so the page reads as one
-   object rather than two stacked blocks. */
+/* --- the two CVs -------------------------------------------------------- */
+/* The centrepiece. Two of the same card, one dimmed, so the difference is the
+   only thing on screen worth looking at. */
 
-/* On the field, not across its edge. A boundary running through the middle of
-   a sentence looks like a rendering fault rather than a layered composition. */
-.proof-out { margin-top: 64px; position: relative; z-index: 2; }
+.versus { margin-top: 56px; position: relative; z-index: 2; }
+.versus-head { text-align: center; margin-bottom: 26px; }
+.versus-head .for {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 13.5px; color: var(--on-field-soft);
+  border-radius: 999px; padding: 8px 16px 8px 13px;
+}
+.versus-head .for .ico { width: 15px; height: 15px; }
 
-.proof {
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+.cv {
   background: var(--paper); border: 1px solid var(--rule);
-  border-radius: var(--r-xl); box-shadow: var(--lift-float); overflow: hidden;
+  border-radius: var(--r-xl); overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
 }
-.proof-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 24px; border-bottom: 1px solid var(--rule-soft);
+/* The generic one is held back, not broken: it is a real CV, just the wrong
+   one for this job. */
+.cv.plain { opacity: .72; }
+.cv.best { box-shadow: var(--lift-float);
+           border-color: color-mix(in srgb, var(--accent) 40%, var(--rule)); }
+
+.cv-top {
+  display: flex; align-items: center; gap: 10px; padding: 15px 22px;
+  border-bottom: 1px solid var(--rule-soft);
   background: color-mix(in srgb, var(--sunk) 60%, var(--paper));
-  font-size: 13.5px; color: var(--ink-faint);
+  font-size: 13px; font-weight: 560; color: var(--ink-soft);
 }
-.proof-head .ico { width: 16px; height: 16px; }
-.proof-body { display: grid; grid-template-columns: 1fr 1fr; }
-@media (max-width: 800px) { .proof-body { grid-template-columns: 1fr; } }
-.proof-body > div { padding: 28px 30px 32px; }
-.proof-body > div + div { border-left: 1px solid var(--rule-soft); }
-@media (max-width: 800px) {
-  .proof-body > div + div { border-left: 0; border-top: 1px solid var(--rule-soft); }
+.cv.best .cv-top { background: var(--accent-wash); color: var(--accent); }
+.cv-top .ico { width: 16px; height: 16px; }
+.cv-top .tag {
+  margin-left: auto; font-size: 10.5px; font-weight: 560; letter-spacing: .07em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
+  background: var(--rule-soft); color: var(--ink-faint);
 }
-.proof h3 { font-size: 12.5px; font-weight: 560; letter-spacing: .08em;
-            text-transform: uppercase; color: var(--ink-faint); margin-bottom: 18px; }
+.cv.best .cv-top .tag { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .cv.best .cv-top .tag { color: #052018; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cv.best .cv-top .tag { color: #052018; }
+}
 
-.claim {
-  font-size: 15.5px; line-height: 1.55; color: var(--ink);
-  padding: 14px 16px; border-radius: var(--r-md);
-  background: var(--sunk); border: 1px solid var(--rule-soft);
+.cv-body { padding: 22px 24px 20px; flex: 1; }
+.cv-summary { font-size: 14.5px; line-height: 1.5; color: var(--ink);
+              padding-bottom: 16px; margin-bottom: 4px;
+              border-bottom: 1px dashed var(--rule); }
+.cv-lines { list-style: none; margin: 14px 0 0; padding: 0; }
+.cv-lines li {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13.6px; line-height: 1.5; color: var(--ink-faint);
+  padding: 6px 0;
 }
-.finding { display: flex; gap: 10px; align-items: flex-start;
-           margin-top: 12px; font-size: 14px; color: var(--flag); }
-.finding .ico { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+.cv-lines li::before {
+  content: ""; flex: none; width: 5px; height: 5px; margin-top: 8px;
+  border-radius: 50%; background: currentColor; opacity: .5;
+}
+/* A line this posting actually asked for. */
+.cv-lines li.hit { color: var(--ink); font-weight: 500; }
+.cv-lines li.hit::before { background: var(--accent); opacity: 1;
+                           box-shadow: 0 0 0 3px var(--accent-wash); }
 
-.score { display: grid; gap: 18px; }
-.score-row { display: flex; align-items: baseline; gap: 14px; }
-.score-label { font-size: 14px; color: var(--ink-soft); flex: 1; min-width: 0; }
-.score-num { font-family: var(--mono); font-size: 26px; font-weight: 500;
-             letter-spacing: -.02em; color: var(--ink);
-             font-variant-numeric: tabular-nums; }
-.score-num small { font-size: 15px; color: var(--ink-faint); }
-.score-move { font-family: var(--mono); font-size: 14px; color: var(--accent);
-              font-weight: 500; }
-.score-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
-             overflow: hidden; margin-top: 7px; }
-/* The width is in the markup and the growth is a keyframe, so the bar is the
-   right length whether or not a script ever runs. It used to be filled in by
-   JavaScript on an observer callback - and a bar stuck at zero beside a number
-   stuck at zero does not look like a missing animation, it looks like the
-   answer, which is worse than showing nothing. */
-.score-bar i { display: block; height: 100%; border-radius: 999px;
-               background: var(--accent); width: var(--fill, 0);
-               animation: grow 1.1s var(--ease) both; }
-.score-bar.flat i { background: var(--ink-faint); }
+.cv-foot { padding: 16px 24px 20px; border-top: 1px solid var(--rule-soft);
+           background: color-mix(in srgb, var(--sunk) 45%, var(--paper)); }
+.cv-score { display: flex; align-items: baseline; gap: 10px; }
+.cv-score b { font-family: var(--mono); font-size: 22px; font-weight: 500;
+              color: var(--ink); font-variant-numeric: tabular-nums; }
+.cv-score b small { font-size: 14px; color: var(--ink-faint); }
+.cv-score span { font-size: 13px; color: var(--ink-soft); }
+.cv.best .cv-score b { color: var(--accent); }
+.cv-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
+          overflow: hidden; margin: 10px 0 10px; }
+.cv-bar i { display: block; height: 100%; border-radius: 999px;
+            background: var(--ink-faint); width: var(--fill, 0);
+            animation: grow 1.1s var(--ease) both; }
+.cv.best .cv-bar i { background: var(--accent); }
+.cv-note { font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
+
+.versus-foot { margin-top: 22px; text-align: center; font-size: 13.5px;
+               color: var(--on-field-dim); max-width: 60ch;
+               margin-left: auto; margin-right: auto; }
+
 @keyframes grow { from { width: 0; } }
-.score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
-/* --- boards ------------------------------------------------------------- */
+/* --- boards ---/* --- boards ------------------------------------------------------------- */
 /* Glass chips on the field, which is the one place frosting them means
    anything. */
 
@@ -551,6 +581,87 @@ html:not(.js) .picker { grid-template-columns: minmax(0, 1fr); }
    across half the card. Named, so it cannot happen again. */
 .skill.wide .say { flex: 1; min-width: 0; }
 
+/* --- outreach ----------------------------------------------------------- */
+/* The second field. Glass again, because there is colour behind it again. */
+
+.band { position: relative; overflow: hidden; color: var(--on-field);
+        background:
+          radial-gradient(80% 60% at 18% 0%, var(--field-lift), transparent 60%),
+          radial-gradient(90% 80% at 80% 30%, rgba(255,255,255,.07), transparent 65%),
+          var(--field-base);
+        padding: clamp(74px, 12vh, 118px) 0; }
+.band .kicker { color: var(--on-field-soft); }
+.band .sec-head h2 { color: var(--on-field); }
+.band .sec-head p { color: var(--on-field-soft); }
+
+.reach { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+         gap: 20px; align-items: start; }
+@media (max-width: 880px) { .reach { grid-template-columns: minmax(0, 1fr); } }
+
+.who { display: grid; gap: 12px; }
+.who-row { display: flex; gap: 14px; align-items: flex-start;
+           padding: 16px 18px; border-radius: var(--r-lg); }
+.who-row .n { flex: none; width: 26px; height: 26px; display: grid;
+              place-items: center; border-radius: 50%;
+              background: rgba(255,255,255,.16); color: #fff;
+              font: 600 12px/1 var(--mono); }
+.who-row h4 { margin: 0 0 3px; font-size: 15px; font-weight: 600;
+              letter-spacing: -.01em; }
+.who-row .tier { font-size: 11.5px; font-weight: 560; letter-spacing: .06em;
+                 text-transform: uppercase; color: var(--on-field-dim);
+                 display: block; margin-bottom: 5px; }
+.who-row p { font-size: 13.4px; color: var(--on-field-soft); line-height: 1.5; }
+
+.draft { border-radius: var(--r-xl); padding: 24px 26px 26px; }
+.draft h4 { margin: 0 0 14px; font-size: 11.5px; font-weight: 560;
+            letter-spacing: .08em; text-transform: uppercase;
+            color: var(--on-field-dim); display: flex; align-items: center;
+            gap: 8px; }
+.draft h4 .ico { width: 15px; height: 15px; }
+.draft blockquote { margin: 0; font-size: 15px; line-height: 1.6; color: #fff; }
+.draft .meta { margin-top: 18px; padding-top: 16px; font-size: 12.5px;
+               color: var(--on-field-dim);
+               border-top: 1px solid rgba(255,255,255,.14); }
+
+/* --- coming soon --------------------------------------------------------- */
+
+.soon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .soon { grid-template-columns: minmax(0, 1fr); } }
+.soon-card { border: 1px dashed var(--rule); border-radius: var(--r-lg);
+             padding: 24px 24px 26px; background: transparent; }
+.soon-card .badge { width: 40px; height: 40px; display: grid; place-items: center;
+                    border-radius: 12px; background: var(--rule-soft);
+                    color: var(--ink-faint); margin-bottom: 18px; }
+.soon-card .badge .ico { width: 20px; height: 20px; }
+.soon-card h3 { font-size: 1.04rem; margin-bottom: 9px; color: var(--ink-soft); }
+.soon-card p { font-size: .93rem; color: var(--ink-faint); }
+.soon-note { margin-top: 26px; font-size: .92rem; color: var(--ink-faint);
+             display: flex; gap: 10px; align-items: flex-start; max-width: 62ch; }
+.soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px;
+                  color: var(--ink-faint); }
+
+/* --- the one it still will not do ---------------------------------------- */
+
+.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 46px;
+        padding: 22px 24px; border-radius: var(--r-lg);
+        background: var(--paper); border: 1px solid var(--rule); }
+.wont .badge { flex: none; width: 40px; height: 40px; display: grid;
+               place-items: center; border-radius: 12px;
+               background: var(--flag-wash); color: var(--flag); }
+.wont .badge .ico { width: 20px; height: 20px; }
+.wont h3 { font-size: 1.02rem; margin-bottom: 8px; }
+.wont p { color: var(--ink-soft); font-size: .95rem; max-width: 62ch; }
+.wont .said { display: block; margin-top: 12px; font-size: 13.5px;
+              color: var(--flag); font-family: var(--mono); }
+.wont .said em { font-style: normal; color: var(--ink-faint);
+                 display: block; margin-bottom: 4px; font-family: var(--sans); }
+
+/* --- the star ------------------------------------------------------------ */
+
+.star { display: inline-flex; align-items: center; gap: 7px; }
+.star .ico { width: 15px; height: 15px; transition: transform .2s var(--ease); }
+.bar nav a.star:hover .ico { transform: scale(1.18) rotate(-8deg); }
+
 /* --- faq ---------------------------------------------------------------- */
 
 .faq { max-width: 76ch; }
@@ -634,7 +745,10 @@ footer nav a { color: var(--ink-soft); }
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
         <a href="#skills" class="hide-sm">Skills</a>
-        <a href="https://github.com/mohamedaminehamdi/job-hunter" class="hide-sm">GitHub</a>
+        <a href="https://github.com/mohamedaminehamdi/job-hunter" class="hide-sm">
+          <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></svg>GitHub</a>
+        <a href="https://github.com/mohamedaminehamdi/job-hunter" class="star hide-sm"
+           title="Starring it helps people find it"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></svg>Star</a>
         <a href="#install">Install</a>
         <button class="tog" type="button" id="theme" aria-label="Switch theme">
           <svg class="ico i-sun" viewBox="0 0 256 256" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg><svg class="ico i-moon" viewBox="0 0 256 256" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg>
@@ -649,8 +763,8 @@ footer nav a { color: var(--ink-soft); }
 <div class="field">
   <div class="wrap hero">
     <span class="eyebrow glass up"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>Works with any job link</span>
-    <h1 class="up"><span>Apply for jobs without</span><span>claiming things you</span><span>haven&#x27;t done.</span></h1>
-    <p class="lede up">Drop in a job link. Your coding agent reads the posting, rebuilds your CV from your own history, and flags anything it can&#x27;t back.</p>
+    <h1 class="up"><span>Stop rewriting your CV</span><span>for every single job.</span></h1>
+    <p class="lede up">Keep everything you have ever done in one place. Paste a job link and get a CV built for it, the recruiters worth messaging, and the message to send them — in about a minute.</p>
     <div class="cta up">
       <a class="btn btn-go" href="#install">Install<svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
       <a class="btn btn-ghost" href="#how">See how it works</a>
@@ -663,55 +777,38 @@ footer nav a { color: var(--ink-soft); }
     </div>
   </div>
 
-  <div class="wrap proof-out">
-    <div class="proof up">
-    <div class="proof-head"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z"/></svg>
-      2026-09-24-acme-senior-data-engineer</div>
-    <div class="proof-body">
-      <div>
-        <h3>What it caught</h3>
-        <p class="claim">Led the OpenStack migration, cutting costs 73%.</p>
-        <p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>The figure &#x27;73%&#x27; is not in your profile.</span></p><p class="finding"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg><span>&#x27;OpenStack&#x27; does not appear in your profile.</span></p>
-      </div>
-      <div>
-        <h3>How you actually match</h3>
-        <div class="score">
-          <div>
-            <div class="score-row">
-              <span class="score-label">Backed by your CV</span>
-              <span class="score-num"
-                data-count="4">4<small>/9</small></span>
-            </div>
-            <div class="score-bar flat"
-                 style="--fill:44%"><i></i></div>
-            <p class="score-note">A fact about you. Tailoring cannot move it.</p>
-          </div>
-          <div>
-            <div class="score-row">
-              <span class="score-label">Seen in the first screenful</span>
-              <span class="score-num"
-                data-count="4">4<small>/4</small></span>
-              <span class="score-move">+2</span>
-            </div>
-            <div class="score-bar"
-                 style="--fill:100%"><i></i></div>
-            <p class="score-note">This is the one tailoring is for.</p>
-          </div>
-        </div>
-        </div>
-      </div>
+  <div class="wrap versus up">
+    <div class="versus-head">
+      <span class="for glass"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg>Senior Data Engineer · Zeta</span>
     </div>
+    <div class="pair">
+      <article class="cv plain"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>The one CV you send everywhere</span><span class="tag">Generic</span></div><div class="cv-body"><p class="cv-summary">Experienced software professional with a strong background in technology, seeking a challenging new role.</p><ul class="cv-lines"><li class="">Responsible for various engineering tasks</li><li class="">Worked on internal tooling and reporting</li><li class="">Involved in several cross-team projects</li><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li></ul></div><div class="cv-foot"><div class="cv-score"><b>1<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:33%"><i></i></div><p class="cv-note">Your three strongest lines are below the fold. Most readers never reach them.</p></div></article>
+      <article class="cv best"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>Built for this posting</span><span class="tag">Tailored</span></div><div class="cv-body"><p class="cv-summary">Data engineer who cut ETL runtime 35% by rewriting a dbt warehouse, and owns the ingestion pipelines behind it.</p><ul class="cv-lines"><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li><li class="hit">Own the ingestion pipelines and the on-call rota</li><li class="hit">Built the finance dashboards used by 40 people</li><li class="">Responsible for various engineering tasks</li></ul></div><div class="cv-foot"><div class="cv-score"><b>3<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:100%"><i></i></div><p class="cv-note">The same six lines. The three this job asks about now come first.</p></div></article>
+    </div>
+    <p class="versus-foot">Nothing was written for you. Both cards hold the same six lines from your own profile — only the order and the summary changed.</p>
   </div>
 </div>
 
-<section id="why">
+<section id="why"><section id="why">
   <div class="wrap">
-    <div class="sec-head up">
-      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></svg>Why this one</span>
-      <h2>Every CV tool will write you a better career.</h2>
-      <p>This one can't. Three decisions do most of that work.</p>
+    <div class="sec-head wide up">
+      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>What it takes off your plate</span>
+      <h2>An application used to cost you an evening.</h2>
+      <p>Tailoring the CV, working out who to contact, writing the message.
+         Every time, for every job. That is the part this removes.</p>
     </div>
-    <div class="three stagger"><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></svg></div><h3>It can&#x27;t invent an employer</h3><p>Your agent points at your profile — it never writes a company, a title or a date. There is nowhere for a made-up job to go.</p></article><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/></svg></div><h3>The score can&#x27;t be gamed</h3><p>Evidence is only ever looked for in your CV. Paste the job ad into your summary and you score exactly zero extra.</p></article><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></svg></div><h3>No key. No account.</h3><p>Your agent is the model, so what you already pay for covers it. Nothing is uploaded and nothing is sent.</p></article></div>
+    <div class="three stagger"><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z"/></svg></div><h3>Everything you have done, in one place</h3><p>One profile holds every role, project and side thing across every field you have worked in. You write it once. Each application draws from it.</p></article><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/></svg></div><h3>A CV per job, without the evening</h3><p>It picks which of your work answers this posting and leads with it. The rewriting that used to cost you an hour a job costs you a paste.</p></article><article class="card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></svg></div><h3>The message, already written</h3><p>It works out who at the company is worth contacting and drafts something specific enough to get a reply. You press send.</p></article></div>
+
+    <div class="wont up">
+      <div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></svg></div>
+      <div>
+        <h3>It still won't write you a career you don't have</h3>
+        <p>Every line it produces comes out of your own profile, and anything
+           it can't trace back is flagged before you send it. Faster, not
+           looser.</p>
+        <span class="said"><em>Led the OpenStack migration, cutting costs 73%.</em>Neither &#x27;73%&#x27; nor &#x27;OpenStack&#x27; is anywhere in your profile.</span>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -723,8 +820,39 @@ footer nav a { color: var(--ink-soft); }
     </div>
     <div class="steps">
       <div class="rail"><i></i></div>
-      <div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg></div><div><span class="n">STEP 1</span><h3>Your CV, read once</h3><p>It becomes one file you check and approve. Everything after is built only from what&#x27;s in it.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg></div><div><span class="n">STEP 2</span><h3>Paste a job link</h3><p>Opened in your own browser, so you get the real description and not a loading spinner.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/></svg></div><div><span class="n">STEP 3</span><h3>See where you stand</h3><p>Before anything is written — including the gaps. If a job needs something you haven&#x27;t done, it says so.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></svg></div><div><span class="n">STEP 4</span><h3>Get the files</h3><p>A tailored CV and a cover letter, as PDF, in a folder for that job. You send them. It never applies for you.</p></div></div>
+      <div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg></div><div><span class="n">STEP 1</span><h3>Drop your CV in, once</h3><p>It becomes one profile you check and approve. Every application after that is built from it, so you never retype your history.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg></div><div><span class="n">STEP 2</span><h3>Paste a job link</h3><p>Opened in your own browser, so you get the real description and not a loading spinner. Any board, any URL.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/></svg></div><div><span class="n">STEP 3</span><h3>Get the CV and the letter</h3><p>Built for that posting out of your own work, as PDF and markdown, in a folder for that job.</p></div></div><div class="step"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></svg></div><div><span class="n">STEP 4</span><h3>Get who to message, and what to say</h3><p>The people worth contacting, the searches that find them, and a draft specific enough to answer.</p></div></div>
     </div>
+  </div>
+</section>
+
+<div class="band" id="outreach">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg>Who to message</span>
+      <h2>The other half of an application.</h2>
+      <p>A CV in a pile gets read once. A message to somebody who works there
+         gets answered. It works out who, and writes the first one for you.</p>
+    </div>
+    <div class="reach">
+      <div class="who stagger"><div class="who-row glass"><span class="n">1</span><div><span class="tier">Same university</span><h4>Alumni at Zeta</h4><p>By far the best odds — a cold message is ignored, a shared university is answered.</p></div></div><div class="who-row glass"><span class="n">2</span><div><span class="tier">Would be your colleague</span><h4>Data Engineer</h4><p>They reply. People two rungs up do not.</p></div></div><div class="who-row glass"><span class="n">3</span><div><span class="tier">Probably the hiring manager</span><h4>Head of Data</h4><p>Worth one message, after the other two.</p></div></div></div>
+      <div class="draft glass up">
+        <h4><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></svg>Drafted for you</h4>
+        <blockquote>I rewrote the dbt models at Acme and cut ETL runtime 35%, so the ingestion work in your Senior Data Engineer posting caught my eye. How does Zeta split ownership of the warehouse day to day?</blockquote>
+        <p class="meta">It never logs in and never sends. It works out who is worth writing to, builds the search that finds them, and drafts the message — you run it and press send.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="soon">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M232,136.66A104.12,104.12,0,1,1,119.34,24,8,8,0,0,1,120.66,40,88.12,88.12,0,1,0,216,135.34,8,8,0,0,1,232,136.66ZM120,72v56a8,8,0,0,0,8,8h56a8,8,0,0,0,0-16H136V72a8,8,0,0,0-16,0Zm40-24a12,12,0,1,0-12-12A12,12,0,0,0,160,48Zm36,24a12,12,0,1,0-12-12A12,12,0,0,0,196,72Zm24,36a12,12,0,1,0-12-12A12,12,0,0,0,220,108Z"/></svg>Coming soon</span>
+      <h2>Next, the part you still do by hand.</h2>
+    </div>
+    <div class="soon stagger"><article class="soon-card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/></svg></div><h3>One-click apply</h3><p>Fill and submit the form for you, on the boards that allow it.</p></article><article class="soon-card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg></div><h3>Jobs found for you</h3><p>Watch the boards for postings your profile already answers.</p></article><article class="soon-card"><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg></div><h3>Application tracking</h3><p>What you sent, when, and what came back — in one list.</p></article></div>
+    <p class="soon-note up"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M232,136.66A104.12,104.12,0,1,1,119.34,24,8,8,0,0,1,120.66,40,88.12,88.12,0,1,0,216,135.34,8,8,0,0,1,232,136.66ZM120,72v56a8,8,0,0,0,8,8h56a8,8,0,0,0,0-16H136V72a8,8,0,0,0-16,0Zm40-24a12,12,0,1,0-12-12A12,12,0,0,0,160,48Zm36,24a12,12,0,1,0-12-12A12,12,0,0,0,196,72Zm24,36a12,12,0,1,0-12-12A12,12,0,0,0,220,108Z"/></svg>
+      <span>Not built yet. Today it prepares the application and hands it to you; the sending is still yours.</span></p>
   </div>
 </section>
 

@@ -131,10 +131,10 @@ svg { display: block; }
     radial-gradient(120% 90% at 50% 28%, var(--field-lift), transparent 72%),
     var(--field-base);
   color: var(--on-field);
-  padding: 118px 0 96px;
+  padding: 118px 0 74px;
   overflow: hidden;
 }
-@media (max-width: 720px) { .field { padding: 104px 0 72px; } }
+@media (max-width: 720px) { .field { padding: 104px 0 56px; } }
 
 /* Frosted, with somewhere to fall back to. `backdrop-filter` is unsupported
    in a few places and switched off by people who asked for less transparency;
@@ -188,8 +188,12 @@ svg { display: block; }
 .bar.stuck .mark .dot { background: var(--accent); opacity: 1; }
 
 .bar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.bar nav a { color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
-             border-radius: 999px; transition: opacity .18s, background .18s; }
+/* inline-flex, or an icon inside the link makes it two lines high. */
+.bar nav a { display: inline-flex; align-items: center; gap: 7px;
+             color: inherit; opacity: .78; font-size: 15px; padding: 8px 13px;
+             border-radius: 999px; white-space: nowrap;
+             transition: opacity .18s, background .18s; }
+.bar nav a .ico { width: 15px; height: 15px; flex: none; }
 .bar nav a:hover { opacity: 1; background: rgba(255, 255, 255, .12);
                    text-decoration: none; }
 .bar.stuck nav a:hover { background: var(--rule-soft); }
@@ -276,68 +280,94 @@ h1 em { font-style: italic; font-weight: 620; }
        justify-content: center; }
 .cta-note { margin-top: 20px; font-size: 14px; color: var(--on-field-dim); }
 
-/* --- the proof card ----------------------------------------------------- */
-/* Lifted out of the field and over its bottom edge, so the page reads as one
-   object rather than two stacked blocks. */
+/* --- the two CVs -------------------------------------------------------- */
+/* The centrepiece. Two of the same card, one dimmed, so the difference is the
+   only thing on screen worth looking at. */
 
-/* On the field, not across its edge. A boundary running through the middle of
-   a sentence looks like a rendering fault rather than a layered composition. */
-.proof-out { margin-top: 64px; position: relative; z-index: 2; }
+.versus { margin-top: 56px; position: relative; z-index: 2; }
+.versus-head { text-align: center; margin-bottom: 26px; }
+.versus-head .for {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 13.5px; color: var(--on-field-soft);
+  border-radius: 999px; padding: 8px 16px 8px 13px;
+}
+.versus-head .for .ico { width: 15px; height: 15px; }
 
-.proof {
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+.cv {
   background: var(--paper); border: 1px solid var(--rule);
-  border-radius: var(--r-xl); box-shadow: var(--lift-float); overflow: hidden;
+  border-radius: var(--r-xl); overflow: hidden; position: relative;
+  display: flex; flex-direction: column;
 }
-.proof-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 24px; border-bottom: 1px solid var(--rule-soft);
+/* The generic one is held back, not broken: it is a real CV, just the wrong
+   one for this job. */
+.cv.plain { opacity: .72; }
+.cv.best { box-shadow: var(--lift-float);
+           border-color: color-mix(in srgb, var(--accent) 40%, var(--rule)); }
+
+.cv-top {
+  display: flex; align-items: center; gap: 10px; padding: 15px 22px;
+  border-bottom: 1px solid var(--rule-soft);
   background: color-mix(in srgb, var(--sunk) 60%, var(--paper));
-  font-size: 13.5px; color: var(--ink-faint);
+  font-size: 13px; font-weight: 560; color: var(--ink-soft);
 }
-.proof-head .ico { width: 16px; height: 16px; }
-.proof-body { display: grid; grid-template-columns: 1fr 1fr; }
-@media (max-width: 800px) { .proof-body { grid-template-columns: 1fr; } }
-.proof-body > div { padding: 28px 30px 32px; }
-.proof-body > div + div { border-left: 1px solid var(--rule-soft); }
-@media (max-width: 800px) {
-  .proof-body > div + div { border-left: 0; border-top: 1px solid var(--rule-soft); }
+.cv.best .cv-top { background: var(--accent-wash); color: var(--accent); }
+.cv-top .ico { width: 16px; height: 16px; }
+.cv-top .tag {
+  margin-left: auto; font-size: 10.5px; font-weight: 560; letter-spacing: .07em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
+  background: var(--rule-soft); color: var(--ink-faint);
 }
-.proof h3 { font-size: 12.5px; font-weight: 560; letter-spacing: .08em;
-            text-transform: uppercase; color: var(--ink-faint); margin-bottom: 18px; }
+.cv.best .cv-top .tag { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .cv.best .cv-top .tag { color: #052018; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cv.best .cv-top .tag { color: #052018; }
+}
 
-.claim {
-  font-size: 15.5px; line-height: 1.55; color: var(--ink);
-  padding: 14px 16px; border-radius: var(--r-md);
-  background: var(--sunk); border: 1px solid var(--rule-soft);
+.cv-body { padding: 22px 24px 20px; flex: 1; }
+.cv-summary { font-size: 14.5px; line-height: 1.5; color: var(--ink);
+              padding-bottom: 16px; margin-bottom: 4px;
+              border-bottom: 1px dashed var(--rule); }
+.cv-lines { list-style: none; margin: 14px 0 0; padding: 0; }
+.cv-lines li {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13.6px; line-height: 1.5; color: var(--ink-faint);
+  padding: 6px 0;
 }
-.finding { display: flex; gap: 10px; align-items: flex-start;
-           margin-top: 12px; font-size: 14px; color: var(--flag); }
-.finding .ico { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+.cv-lines li::before {
+  content: ""; flex: none; width: 5px; height: 5px; margin-top: 8px;
+  border-radius: 50%; background: currentColor; opacity: .5;
+}
+/* A line this posting actually asked for. */
+.cv-lines li.hit { color: var(--ink); font-weight: 500; }
+.cv-lines li.hit::before { background: var(--accent); opacity: 1;
+                           box-shadow: 0 0 0 3px var(--accent-wash); }
 
-.score { display: grid; gap: 18px; }
-.score-row { display: flex; align-items: baseline; gap: 14px; }
-.score-label { font-size: 14px; color: var(--ink-soft); flex: 1; min-width: 0; }
-.score-num { font-family: var(--mono); font-size: 26px; font-weight: 500;
-             letter-spacing: -.02em; color: var(--ink);
-             font-variant-numeric: tabular-nums; }
-.score-num small { font-size: 15px; color: var(--ink-faint); }
-.score-move { font-family: var(--mono); font-size: 14px; color: var(--accent);
-              font-weight: 500; }
-.score-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
-             overflow: hidden; margin-top: 7px; }
-/* The width is in the markup and the growth is a keyframe, so the bar is the
-   right length whether or not a script ever runs. It used to be filled in by
-   JavaScript on an observer callback - and a bar stuck at zero beside a number
-   stuck at zero does not look like a missing animation, it looks like the
-   answer, which is worse than showing nothing. */
-.score-bar i { display: block; height: 100%; border-radius: 999px;
-               background: var(--accent); width: var(--fill, 0);
-               animation: grow 1.1s var(--ease) both; }
-.score-bar.flat i { background: var(--ink-faint); }
+.cv-foot { padding: 16px 24px 20px; border-top: 1px solid var(--rule-soft);
+           background: color-mix(in srgb, var(--sunk) 45%, var(--paper)); }
+.cv-score { display: flex; align-items: baseline; gap: 10px; }
+.cv-score b { font-family: var(--mono); font-size: 22px; font-weight: 500;
+              color: var(--ink); font-variant-numeric: tabular-nums; }
+.cv-score b small { font-size: 14px; color: var(--ink-faint); }
+.cv-score span { font-size: 13px; color: var(--ink-soft); }
+.cv.best .cv-score b { color: var(--accent); }
+.cv-bar { height: 5px; border-radius: 999px; background: var(--rule-soft);
+          overflow: hidden; margin: 10px 0 10px; }
+.cv-bar i { display: block; height: 100%; border-radius: 999px;
+            background: var(--ink-faint); width: var(--fill, 0);
+            animation: grow 1.1s var(--ease) both; }
+.cv.best .cv-bar i { background: var(--accent); }
+.cv-note { font-size: 12.5px; color: var(--ink-faint); line-height: 1.45; }
+
+.versus-foot { margin-top: 22px; text-align: center; font-size: 13.5px;
+               color: var(--on-field-dim); max-width: 60ch;
+               margin-left: auto; margin-right: auto; }
+
 @keyframes grow { from { width: 0; } }
-.score-note { font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
 
-/* --- boards ------------------------------------------------------------- */
+/* --- boards ---/* --- boards ------------------------------------------------------------- */
 /* Glass chips on the field, which is the one place frosting them means
    anything. */
 
@@ -535,6 +565,87 @@ html:not(.js) .picker { grid-template-columns: minmax(0, 1fr); }
 /* `.skill.wide > div` matched the badge too - it is a div - and stretched it
    across half the card. Named, so it cannot happen again. */
 .skill.wide .say { flex: 1; min-width: 0; }
+
+/* --- outreach ----------------------------------------------------------- */
+/* The second field. Glass again, because there is colour behind it again. */
+
+.band { position: relative; overflow: hidden; color: var(--on-field);
+        background:
+          radial-gradient(80% 60% at 18% 0%, var(--field-lift), transparent 60%),
+          radial-gradient(90% 80% at 80% 30%, rgba(255,255,255,.07), transparent 65%),
+          var(--field-base);
+        padding: clamp(74px, 12vh, 118px) 0; }
+.band .kicker { color: var(--on-field-soft); }
+.band .sec-head h2 { color: var(--on-field); }
+.band .sec-head p { color: var(--on-field-soft); }
+
+.reach { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+         gap: 20px; align-items: start; }
+@media (max-width: 880px) { .reach { grid-template-columns: minmax(0, 1fr); } }
+
+.who { display: grid; gap: 12px; }
+.who-row { display: flex; gap: 14px; align-items: flex-start;
+           padding: 16px 18px; border-radius: var(--r-lg); }
+.who-row .n { flex: none; width: 26px; height: 26px; display: grid;
+              place-items: center; border-radius: 50%;
+              background: rgba(255,255,255,.16); color: #fff;
+              font: 600 12px/1 var(--mono); }
+.who-row h4 { margin: 0 0 3px; font-size: 15px; font-weight: 600;
+              letter-spacing: -.01em; }
+.who-row .tier { font-size: 11.5px; font-weight: 560; letter-spacing: .06em;
+                 text-transform: uppercase; color: var(--on-field-dim);
+                 display: block; margin-bottom: 5px; }
+.who-row p { font-size: 13.4px; color: var(--on-field-soft); line-height: 1.5; }
+
+.draft { border-radius: var(--r-xl); padding: 24px 26px 26px; }
+.draft h4 { margin: 0 0 14px; font-size: 11.5px; font-weight: 560;
+            letter-spacing: .08em; text-transform: uppercase;
+            color: var(--on-field-dim); display: flex; align-items: center;
+            gap: 8px; }
+.draft h4 .ico { width: 15px; height: 15px; }
+.draft blockquote { margin: 0; font-size: 15px; line-height: 1.6; color: #fff; }
+.draft .meta { margin-top: 18px; padding-top: 16px; font-size: 12.5px;
+               color: var(--on-field-dim);
+               border-top: 1px solid rgba(255,255,255,.14); }
+
+/* --- coming soon --------------------------------------------------------- */
+
+.soon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .soon { grid-template-columns: minmax(0, 1fr); } }
+.soon-card { border: 1px dashed var(--rule); border-radius: var(--r-lg);
+             padding: 24px 24px 26px; background: transparent; }
+.soon-card .badge { width: 40px; height: 40px; display: grid; place-items: center;
+                    border-radius: 12px; background: var(--rule-soft);
+                    color: var(--ink-faint); margin-bottom: 18px; }
+.soon-card .badge .ico { width: 20px; height: 20px; }
+.soon-card h3 { font-size: 1.04rem; margin-bottom: 9px; color: var(--ink-soft); }
+.soon-card p { font-size: .93rem; color: var(--ink-faint); }
+.soon-note { margin-top: 26px; font-size: .92rem; color: var(--ink-faint);
+             display: flex; gap: 10px; align-items: flex-start; max-width: 62ch; }
+.soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px;
+                  color: var(--ink-faint); }
+
+/* --- the one it still will not do ---------------------------------------- */
+
+.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 46px;
+        padding: 22px 24px; border-radius: var(--r-lg);
+        background: var(--paper); border: 1px solid var(--rule); }
+.wont .badge { flex: none; width: 40px; height: 40px; display: grid;
+               place-items: center; border-radius: 12px;
+               background: var(--flag-wash); color: var(--flag); }
+.wont .badge .ico { width: 20px; height: 20px; }
+.wont h3 { font-size: 1.02rem; margin-bottom: 8px; }
+.wont p { color: var(--ink-soft); font-size: .95rem; max-width: 62ch; }
+.wont .said { display: block; margin-top: 12px; font-size: 13.5px;
+              color: var(--flag); font-family: var(--mono); }
+.wont .said em { font-style: normal; color: var(--ink-faint);
+                 display: block; margin-bottom: 4px; font-family: var(--sans); }
+
+/* --- the star ------------------------------------------------------------ */
+
+.star { display: inline-flex; align-items: center; gap: 7px; }
+.star .ico { width: 15px; height: 15px; transition: transform .2s var(--ease); }
+.bar nav a.star:hover .ico { transform: scale(1.18) rotate(-8deg); }
 
 /* --- faq ---------------------------------------------------------------- */
 

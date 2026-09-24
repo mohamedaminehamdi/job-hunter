@@ -23,57 +23,145 @@ BRANDS = json.loads((HERE / "brands.json").read_text(encoding="utf-8"))
 
 # --- the hero ---------------------------------------------------------------
 
-HEADLINE = ["Apply for jobs without", "claiming things you", "haven't done."]
-SUB = ("Drop in a job link. Your coding agent reads the posting, rebuilds your "
-       "CV from your own history, and flags anything it can't back.")
+HEADLINE = ["Stop rewriting your CV", "for every single job."]
+SUB = ("Keep everything you have ever done in one place. Paste a job link and "
+       "get a CV built for it, the recruiters worth messaging, and the message "
+       "to send them — in about a minute.")
 
 #: Boards it is regularly pointed at. It takes any job URL - these are the ones
 #: worth naming because they are the ones people paste.
 BOARDS = ["linkedin", "indeed", "greenhouse", "glassdoor", "upwork"]
 
-# --- the three things -------------------------------------------------------
+# --- the two CVs ------------------------------------------------------------
+#
+# The centrepiece. Same person, same facts, same profile - the difference is
+# which of them a reader meets first. That is the whole argument for tailoring
+# and it is the one thing a screenshot can actually show.
+
+JOB = "Senior Data Engineer · Zeta"
+
+#: Both cards are the same six lines out of the same profile, in a different
+#: order, and each shows the four a reader gets through before deciding. That
+#: is the argument the page makes, so the example has to be literally true -
+#: a test fails if the two lists stop being permutations of each other.
+POOL = [
+    ("Cut ETL runtime 35% by rewriting the dbt models", True),
+    ("Own the ingestion pipelines and the on-call rota", True),
+    ("Built the finance dashboards used by 40 people", True),
+    ("Responsible for various engineering tasks", False),
+    ("Worked on internal tooling and reporting", False),
+    ("Involved in several cross-team projects", False),
+]
+
+#: What a reader gets through before they decide.
+SCREENFUL = 4
+
+GENERIC = {
+    "label": "The one CV you send everywhere",
+    "summary": "Experienced software professional with a strong background in "
+               "technology, seeking a challenging new role.",
+    "order": [3, 4, 5, 0, 1, 2],
+    "note": "Your three strongest lines are below the fold. Most readers never "
+            "reach them.",
+}
+
+TAILORED = {
+    "label": "Built for this posting",
+    "summary": "Data engineer who cut ETL runtime 35% by rewriting a dbt "
+               "warehouse, and owns the ingestion pipelines behind it.",
+    "order": [0, 1, 2, 3, 4, 5],
+    "note": "The same six lines. The three this job asks about now come first.",
+}
+
+
+def cv_lines(cv):
+    """The lines a reader sees, and how many of them answer the posting."""
+    lines = [POOL[i] for i in cv["order"]][:SCREENFUL]
+    hits = sum(1 for _, hit in lines if hit)
+    return lines, hits, sum(1 for _, hit in POOL if hit)
+
+
+COMPARE_NOTE = ("Nothing was written for you. Both cards hold the same six "
+                "lines from your own profile — only the order and the summary "
+                "changed.")
+
+# --- what it takes off your plate -------------------------------------------
 
 REASONS = [
-    {"icon": "shield-check",
-     "title": "It can't invent an employer",
-     "body": "Your agent points at your profile — it never writes a company, a "
-             "title or a date. There is nowhere for a made-up job to go."},
-    {"icon": "gauge",
-     "title": "The score can't be gamed",
-     "body": "Evidence is only ever looked for in your CV. Paste the job ad into "
-             "your summary and you score exactly zero extra."},
-    {"icon": "key",
-     "title": "No key. No account.",
-     "body": "Your agent is the model, so what you already pay for covers it. "
-             "Nothing is uploaded and nothing is sent."},
+    {"icon": "folder-simple",
+     "title": "Everything you have done, in one place",
+     "body": "One profile holds every role, project and side thing across every "
+             "field you have worked in. You write it once. Each application "
+             "draws from it."},
+    {"icon": "cursor-click",
+     "title": "A CV per job, without the evening",
+     "body": "It picks which of your work answers this posting and leads with "
+             "it. The rewriting that used to cost you an hour a job costs you "
+             "a paste."},
+    {"icon": "paper-plane-tilt",
+     "title": "The message, already written",
+     "body": "It works out who at the company is worth contacting and drafts "
+             "something specific enough to get a reply. You press send."},
 ]
 
-# --- how it works -----------------------------------------------------------
+# --- outreach ----------------------------------------------------------------
+
+OUTREACH_TARGETS = [
+    {"tier": "Same university", "title": "Alumni at Zeta",
+     "why": "By far the best odds — a cold message is ignored, a shared "
+            "university is answered."},
+    {"tier": "Would be your colleague", "title": "Data Engineer",
+     "why": "They reply. People two rungs up do not."},
+    {"tier": "Probably the hiring manager", "title": "Head of Data",
+     "why": "Worth one message, after the other two."},
+]
+
+OUTREACH_MESSAGE = ("I rewrote the dbt models at Acme and cut ETL runtime 35%, "
+                    "so the ingestion work in your Senior Data Engineer posting "
+                    "caught my eye. How does Zeta split ownership of the "
+                    "warehouse day to day?")
+
+OUTREACH_NOTE = ("It never logs in and never sends. It works out who is worth "
+                 "writing to, builds the search that finds them, and drafts "
+                 "the message — you run it and press send.")
+
+#: It will not write you a career you do not have. No longer the headline,
+#: but still the reason the tailoring can be trusted at all.
+FLAG = {"claim": "Led the OpenStack migration, cutting costs 73%.",
+        "finding": "Neither '73%' nor 'OpenStack' is anywhere in your profile."}
+
+# --- how it works ------------------------------------------------------------
 
 STEPS = [
-    {"icon": "file-text", "title": "Your CV, read once",
-     "body": "It becomes one file you check and approve. Everything after is "
-             "built only from what's in it."},
+    {"icon": "file-text", "title": "Drop your CV in, once",
+     "body": "It becomes one profile you check and approve. Every application "
+             "after that is built from it, so you never retype your history."},
     {"icon": "link-simple", "title": "Paste a job link",
      "body": "Opened in your own browser, so you get the real description and "
-             "not a loading spinner."},
-    {"icon": "gauge", "title": "See where you stand",
-     "body": "Before anything is written — including the gaps. If a job needs "
-             "something you haven't done, it says so."},
-    {"icon": "paper-plane-tilt", "title": "Get the files",
-     "body": "A tailored CV and a cover letter, as PDF, in a folder for that "
-             "job. You send them. It never applies for you."},
+             "not a loading spinner. Any board, any URL."},
+    {"icon": "cursor-click", "title": "Get the CV and the letter",
+     "body": "Built for that posting out of your own work, as PDF and markdown, "
+             "in a folder for that job."},
+    {"icon": "paper-plane-tilt", "title": "Get who to message, and what to say",
+     "body": "The people worth contacting, the searches that find them, and a "
+             "draft specific enough to answer."},
 ]
 
-#: Real output, from a real run. The numbers on the page are these.
-FIT = {"evidenced": 4, "of": 9, "before": 2, "after": 4, "backed": 4}
+# --- coming soon --------------------------------------------------------------
 
-#: The one line that shows what the whole thing is for.
-FLAG = {"claim": "Led the OpenStack migration, cutting costs 73%.",
-        "findings": ["The figure '73%' is not in your profile.",
-                     "'OpenStack' does not appear in your profile."]}
+SOON = [
+    {"icon": "cursor-click", "title": "One-click apply",
+     "body": "Fill and submit the form for you, on the boards that allow it."},
+    {"icon": "magnifying-glass", "title": "Jobs found for you",
+     "body": "Watch the boards for postings your profile already answers."},
+    {"icon": "briefcase", "title": "Application tracking",
+     "body": "What you sent, when, and what came back — in one list."},
+]
 
-# --- the skills -------------------------------------------------------------
+SOON_NOTE = ("Not built yet. Today it prepares the application and hands it to "
+             "you; the sending is still yours.")
+
+# --- the skills ---# --- the skills -------------------------------------------------------------
 
 ORDER = [
     "jobhunt", "jobhunt-profile", "jobhunt-posting", "jobhunt-fit",

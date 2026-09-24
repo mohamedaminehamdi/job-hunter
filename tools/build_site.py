@@ -53,6 +53,25 @@ def command(text, label="command"):
             f'{icon("check", "i-done")}<span>Copy</span></button></div>')
 
 
+def cv_card(cv, best):
+    """One of the two CVs. Same component, and one of them held back."""
+    lines, hits, total = data.cv_lines(cv)
+    rows = "".join(f'<li class="{"hit" if hit else ""}">{e(text)}</li>'
+                   for text, hit in lines)
+    tag = "Tailored" if best else "Generic"
+    return (
+        f'<article class="cv {"best" if best else "plain"}">'
+        f'<div class="cv-top">{icon("file-text")}<span>{e(cv["label"])}</span>'
+        f'<span class="tag">{tag}</span></div>'
+        f'<div class="cv-body"><p class="cv-summary">{e(cv["summary"])}</p>'
+        f'<ul class="cv-lines">{rows}</ul></div>'
+        f'<div class="cv-foot"><div class="cv-score">'
+        f"<b>{hits}<small>/{total}</small></b>"
+        f"<span>of what this job asks for, in the first screenful</span></div>"
+        f'<div class="cv-bar" style="--fill:{round(100 * hits / total)}%"><i></i></div>'
+        f'<p class="cv-note">{e(cv["note"])}</p></div></article>')
+
+
 def routes(agent):
     """Every way of installing, for one agent, easiest first."""
     out, n = [], 0
@@ -106,7 +125,6 @@ def build():
     skills = data.read_skills()
     css = (SITE / "style.css").read_text(encoding="utf-8")
     js = (SITE / "app.js").read_text(encoding="utf-8")
-    fit = data.FIT
 
     headline = "".join(f"<span>{e(line)}</span>" for line in data.HEADLINE)
 
@@ -118,15 +136,26 @@ def build():
         f'<h3>{e(r["title"])}</h3><p>{e(r["body"])}</p></article>'
         for r in data.REASONS)
 
+    cv_plain = cv_card(data.GENERIC, best=False)
+    cv_best = cv_card(data.TAILORED, best=True)
+
+    who = "".join(
+        f'<div class="who-row glass"><span class="n">{i + 1}</span><div>'
+        f'<span class="tier">{e(target["tier"])}</span>'
+        f'<h4>{e(target["title"])}</h4><p>{e(target["why"])}</p>'
+        "</div></div>"
+        for i, target in enumerate(data.OUTREACH_TARGETS))
+
+    soon = "".join(
+        f'<article class="soon-card"><div class="badge">{icon(s["icon"])}</div>'
+        f'<h3>{e(s["title"])}</h3><p>{e(s["body"])}</p></article>'
+        for s in data.SOON)
+
     steps = "".join(
         f'<div class="step"><div class="badge">{icon(s["icon"])}</div>'
         f'<div><span class="n">STEP {i + 1}</span><h3>{e(s["title"])}</h3>'
         f'<p>{e(s["body"])}</p></div></div>'
         for i, s in enumerate(data.STEPS))
-
-    findings = "".join(
-        f'<p class="finding">{icon("warning-circle")}<span>{e(f)}</span></p>'
-        for f in data.FLAG["findings"])
 
     agent_buttons = []
     for group, label in (("global", "Installs everywhere"),
@@ -194,7 +223,10 @@ def build():
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
         <a href="#skills" class="hide-sm">Skills</a>
-        <a href="https://github.com/{REPO}" class="hide-sm">GitHub</a>
+        <a href="https://github.com/{REPO}" class="hide-sm">
+          {icon("github-logo")}GitHub</a>
+        <a href="https://github.com/{REPO}" class="star hide-sm"
+           title="Starring it helps people find it">{icon("star")}Star</a>
         <a href="#install">Install</a>
         <button class="tog" type="button" id="theme" aria-label="Switch theme">
           {icon("sun", "i-sun")}{icon("moon", "i-moon")}
@@ -223,55 +255,38 @@ def build():
     </div>
   </div>
 
-  <div class="wrap proof-out">
-    <div class="proof up">
-    <div class="proof-head">{icon("folder-simple")}
-      2026-09-24-acme-senior-data-engineer</div>
-    <div class="proof-body">
-      <div>
-        <h3>What it caught</h3>
-        <p class="claim">{e(data.FLAG["claim"])}</p>
-        {findings}
-      </div>
-      <div>
-        <h3>How you actually match</h3>
-        <div class="score">
-          <div>
-            <div class="score-row">
-              <span class="score-label">Backed by your CV</span>
-              <span class="score-num"
-                data-count="{fit['evidenced']}">{fit['evidenced']}<small>/{fit['of']}</small></span>
-            </div>
-            <div class="score-bar flat"
-                 style="--fill:{round(100 * fit['evidenced'] / fit['of'])}%"><i></i></div>
-            <p class="score-note">A fact about you. Tailoring cannot move it.</p>
-          </div>
-          <div>
-            <div class="score-row">
-              <span class="score-label">Seen in the first screenful</span>
-              <span class="score-num"
-                data-count="{fit['after']}">{fit['after']}<small>/{fit['backed']}</small></span>
-              <span class="score-move">+{fit['after'] - fit['before']}</span>
-            </div>
-            <div class="score-bar"
-                 style="--fill:{round(100 * fit['after'] / fit['backed'])}%"><i></i></div>
-            <p class="score-note">This is the one tailoring is for.</p>
-          </div>
-        </div>
-        </div>
-      </div>
+  <div class="wrap versus up">
+    <div class="versus-head">
+      <span class="for glass">{icon("link-simple")}{e(data.JOB)}</span>
     </div>
+    <div class="pair">
+      {cv_plain}
+      {cv_best}
+    </div>
+    <p class="versus-foot">{e(data.COMPARE_NOTE)}</p>
   </div>
 </div>
 
-<section id="why">
+<section id="why"><section id="why">
   <div class="wrap">
-    <div class="sec-head up">
-      <span class="kicker">{icon("shield-check")}Why this one</span>
-      <h2>Every CV tool will write you a better career.</h2>
-      <p>This one can't. Three decisions do most of that work.</p>
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("briefcase")}What it takes off your plate</span>
+      <h2>An application used to cost you an evening.</h2>
+      <p>Tailoring the CV, working out who to contact, writing the message.
+         Every time, for every job. That is the part this removes.</p>
     </div>
     <div class="three stagger">{three}</div>
+
+    <div class="wont up">
+      <div class="badge">{icon("shield-check")}</div>
+      <div>
+        <h3>It still won't write you a career you don't have</h3>
+        <p>Every line it produces comes out of your own profile, and anything
+           it can't trace back is flagged before you send it. Faster, not
+           looser.</p>
+        <span class="said"><em>{e(data.FLAG["claim"])}</em>{e(data.FLAG["finding"])}</span>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -285,6 +300,37 @@ def build():
       <div class="rail"><i></i></div>
       {steps}
     </div>
+  </div>
+</section>
+
+<div class="band" id="outreach">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("magnifying-glass")}Who to message</span>
+      <h2>The other half of an application.</h2>
+      <p>A CV in a pile gets read once. A message to somebody who works there
+         gets answered. It works out who, and writes the first one for you.</p>
+    </div>
+    <div class="reach">
+      <div class="who stagger">{who}</div>
+      <div class="draft glass up">
+        <h4>{icon("paper-plane-tilt")}Drafted for you</h4>
+        <blockquote>{e(data.OUTREACH_MESSAGE)}</blockquote>
+        <p class="meta">{e(data.OUTREACH_NOTE)}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="soon">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("clock-countdown")}Coming soon</span>
+      <h2>Next, the part you still do by hand.</h2>
+    </div>
+    <div class="soon stagger">{soon}</div>
+    <p class="soon-note up">{icon("clock-countdown")}
+      <span>{e(data.SOON_NOTE)}</span></p>
   </div>
 </section>
 

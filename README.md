@@ -1,57 +1,64 @@
 # jobhunt
 
-Eleven skills for the coding agent you already use. They read a job posting,
-tailor your CV out of your own history, flag every sentence your profile can't
-back, and hand you the files.
-
-**They apply to nothing.** You send them.
+Eleven skills for the coding agent you already use. Keep everything you have
+ever done in one place; paste a job link and get a CV built for it, the people
+worth messaging, and the message to send them.
 
 **[Install →](https://mohamedaminehamdi.github.io/job-hunter/)** · pick your
 agent and copy one command.
 
 ---
 
-## The idea
+## What it takes off your plate
 
-Every CV tool will happily write you a better career. This one is built so it
-can't.
+An application used to cost you an evening: tailoring the CV, working out who
+to contact, writing the message. Every time, for every job.
 
-**The model never writes an employer.** It answers with *indices into your
-profile* and the facts are copied across. A fabricated employer isn't caught
-afterwards — there is nowhere for it to be written. What's left is free text,
-and that gets checked word by word against your profile:
+**Your work lives in one profile.** Every role, project and side thing across
+every field you have worked in. You write it once, and each application draws
+from it — you never retype your history.
 
-```
-The figure '73%' is not in your profile - check it before you send this.
-'OpenStack' does not appear in your profile. Remove it, or add it to your
-profile if it is true.
-```
-
-**The score can't be gamed.** Evidence is looked up in your profile, never in
-the document, so a CV that pastes the job ad into its summary scores zero extra
-and gets told off for it.
+**A CV per job, without the evening.** It picks which of your work answers this
+posting and leads with it. Same facts, different order:
 
 ```
-Evidenced in your profile:    4 of 9   (unchanged by tailoring - it is what you have done)
-  not checkable:              2        (judge these yourself)
+The one CV you send everywhere        Built for this posting
+· Responsible for various tasks       ● Cut ETL runtime 35% (dbt models)
+· Worked on internal tooling          ● Own the ingestion pipelines
+· Involved in cross-team projects     ● Built the dashboards 40 people use
+● Cut ETL runtime 35% (dbt models)    · Responsible for various tasks
 
-Shown in the first screenful: 2 of 4  ->  4 of 4      +2
-Present anywhere in the CV:   4 of 4  ->  4 of 4
-
-Not evidenced anywhere in your profile:
-  · OpenStack   "Experience running OpenStack in production"
-  · German      "German B2 or above"
+1 of 3  in the first screenful        3 of 3  in the first screenful
 ```
 
-Two numbers, because they answer different questions. **Evidenced** is what
-your profile can back — a fact about you, and it does not move when the CV is
-rewritten. **Shown** is how much of that a reader meets in the first screenful,
-and that is the one tailoring moves: the evidence was already there, buried at
-bullet nine.
+Same six lines from your own profile. Your strongest three were below the fold,
+and most readers never reach them.
 
-A **gap** is something the job needs that nothing in your profile backs. Two
-honest responses: close it, or stop applying for jobs that need it. Claiming it
-anyway is not one this tool will help with.
+**The message, already written.** It works out who at the company is worth
+contacting — alumni first, because that is what actually gets replies — builds
+the searches that find them, and drafts something specific enough to answer.
+You press send.
+
+## It still won't write you a career you don't have
+
+Every line traces back to your profile, and anything that doesn't is flagged
+before you send it. Faster, not looser.
+
+```
+Led the OpenStack migration, cutting costs 73%.
+  The figure '73%' is not in your profile - check it before you send this.
+  'OpenStack' does not appear in your profile.
+```
+
+That is also why the tailoring is worth anything: the score counts evidence
+found in *your profile*, never in the document, so a CV that pastes the job ad
+into its summary scores zero extra and gets told off for it.
+
+## Coming soon
+
+One-click apply on the boards that allow it, jobs found for you, and
+application tracking. **Not built yet** — today it prepares the application and
+hands it to you; the sending is still yours.
 
 ## Install
 
@@ -123,14 +130,14 @@ yourself, or just the fit score to decide whether a job is worth an evening.
 | `jobhunt-outreach` | who to message, and what to say |
 | `jobhunt-critique` | what's still wrong, before you send it |
 
-## What it deliberately does not do
+## What it does not do today
 
-- **Apply to anything.** Some employers disqualify applications the applicant
-  didn't write. That is their call, and honouring it is yours.
+- **Apply to anything.** It produces the documents; you send them. On the
+  roadmap for the boards that allow it — not built yet.
 - **Scrape LinkedIn.** LinkedIn walls and throttles automated access and the
-  risk lands on *your* account. It builds the searches; you run them.
-- **Search for jobs.** You bring the link. There are better job boards than
-  anything this would be.
+  risk lands on *your* account. It builds the searches; you run them, and that
+  is not changing.
+- **Search for jobs.** You bring the link, for now.
 - **Track your applications**, beyond one line per run in `runs/log.md`. It is
   markdown; type what happened next into it.
 
