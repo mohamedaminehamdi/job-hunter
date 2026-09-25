@@ -1,6 +1,6 @@
 # jobhunt
 
-Eleven skills for the coding agent you already use. Keep everything you have
+Twelve skills for the coding agent you already use. Keep everything you have
 ever done in one place; paste a job link and get a CV built for it, the people
 worth messaging, and the message to send them.
 
@@ -111,7 +111,7 @@ jobhunt/runs/2026-09-24-acme-senior-data-engineer/
 └── job.yaml          the posting, as read
 ```
 
-## The eleven
+## The twelve
 
 Each works on its own. Install just the guard to check a letter you wrote
 yourself, or just the fit score to decide whether a job is worth an evening.
@@ -120,6 +120,7 @@ yourself, or just the fit score to decide whether a job is worth an evening.
 |---|---|
 | `jobhunt` | the whole thing, in order |
 | `jobhunt-profile` | your CV → one YAML file everything else reads |
+| `jobhunt-review` | score the CV on its own, with no job description |
 | `jobhunt-posting` | a job URL → structured posting, in your own browser |
 | `jobhunt-fit` | how well you match, before and after |
 | `jobhunt-tailor` | a CV for this job, out of what you have already done |

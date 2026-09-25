@@ -161,9 +161,9 @@ SOON_NOTE = "Not built yet. Today it prepares the application; you send it."
 # --- the skills -------------------------------------------------------------
 
 ORDER = [
-    "jobhunt", "jobhunt-profile", "jobhunt-posting", "jobhunt-fit",
-    "jobhunt-tailor", "jobhunt-letter", "jobhunt-pdf", "jobhunt-guard",
-    "jobhunt-answer", "jobhunt-outreach", "jobhunt-critique",
+    "jobhunt", "jobhunt-profile", "jobhunt-review", "jobhunt-posting",
+    "jobhunt-fit", "jobhunt-tailor", "jobhunt-letter", "jobhunt-pdf",
+    "jobhunt-guard", "jobhunt-answer", "jobhunt-outreach", "jobhunt-critique",
 ]
 
 #: Short enough to scan. The frontmatter description is written for an agent
@@ -173,6 +173,8 @@ CARDS = {
                          "One job link in, everything below out."),
     "jobhunt-profile":  ("file-text", "Your CV, read once",
                          "Becomes the one file everything else draws on."),
+    "jobhunt-review":   ("gauge", "Score your CV on its own",
+                         "No job needed. What's evidence, what's filler."),
     "jobhunt-posting":  ("link-simple", "The posting, read properly",
                          "In your own browser, so nothing is missed."),
     "jobhunt-fit":      ("gauge", "How well you match",

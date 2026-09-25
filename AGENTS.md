@@ -1,6 +1,6 @@
 # jobhunt — instructions for any coding agent
 
-This repo is a set of **eleven skills** for preparing job applications, plus
+This repo is a set of **twelve skills** for preparing job applications, plus
 the tooling that builds and ships them. It is read by OpenAI Codex, Cursor,
 Cline, Aider, Gemini CLI, Windsurf and anything else that picks up
 `AGENTS.md`; Claude Code reads [CLAUDE.md](CLAUDE.md), which says the same

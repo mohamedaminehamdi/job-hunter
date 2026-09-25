@@ -300,3 +300,96 @@ def test_every_error_the_library_raises_is_one_run_cli_handles():
 def test_each_error_gets_the_exit_code_the_skills_document(error, code, capsys):
     assert jh.run_cli(lambda argv: error(), []) == code
     assert "Traceback" not in capsys.readouterr().err
+
+
+# --- the review: a CV measured against nothing but itself ------------------
+
+def test_the_weights_add_up_to_a_hundred():
+    """The number is a sum of named parts, so the parts have to sum."""
+    assert sum(jh.WEIGHTS.values()) == 100
+
+
+def test_a_perfect_cv_scores_full_marks():
+    profile = jh.Profile(
+        personal=jh.Personal(name="Ada", surname="L", email="a@b.co",
+                             phone="+49 170", city="Berlin", country="Germany",
+                             headline="Data Engineer", github="https://github.com/ada"),
+        summary="Data engineer who builds pipelines that stay up.",
+        skills=["dbt", "Airflow"],
+        experience=[jh.Role(position="Engineer", company="Acme", start="2021",
+                            bullets=["Cut ETL runtime 35% by rewriting the dbt models.",
+                                     "Ran the Airflow DAGs for 40 people."])])
+    found = jh.review(profile)
+    assert found.score == found.out_of == 100, jh.review_page(found)
+
+
+def test_an_empty_profile_scores_nothing_and_does_not_raise():
+    found = jh.review(jh.Profile())
+    assert found.score == 0
+    assert jh.review_page(found)
+
+
+@pytest.mark.parametrize("line, quantified", [
+    ("Cut ETL runtime by 35%.", True),
+    ("Mentored two junior analysts.", True),
+    # A worded quantity is still a measured outcome. A digits-only test reads
+    # this as an adjective, which cost a real CV 20 points.
+    ("Automated delivery with zero manual intervention.", True),
+    ("Doubled the release cadence.", True),
+    ("Worked at Acme from 2021 to 2024.", False),
+    ("Configured Nginx as a reverse proxy for load balancing.", False),
+])
+def test_what_counts_as_a_figure(line, quantified):
+    assert jh.is_quantified(line) is quantified
+
+
+@pytest.mark.parametrize("line, weak", [
+    ("Responsible for the ingestion pipelines", True),
+    ("Involved in several cross-team projects", True),
+    ("Helped with the migration", True),
+    ("Built the ingestion pipelines", False),
+    ("Owned the on-call rota", False),
+])
+def test_what_counts_as_a_duty_rather_than_a_result(line, weak):
+    assert bool(jh.weak_opener(line)) is weak
+
+
+def test_a_skill_shown_only_by_its_head_word_still_counts():
+    """"Linux administration" is demonstrated by a bullet about hardening Linux
+    servers. Calling that unshown is a finding a reader rightly ignores, and a
+    checker that gets ignored stops being read at all."""
+    profile = jh.Profile(
+        skills=["Linux administration", "Jenkins"],
+        experience=[jh.Role(company="Acme", bullets=["Hardened Linux servers."])])
+    shown = next(d for d in jh.review(profile).dimensions if d.name == "shown")
+    assert "Jenkins" in shown.findings[0].quote
+    assert "Linux" not in shown.findings[0].quote
+
+
+def test_the_order_dimension_ignores_roles_with_nothing_to_lead_with():
+    """A role with no quantified line cannot be marked down for burying one."""
+    profile = jh.Profile(experience=[
+        jh.Role(company="A", bullets=["Cut runtime 35%.", "Did a thing."]),
+        jh.Role(company="B", bullets=["Did a thing.", "Did another."])])
+    order = next(d for d in jh.review(profile).dimensions if d.name == "order")
+    assert order.points == order.out_of, order.tally
+
+
+def test_the_score_is_the_sum_of_its_parts_and_nothing_else():
+    """No hidden term. Every point traces to a dimension a reader can see."""
+    profile = jh.Profile(
+        personal=jh.Personal(name="Ada", surname="L", email="a@b.co"),
+        experience=[jh.Role(company="Acme", bullets=["Responsible for things."])])
+    found = jh.review(profile)
+    assert found.score == sum(d.points for d in found.dimensions)
+    assert found.out_of == sum(d.out_of for d in found.dimensions) == 100
+
+
+def test_the_review_never_claims_to_predict_hiring():
+    """The one thing this number must not be read as."""
+    profile = jh.Profile(personal=jh.Personal(name="Ada", surname="L"),
+                         experience=[jh.Role(company="A", bullets=["Cut 35%."])])
+    page = jh.review_page(jh.review(profile)).lower()
+    assert "not whether you will get a job" in page
+    for wrong in ("chance of", "likely to be hired", "probability", "guarantee"):
+        assert wrong not in page, wrong

@@ -19,9 +19,9 @@ set -eu
 
 REPO="mohamedaminehamdi/job-hunter"
 BRANCH="main"
-SKILLS="jobhunt jobhunt-profile jobhunt-posting jobhunt-fit jobhunt-tailor \
-jobhunt-letter jobhunt-guard jobhunt-answer jobhunt-pdf jobhunt-outreach \
-jobhunt-critique"
+SKILLS="jobhunt jobhunt-profile jobhunt-review jobhunt-posting jobhunt-fit \
+jobhunt-tailor jobhunt-letter jobhunt-guard jobhunt-answer jobhunt-pdf \
+jobhunt-outreach jobhunt-critique"
 
 only=""
 target=""

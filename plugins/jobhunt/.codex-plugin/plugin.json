@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Job Hunt",
     "shortDescription": "Applications your CV can actually back",
-    "longDescription": "Eleven skills for preparing one job application: read the posting, score how well your CV answers it before and after tailoring, write a tailored CV and cover letter as PDF, check every sentence against your own profile, and work out who is worth messaging. It never applies to anything, never scrapes LinkedIn, and cannot state an employer you did not work for. No API key and nothing to install - it runs on the Python and the browser already on your machine.",
+    "longDescription": "Twelve skills for preparing one job application: read the posting, score how well your CV answers it before and after tailoring, write a tailored CV and cover letter as PDF, check every sentence against your own profile, and work out who is worth messaging. It never applies to anything, never scrapes LinkedIn, and cannot state an employer you did not work for. No API key and nothing to install - it runs on the Python and the browser already on your machine.",
     "developerName": "Mohamed Amine Hamdi",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

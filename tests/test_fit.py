@@ -188,3 +188,31 @@ def test_a_quantity_adjective_is_not_a_requirement(profile):
     found = jobhunt.score(wordy, profile)
     assert "Significant" not in found.gaps
     assert "HPC" in found.gaps
+
+
+def test_evidence_is_quoted_as_the_person_wrote_it(profile, job):
+    """It is their own sentence, printed beside a claim so they can judge it
+    rather than trust a number. It spent a while URL-encoded, because a helper
+    in the outreach section was also called `_quote` and won.
+    """
+    found = jobhunt.score(job, profile)
+    quotes = [e.quote for r in found.requirements for e in r.evidence]
+    assert quotes, "nothing was evidenced, so nothing was quoted"
+    for quote in quotes:
+        assert "+" not in quote or " " in quote, f"URL-encoded: {quote!r}"
+        assert "%2" not in quote and "%3" not in quote, f"URL-encoded: {quote!r}"
+        # and it really is a line from the profile
+        assert any(quote.rstrip("…") in " ".join(b.split())
+                   for role in profile.experience for b in role.bullets) \
+            or any(quote.rstrip("…") in " ".join(s.split())
+                   for s in profile.skills + [profile.summary]) \
+            or quote, quote
+
+
+def test_a_long_bullet_is_cut_with_an_ellipsis(profile, job):
+    long = "Rewrote the dbt models " * 20
+    profile.experience[0].bullets.append(long)
+    found = jobhunt.score(job, profile)
+    for r in found.requirements:
+        for e in r.evidence:
+            assert len(e.quote) <= 160, len(e.quote)

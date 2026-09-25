@@ -1400,9 +1400,10 @@ def _mentions(term, body):
     return re.search(pattern, body.lower()) is not None
 
 
-def _quote(body, limit=160):
+def _excerpt(body, limit=160):
+    """One line of someone's own writing, short enough to print beside a claim."""
     body = " ".join(body.split())
-    return body if len(body) <= limit else body[: limit - 1] + "…"
+    return body if len(body) <= limit else body[:limit - 1] + "…"
 
 
 def _places(profile):
@@ -1456,7 +1457,7 @@ def find(term, profile, support=None):
     """
     if support is not None and not support.backs_term(term):
         return []
-    return [Evidence(term=term, where=where, kind=kind, quote=_quote(body))
+    return [Evidence(term=term, where=where, kind=kind, quote=_excerpt(body))
             for where, kind, body in _places(profile) if _mentions(term, body)]
 
 
@@ -2954,7 +2955,10 @@ _SAFE = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
                   "0123456789-_.~")
 
 
-def _quote(value):
+def _percent(value):
+    """Percent-encode one query value. Named for what it does, because it was
+    once called `_quote` and silently shadowed the fit score's quote helper -
+    every piece of evidence in every fit report came out URL-encoded."""
     out = []
     for byte in str(value).encode("utf-8"):
         char = chr(byte)
@@ -2970,7 +2974,7 @@ def people_search(title, company, extra=""):
     """
     keywords = " ".join(p for p in (f'"{title}"' if title else "",
                                     company, extra) if p).strip()
-    return f"{_PEOPLE}?keywords={_quote(keywords)}" if keywords else _PEOPLE
+    return f"{_PEOPLE}?keywords={_percent(keywords)}" if keywords else _PEOPLE
 
 
 def alumni_search(school, company):
@@ -2981,7 +2985,7 @@ def alumni_search(school, company):
     that usually works rather than a facet that quietly does not.
     """
     keywords = " ".join(x for x in (school, company) if x)
-    return f"{_PEOPLE}?keywords={_quote(keywords)}" if keywords else _PEOPLE
+    return f"{_PEOPLE}?keywords={_percent(keywords)}" if keywords else _PEOPLE
 
 
 def company_slug(body):
@@ -3000,7 +3004,7 @@ def company_people(slug, keywords=""):
     if not slug:
         return ""
     base = _COMPANY.format(slug=slug)
-    return f"{base}?keywords={_quote(keywords)}" if keywords else base
+    return f"{base}?keywords={_percent(keywords)}" if keywords else base
 
 
 @dataclass
@@ -3477,3 +3481,315 @@ def run_cli(work, argv=None):
         return fail(str(exc), BLOCKED)
     except KeyboardInterrupt:
         return fail("interrupted", BLOCKED)
+
+
+# --- review: how good is this CV, with no job to compare it to --------------
+#
+# The fit score answers "does this CV answer THIS posting". It needs a posting.
+# This answers the other question - "is this CV well built at all" - and it
+# needs nothing but the profile.
+#
+# Everything measured here is job-independent on purpose. A reader stops early
+# whatever the job, a figure is more convincing than an adjective whatever the
+# job, and a skill nobody can see you use is a claim whatever the job. Anything
+# that depends on what the employer wants belongs in `score`, not here.
+#
+# The number is a sum of named, disjoint counts and every point of it traces to
+# a line you can go and look at. It is not a verdict on the candidate and it is
+# not a probability of being hired - nothing readable off a document could be.
+
+#: What each dimension is worth. Weighted by how much a reader actually
+#: notices, not by how easy it was to measure.
+WEIGHTS = {
+    "evidence": 30,     # bullets that carry a figure
+    "openers": 15,      # bullets that start by describing a duty
+    "order": 15,        # the strongest line, where a reader will reach it
+    "complete": 15,     # the fields an employer needs to act
+    "shown": 15,        # skills the bullets actually demonstrate
+    "shape": 10,        # length, bulk, and roles with nothing under them
+}
+
+#: Openers that describe a duty rather than a result. A bullet starting this
+#: way tells a reader what the job was, not what the person did with it.
+_WEAK_OPENERS = (
+    "responsible for", "involved in", "worked on", "worked with",
+    "participated in", "helped", "assisted", "assisted with", "tasked with",
+    "duties included", "in charge of", "contributed to", "took part in",
+    "supported", "handled", "dealt with", "familiar with", "exposed to",
+)
+
+#: A figure that means something. Years on their own are dates, not results,
+#: so a bullet whose only number is "2024" is not quantified.
+_YEARISH = re.compile(r"^(19|20)\d\d$")
+_NUMBER = re.compile(r"\d[\d,.\s]*%?\+?[kKmM]?")
+
+#: Quantities people write as words. "with zero manual intervention" is a
+#: measured outcome and a digits-only test calls it an adjective.
+_WORDED = re.compile(
+    r"\b(zero|none|no manual|no downtime|single|one|two|three|four|five|six|"
+    r"seven|eight|nine|ten|eleven|twelve|dozen|doubl(?:e|ed)|halv(?:e|ed)|"
+    r"tripl(?:e|ed)|quadrupl(?:e|ed))\b", re.IGNORECASE)
+
+#: Past this, a bullet stops being read and starts being skimmed.
+LONG_BULLET = 34
+#: More than this from one role reads as a job description.
+MANY_BULLETS = 8
+#: What a reader gets through in a role before moving on.
+TOP_BULLETS = 2
+
+
+@dataclass
+class Finding:
+    """One thing to fix, and where."""
+
+    where: str = ""
+    what: str = ""
+    #: The line itself, so the reader can judge rather than trust a count.
+    quote: str = ""
+
+
+@dataclass
+class Dimension:
+    name: str = ""
+    #: What this is worth, and what it earned.
+    out_of: int = 0
+    points: int = 0
+    #: The count behind the points, in the reader's terms.
+    tally: str = ""
+    findings: list = field(default_factory=list)
+
+    SHAPE = {"findings": (list, Finding), "out_of": "raw", "points": "raw"}
+
+
+@dataclass
+class Review:
+    """A CV measured against nothing but itself."""
+
+    name: str = ""
+    dimensions: list = field(default_factory=list)
+    bullets: int = 0
+    roles: int = 0
+
+    SHAPE = {"dimensions": (list, Dimension), "bullets": "raw", "roles": "raw"}
+
+    @property
+    def score(self):
+        return sum(d.points for d in self.dimensions)
+
+    @property
+    def out_of(self):
+        return sum(d.out_of for d in self.dimensions)
+
+    @property
+    def findings(self):
+        return [f for d in self.dimensions for f in d.findings]
+
+
+def is_quantified(line):
+    """Whether a bullet carries a figure that is a result rather than a date."""
+    for match in _NUMBER.finditer(line):
+        raw = match.group().strip().rstrip(".,")
+        if not raw:
+            continue
+        if _YEARISH.match(raw.replace(",", "").replace(" ", "")):
+            continue
+        return True
+    return bool(_WORDED.search(line))
+
+
+def weak_opener(line):
+    """The duty-describing phrase a bullet starts with, if it starts with one."""
+    lowered = line.lower().lstrip("-*•–· ")
+    for phrase in _WEAK_OPENERS:
+        if lowered.startswith(phrase):
+            return phrase
+    return ""
+
+
+def _skill_shown(skill, body):
+    """Whether the work on the page demonstrates a listed skill.
+
+    The whole term first, then its head word for a multi-word one: "Linux
+    administration" is shown by a bullet about hardening Linux servers, and
+    calling that unshown is a finding the reader would rightly ignore - which
+    is how a checker stops being read at all.
+    """
+    if _mentions(skill, body):
+        return True
+    head = skill.split()[0] if " " in skill else ""
+    return bool(head) and len(head) > 2 and _mentions(head, body)
+
+
+def _share(part, whole):
+    """Points for a proportion, with an empty section scoring nothing."""
+    return 0.0 if not whole else part / whole
+
+
+def _clean(bad, whole):
+    """Points for the absence of a problem - and none at all for a section
+    with nothing in it. `1 - 0/0` is 1, which awarded an empty CV full marks
+    for having no weak bullets and no oversized roles."""
+    return 0.0 if not whole else 1 - bad / whole
+
+
+def review(profile):
+    """Measure a CV against itself. Never raises; an empty profile scores zero."""
+    found = Review(name=profile.personal.full_name,
+                   roles=len(profile.experience))
+    every = [(f"experience[{i}]", j, line)
+             for i, role in enumerate(profile.experience)
+             for j, line in enumerate(role.bullets)]
+    found.bullets = len(every)
+
+    # --- evidence ----------------------------------------------------------
+    quantified = [row for row in every if is_quantified(row[2])]
+    misses = [row for row in every if not is_quantified(row[2])]
+    found.dimensions.append(Dimension(
+        name="evidence", out_of=WEIGHTS["evidence"],
+        points=round(WEIGHTS["evidence"] * _share(len(quantified), len(every))),
+        tally=f"{len(quantified)} of {len(every)} bullets carry a figure",
+        findings=[Finding(f"{w}.bullets[{j}]",
+                          "No figure - what changed, and by how much?", b)
+                  for w, j, b in misses[:6]]))
+
+    # --- openers -----------------------------------------------------------
+    weak = [(w, j, b, weak_opener(b)) for w, j, b in every if weak_opener(b)]
+    found.dimensions.append(Dimension(
+        name="openers", out_of=WEIGHTS["openers"],
+        points=round(WEIGHTS["openers"] * _clean(len(weak), len(every))),
+        tally=(f"{len(weak)} of {len(every)} bullets open by describing a duty"
+               if weak else "every bullet opens with something you did"),
+        findings=[Finding(f"{w}.bullets[{j}]",
+                          f"Starts with {phrase!r} - lead with the verb instead", b)
+                  for w, j, b, phrase in weak[:6]]))
+
+    # --- order -------------------------------------------------------------
+    # A reader stops early whatever the job, so the strongest line in a role
+    # has to be near the top of it. This is the one rule here that is purely
+    # about where a line sits rather than what it says.
+    led, buried = 0, []
+    for i, role in enumerate(profile.experience):
+        strong = [j for j, b in enumerate(role.bullets) if is_quantified(b)]
+        if not strong:
+            continue
+        if min(strong) < TOP_BULLETS:
+            led += 1
+        else:
+            buried.append((i, role, min(strong)))
+    have = led + len(buried)
+    found.dimensions.append(Dimension(
+        name="order", out_of=WEIGHTS["order"],
+        points=round(WEIGHTS["order"] * _share(led, have)) if have else 0,
+        tally=(f"{led} of {have} roles lead with a quantified line"
+               if have else "no role has a quantified line to lead with"),
+        findings=[Finding(f"experience[{i}]",
+                          f"Strongest line is at number {at + 1} - move it up",
+                          role.bullets[at])
+                  for i, role, at in buried[:4]]))
+
+    # --- complete ----------------------------------------------------------
+    p = profile.personal
+    wanted = [("a name", bool(p.full_name)), ("an email", bool(p.email)),
+              ("a phone number", bool(p.phone)),
+              ("a location", bool(p.city or p.country)),
+              ("a headline", bool(p.headline)), ("a summary", bool(profile.summary)),
+              ("a link to your code or profile",
+               bool(p.github or p.linkedin or p.website)),
+              ("skills", bool(profile.skills)),
+              ("dates on every role",
+               all(r.start for r in profile.experience) if profile.experience
+               else False)]
+    missing = [label for label, ok in wanted if not ok]
+    found.dimensions.append(Dimension(
+        name="complete", out_of=WEIGHTS["complete"],
+        points=round(WEIGHTS["complete"] * _share(len(wanted) - len(missing),
+                                                  len(wanted))),
+        tally=f"{len(wanted) - len(missing)} of {len(wanted)} things a reader looks for",
+        findings=[Finding("personal", f"Missing: {label}") for label in missing]))
+
+    # --- shown -------------------------------------------------------------
+    # A skill nobody can see you use is a word in a list. This is the same
+    # evidence lookup the fit score uses, turned on the CV's own claims.
+    body = "\n".join([profile.summary, p.headline]
+                     + [b for _, _, b in every]
+                     + [f"{r.position} {r.company} {r.industry}"
+                        for r in profile.experience]
+                     + [f"{x.name} {x.description} {' '.join(x.tech)}"
+                        for x in profile.projects]
+                     + [f"{c.name} {c.issuer} {c.description}"
+                        for c in profile.certifications])
+    unshown = [s for s in profile.skills if not _skill_shown(s, body)]
+    found.dimensions.append(Dimension(
+        name="shown", out_of=WEIGHTS["shown"],
+        points=round(WEIGHTS["shown"] * _clean(len(unshown), len(profile.skills))),
+        tally=(f"{len(profile.skills) - len(unshown)} of {len(profile.skills)} "
+               "listed skills appear in your work"),
+        findings=([Finding("skills",
+                           "Listed but never shown in a bullet, project or "
+                           "certification", ", ".join(unshown[:14]))]
+                  if unshown else [])))
+
+    # --- shape -------------------------------------------------------------
+    problems = []
+    for i, role in enumerate(profile.experience):
+        if not role.bullets:
+            problems.append(Finding(f"experience[{i}]",
+                                    f"No bullets - {role.company or 'this role'} "
+                                    "says nothing to a reader"))
+        elif len(role.bullets) > MANY_BULLETS:
+            problems.append(Finding(f"experience[{i}]",
+                                    f"{len(role.bullets)} bullets - past "
+                                    f"{MANY_BULLETS} it reads as a job description"))
+    for w, j, b in every:
+        if len(b.split()) > LONG_BULLET:
+            problems.append(Finding(f"{w}.bullets[{j}]",
+                                    f"{len(b.split())} words - two sentences "
+                                    "doing one sentence's work", b))
+    units = len(profile.experience) + len(every)
+    found.dimensions.append(Dimension(
+        name="shape", out_of=WEIGHTS["shape"],
+        points=round(WEIGHTS["shape"] * _clean(len(problems), units)),
+        tally=(f"{len(problems)} bullets or roles are the wrong size"
+               if problems else "every bullet and role is a readable length"),
+        findings=problems[:6]))
+
+    return found
+
+
+#: What the total means, in words. Deliberately not a grade: the bands say what
+#: to do next, because a CV at 55 is not a worse person than one at 85.
+def band(score, out_of=100):
+    ratio = _share(score, out_of)
+    if ratio >= 0.85:
+        return "Well built. Fix the named lines and send it."
+    if ratio >= 0.7:
+        return "Solid. A few lines are doing less work than they could."
+    if ratio >= 0.5:
+        return "The material is there; the writing is hiding it."
+    return "Most of this describes duties rather than results."
+
+
+def review_page(found):
+    """The review as something a person reads, worst dimension first."""
+    out = [f"CV review — {found.name or 'your CV'}", "",
+           f"{found.score} / {found.out_of}   {band(found.score, found.out_of)}",
+           f"{found.roles} roles, {found.bullets} bullets", ""]
+
+    for d in sorted(found.dimensions, key=lambda d: _share(d.points, d.out_of)):
+        bar = "█" * round(10 * _share(d.points, d.out_of))
+        out.append(f"{d.name:<10} {d.points:>2}/{d.out_of:<3} {bar:<10}  {d.tally}")
+    out.append("")
+
+    for d in sorted(found.dimensions, key=lambda d: _share(d.points, d.out_of)):
+        if not d.findings:
+            continue
+        out.append(f"{d.name.upper()}")
+        for f in d.findings:
+            out.append(f"  · {f.what}")
+            if f.quote:
+                out.append(f"      {_excerpt(f.quote, 92)}")
+        out.append("")
+
+    out += ["This measures how the CV is built, not whether you will get a job.",
+            "For a particular posting, score the fit against it instead."]
+    return "\n".join(out)

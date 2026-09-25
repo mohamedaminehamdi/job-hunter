@@ -130,7 +130,7 @@ def routes(agent):
         out.append(
             f'<div class="route"><h3><span class="num">{n}</span>'
             f'Inside {e(agent["name"])}<span class="best">easiest</span></h3>'
-            "<p>Paste these at the prompt. You get all eleven, and updates with "
+            "<p>Paste these at the prompt. You get all twelve, and updates with "
             "one command.</p>"
             + command(f"/plugin marketplace add {REPO}", "marketplace command")
             + command("/plugin install jobhunt@jobhunt", "install command")
@@ -162,7 +162,7 @@ def routes(agent):
         "that directory if it is not there yet.</p>"
         f'<p style="margin-top:14px"><a class="btn btn-ghost" '
         f'href="download/jobhunt-all.zip" download>{icon("download-simple")}'
-        "All eleven skills</a></p></div>")
+        "All twelve skills</a></p></div>")
 
     warn = " warn" if agent["scope"] == "project" else ""
     lead = "<b>Per project, not per user.</b> " if agent["scope"] == "project" else ""
@@ -400,7 +400,7 @@ def build():
     <div class="sec-head wide up">
       <span class="kicker">{icon("download-simple")}Install</span>
       <h2>Which agent do you use?</h2>
-      <p>Pick one and copy the command. Every route gives you the same eleven
+      <p>Pick one and copy the command. Every route gives you the same twelve
          skills — there is no paid tier and nothing to sign up for.</p>
     </div>
     <div class="picker up">
@@ -421,7 +421,7 @@ def build():
   <div class="wrap">
     <div class="sec-head wide up">
       <span class="kicker">{icon("briefcase")}What gets installed</span>
-      <h2>Eleven skills.</h2>
+      <h2>Twelve skills.</h2>
       <p>Each works on its own, or all of them together.</p>
     </div>
     <div class="grid stagger">{"".join(cards)}</div>
@@ -445,7 +445,7 @@ def build():
       <details><summary>Can I just use one skill?</summary>
         <p>Yes. Each folder carries its own copy of the library and imports
         nothing from its siblings, so one installed alone works exactly the
-        same as all eleven.</p></details>
+        same as all twelve.</p></details>
       <details><summary>Will it make my CV good?</summary>
         <p>It will make your CV <b>accurate</b>, and put your strongest
         evidence where a reader meets it. It cannot give you experience you do

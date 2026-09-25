@@ -14,7 +14,7 @@ allowed-tools: Bash, Read, Write, Glob
 
 The job: `$1`
 
-This runs the other ten jobhunt skills in order. Each one also works on its
+This runs the other eleven jobhunt skills in order. Each one also works on its
 own; this is the sequence when someone wants the whole thing.
 
 ## Where the scripts are
@@ -66,7 +66,9 @@ the `jobhunt-profile` skill, then **stop and ask them to check it**. A model
 just read their CV; they approve it before anything is built on it.
 
 **No URL given?** Ask for one, or offer to take the description pasted as
-text - that path is fully supported.
+text - that path is fully supported. If they have no job in mind at all and
+just want to know how their CV is doing, run `jobhunt-review` instead: it
+scores the CV on its own and needs no posting.
 
 ## The steps
 

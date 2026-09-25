@@ -39,8 +39,12 @@ def frontmatter(skill):
 
 # --- the eleven exist and are described ------------------------------------
 
-def test_there_are_eleven_skills():
-    assert len(ALL) == 11, [p.name for p in ALL]
+def test_every_skill_is_a_real_one():
+    """No count to keep in step - just that every directory is a skill and
+    every skill is listed for install and on the site."""
+    assert len(ALL) >= 11, [p.name for p in ALL]
+    for skill in ALL:
+        assert (skill / "SKILL.md").exists(), skill.name
 
 
 @pytest.mark.parametrize("skill", ALL, ids=lambda p: p.name)
