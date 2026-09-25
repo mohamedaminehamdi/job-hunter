@@ -25,13 +25,25 @@ BRANDS = json.loads((HERE / "brands.json").read_text(encoding="utf-8"))
 
 #: The headline retypes itself between these two. Same complaint, twice, and
 #: the second one is the reason the first one is a problem.
+#: One sentence, typed once. It used to alternate between two phrases, which
+#: meant the headline never held still long enough to be read by somebody who
+#: had just arrived.
 HEADLINE_FIXED = "Stop "
-HEADLINE_SWAP = ["rewriting your CV", "sending the same CV"]
-HEADLINE_TAIL = "for every single job."
+HEADLINE_TYPED = ("sending the same CV for every single job "
+                  "and keep rewriting that one.")
 
-#: Boards it is regularly pointed at, doubled in the markup so the row can
-#: slide without a seam. It takes any job URL.
+#: Boards it is regularly pointed at. It takes any job URL.
 BOARDS = ["linkedin", "indeed", "greenhouse", "glassdoor", "upwork"]
+
+#: How many whole copies of that row the track holds. One copy of these five
+#: is about 720px, and the strip has to still cover the bar after a whole copy
+#: has slid off the left - so (COPIES - 1) x 720 has to beat the widest screen
+#: this is likely to be opened on. Six carries it to 3600px.
+BOARD_COPIES = 6
+
+COMPARE_TITLE = "One of these gets read to the end."
+COMPARE_SUB = ("The same profile, against one posting. All that changes is "
+               "which of your own lines a reader meets first.")
 
 # --- the two CVs ------------------------------------------------------------
 #

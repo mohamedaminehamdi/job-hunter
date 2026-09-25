@@ -1,46 +1,47 @@
 <!doctype html>
-<html lang="en" data-theme="">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jobhunt — job applications you can stand behind</title>
 <meta name="description"
       content="One message beats ten applications. Read the posting, rewrite the CV, find who to message, write the message. Then again. And again.">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <meta property="og:title" content="jobhunt">
 <meta property="og:description"
-      content="Stop rewriting your CV for every single job.">
+      content="Stop sending the same CV for every single job and keep rewriting that one.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%2312664a'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <style>/* jobhunt — one accent, one radius scale, two type families.
-   Bone and ink rather than the dark-terminal-with-neon a developer tool
-   reaches for: the subject is somebody's career, and it should read like
-   paper. Green is used only where something has been verified. */
+   One palette, dark. The page alternates between a green field, ink, and the
+   near-black "paper" below - the light theme and its toggle were removed, so
+   every colour below is the only value that token ever takes. Green is used
+   only where something has been verified. */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --bone:      #faf9f6;
-  --paper:     #ffffff;
-  --sunk:      #f2f0ea;
-  --ink:       #12161a;
-  --ink-soft:  #4d565d;
-  --ink-faint: #8a9298;
-  --rule:      #e6e3dc;
-  --rule-soft: #efece6;
+  --bone:      #0d1012;
+  --paper:     #15191b;
+  --sunk:      #191e20;
+  --ink:       #f0f3f2;
+  --ink-soft:  #a9b3b2;
+  --ink-faint: #737d7c;
+  --rule:      #252b2d;
+  --rule-soft: #1d2224;
 
-  --accent:      #12664a;
-  --accent-deep: #0c4a35;
-  --accent-wash: #e6f1ec;
+  --accent:      #45c795;
+  --accent-deep: #6ddcb1;
+  --accent-wash: #12302599;
 
   /* The hero sits on a colour field rather than on paper. Both ends are dark
      enough that white body text clears AA on the brightest point of the
      highlight - 5.9:1 - which is the constraint that picked them. */
-  --field-base: #093d2b;
-  --field-lift: #14724f;
+  --field-base: #061f16;
+  --field-lift: #0d5238;
   --on-field:      #ffffff;
   --on-field-soft: rgba(255, 255, 255, .78);
   --on-field-dim:  rgba(255, 255, 255, .58);
@@ -51,10 +52,10 @@
   --glass-edge:   rgba(255, 255, 255, .34);
 
   /* The ink ground the page alternates onto. */
-  --night:      #0a0d0e;
-  --night-lift: #141a1c;
-  --flag:        #a63d19;
-  --flag-wash:   #fdeee6;
+  --night:      #06090a;
+  --night-lift: #10161a;
+  --flag:        #ef9b6a;
+  --flag-wash:   #2b1a11;
 
   --r-sm: 8px;
   --r-md: 12px;
@@ -67,41 +68,13 @@
           Consolas, monospace;
 
   --page: 1120px;
-  --lift: 0 1px 2px rgba(18, 22, 26, .04), 0 12px 32px -16px rgba(18, 22, 26, .16);
-  --lift-hi: 0 1px 2px rgba(18, 22, 26, .05), 0 28px 60px -28px rgba(18, 22, 26, .28);
-  --lift-float: 0 2px 4px rgba(6, 30, 22, .10), 0 30px 70px -24px rgba(6, 30, 22, .45);
+  --lift: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .7);
+  --lift-hi: 0 1px 2px rgba(0, 0, 0, .5), 0 28px 60px -28px rgba(0, 0, 0, .9);
+  --lift-float: 0 2px 4px rgba(0, 0, 0, .5), 0 30px 70px -24px rgba(0, 0, 0, .85);
 
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bone: #0d1012; --paper: #15191b; --sunk: #191e20;
-    --ink: #f0f3f2; --ink-soft: #a9b3b2; --ink-faint: #737d7c;
-    --rule: #252b2d; --rule-soft: #1d2224;
-    --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
-    --flag: #ef9b6a; --flag-wash: #2b1a11;
-    --field-base: #061f16; --field-lift: #0d5238;
-    --night: #06090a; --night-lift: #10161a;
-    --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
-    --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
-    --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bone: #0d1012; --paper: #15191b; --sunk: #191e20;
-  --ink: #f0f3f2; --ink-soft: #a9b3b2; --ink-faint: #737d7c;
-  --rule: #252b2d; --rule-soft: #1d2224;
-  --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
-  --flag: #ef9b6a; --flag-wash: #2b1a11;
-  --field-base: #061f16; --field-lift: #0d5238;
-  --night: #06090a; --night-lift: #10161a;
-  --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
-  --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
-  --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
-}
 
 * { box-sizing: border-box; }
 
@@ -232,23 +205,6 @@ svg { display: block; }
 .bar.stuck nav a:hover { background: var(--rule-soft); }
 @media (max-width: 760px) { .bar nav a.hide-sm { display: none; } }
 
-.tog { width: 38px; height: 38px; display: grid; place-items: center;
-       border-radius: 999px; cursor: pointer; color: inherit;
-       background: rgba(255, 255, 255, .14);
-       border: 1px solid rgba(255, 255, 255, .20);
-       transition: background .18s, border-color .18s; }
-.tog:hover { background: rgba(255, 255, 255, .24); }
-.bar.stuck .tog { background: var(--paper); border-color: var(--rule);
-                  color: var(--ink-soft); }
-.bar.stuck .tog:hover { border-color: var(--ink-faint); color: var(--ink); }
-.tog .ico { width: 17px; height: 17px; }
-:root[data-theme="dark"] .i-sun, .i-moon { display: none; }
-:root[data-theme="dark"] .i-moon { display: block; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .i-sun { display: none; }
-  :root:not([data-theme="light"]) .i-moon { display: block; }
-}
-
 /* --- buttons ------------------------------------------------------------ */
 
 .btn {
@@ -277,12 +233,8 @@ svg { display: block; }
 /* Paper is the default and the field is the exception, not the other way
    round: most of this page is on paper, and a button that forgets to opt in
    should look ordinary rather than look like nothing. */
-.btn-go { background: var(--accent); color: #fff; box-shadow: var(--lift); }
+.btn-go { background: var(--accent); color: #052018; box-shadow: var(--lift); }
 .btn-go:hover { background: var(--accent-deep); box-shadow: var(--lift-hi); }
-:root[data-theme="dark"] .btn-go { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .btn-go { color: #052018; }
-}
 .btn-ghost { background: var(--paper); color: var(--ink); border-color: var(--rule); }
 .btn-ghost:hover { border-color: var(--ink-faint); }
 
@@ -327,39 +279,65 @@ h1 em { font-style: italic; font-weight: 620; }
 .cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 40px;
        justify-content: center; }
 
-/* --- the headline that retypes itself ----------------------------------- */
-/* The swapped half is absolutely sized by the longest option, so the line
-   below it does not jump every time a character lands. */
+/* --- the headline, typed once ------------------------------------------- */
+/* A hidden copy of the whole sentence holds the box open, and the characters
+   land into a copy laid over it. So the button below does not move while the
+   line is arriving.
 
-.type { position: relative; display: inline-block; white-space: nowrap; }
+   No `white-space: nowrap` on either. It was here while the typed part was
+   three words; a whole sentence under that rule runs straight off the right
+   edge of the page, which is what it did. Both copies wrap, and the live one
+   is given the ghost's width so it wraps at exactly the same words. */
+
+.type { position: relative; display: inline-block; max-width: 100%; }
 .type .ghost { visibility: hidden; }
-.type .live { position: absolute; left: 0; top: 0; white-space: nowrap; }
-.type .caret {
-  display: inline-block; width: .06em; height: .82em; margin-left: .06em;
-  background: currentColor; vertical-align: -.06em; border-radius: 1px;
-  animation: blink 1.05s steps(1) infinite;
+.type .live { position: absolute; left: 0; top: 0; width: 100%; }
+/* The caret rides the last typed character rather than sitting at the end of
+   the reserved box, which on a sentence this long is a different line. */
+.type .live::after {
+  content: ""; display: inline-block; width: .055em; height: .8em;
+  margin-left: .06em; background: currentColor; vertical-align: -.04em;
+  border-radius: 1px; animation: blink 1.05s steps(1) infinite;
 }
+.type.done .live::after { display: none; }
 @keyframes blink { 50% { opacity: 0; } }
-/* Without script the whole phrase is simply there, and there is no caret to
-   sit blinking beside a sentence that will never change. */
-html:not(.js) .type .live, html:not(.js) .type .caret { display: none; }
+/* Without script the whole sentence is simply there, and there is no caret to
+   sit blinking beside a line that will never change. */
+html:not(.js) .type .live { display: none; }
 html:not(.js) .type .ghost { visibility: visible; }
 
 /* --- the boards, sliding -------------------------------------------------- */
 
+/* The strip is whole copies of the same row, and each row carries the gap
+   that follows it in its own padding. That is the whole trick: translating by
+   exactly one row lands the next one where the first stood.
+
+   Two earlier versions of this were wrong in ways you could see. Laying the
+   chips out with `gap` on the track and translating -50% is half a gap short
+   every lap - a 7px snap, once a lap, forever. And two copies of five chips
+   is 1428px, which left 492px of empty green inside a 1920px bar, hard left.
+   Hence whole copies, and enough of them that the strip still covers the bar
+   after one has slid off: (copies - 1) x ~720px. */
 .slider { margin-top: 56px; position: relative;
+          display: flex; justify-content: center; overflow: hidden;
           -webkit-mask-image: linear-gradient(90deg, transparent,
                               #000 9%, #000 91%, transparent);
           mask-image: linear-gradient(90deg, transparent,
                       #000 9%, #000 91%, transparent); }
-.track { display: flex; gap: 14px; width: max-content;
+.track { display: flex; flex: none; width: max-content;
          animation: slide 34s linear infinite; }
+.row { display: flex; flex: none; gap: 14px; padding-right: 14px; }
 .slider:hover .track { animation-play-state: paused; }
-@keyframes slide { to { transform: translateX(-50%); } }
+/* -100%/copies is one row exactly, because every row is the same width. */
+@keyframes slide { to { transform: translateX(calc(-100% / var(--copies))); } }
 @media (prefers-reduced-motion: reduce) {
-  .track { animation: none; }
   .slider { -webkit-mask-image: none; mask-image: none; }
-  .track { flex-wrap: wrap; justify-content: center; width: auto; }
+  .track { animation: none; width: auto; flex: 1 1 auto; }
+  .row { flex-wrap: wrap; justify-content: center; flex: 1 1 auto;
+         padding-right: 0; }
+  /* One row is the whole point when nothing moves; the rest are the same
+     five names again. */
+  .row:not(:first-child) { display: none; }
 }
 
 .board { display: inline-flex; align-items: center; gap: 10px; flex: none;
@@ -410,11 +388,7 @@ html:not(.js) .type .ghost { visibility: visible; }
   text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
   background: var(--rule-soft); color: var(--ink-faint);
 }
-.cv.best .cv-top .tag { background: var(--accent); color: #fff; }
-:root[data-theme="dark"] .cv.best .cv-top .tag { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .cv.best .cv-top .tag { color: #052018; }
-}
+.cv.best .cv-top .tag { background: var(--accent); color: #052018; }
 
 .cv-body { padding: 22px 24px 20px; flex: 1; }
 .cv-summary { font-size: 14.5px; line-height: 1.5; color: var(--ink);
@@ -574,12 +548,7 @@ section { padding: clamp(74px, 12vh, 128px) 0; }
   transition: background .18s, color .18s;
 }
 .agents button[aria-selected="true"] .tick { background: var(--accent);
-                                             color: #fff; }
-:root[data-theme="dark"] .agents button[aria-selected="true"] .tick { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .agents button[aria-selected="true"] .tick {
-    color: #052018; }
-}
+                                             color: #052018; }
 .agents .group { font-size: 11.5px; font-weight: 560; letter-spacing: .09em;
                  text-transform: uppercase; color: var(--ink-faint);
                  padding: 20px 14px 8px; }
@@ -645,36 +614,6 @@ html:not(.js) .picker { grid-template-columns: minmax(0, 1fr); }
 .note.warn { background: var(--flag-wash);
              border-color: color-mix(in srgb, var(--flag) 24%, transparent); }
 .note b { color: var(--ink); font-weight: 560; }
-
-/* --- the eleven --------------------------------------------------------- */
-
-.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 880px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-
-.skill { background: var(--paper); border: 1px solid var(--rule);
-         border-radius: var(--r-lg); padding: 22px 22px 20px; display: block;
-         color: inherit;
-         transition: transform .26s var(--ease), box-shadow .26s var(--ease),
-                     border-color .26s; }
-.skill:hover { text-decoration: none; transform: translateY(-3px);
-               box-shadow: var(--lift-hi);
-               border-color: color-mix(in srgb, var(--accent) 32%, var(--rule)); }
-.skill.wide { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; }
-@media (max-width: 560px) { .skill.wide { display: block; } }
-.skill .badge { width: 38px; height: 38px; display: grid; place-items: center;
-                border-radius: 11px; background: var(--accent-wash);
-                color: var(--accent); margin-bottom: 16px; flex: none; }
-.skill.wide .badge { margin-bottom: 0; }
-.skill .badge .ico { width: 19px; height: 19px; }
-.skill h3 { font-size: 1.02rem; margin-bottom: 7px; }
-.skill p { color: var(--ink-soft); font-size: .92rem; }
-.skill .id { display: block; margin-top: 13px; font-family: var(--mono);
-             font-size: 11.5px; color: var(--ink-faint); }
-.skill.wide .id { margin-top: 8px; }
-/* `.skill.wide > div` matched the badge too - it is a div - and stretched it
-   across half the card. Named, so it cannot happen again. */
-.skill.wide .say { flex: 1; min-width: 0; }
 
 /* --- outreach ----------------------------------------------------------- */
 /* The second field. Glass again, because there is colour behind it again. */
@@ -813,23 +752,6 @@ html:not(.js) .lane.fast .meter i { width: 4%; }
              display: flex; gap: 10px; align-items: flex-start; max-width: 62ch; }
 .soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px; }
 
-/* --- the one it still will not do ---------------------------------------- */
-
-.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 44px;
-        padding: 24px 26px; border-radius: var(--r-lg);
-        background: var(--night-lift);
-        border: 1px solid rgba(255, 255, 255, .09); max-width: 880px; }
-.wont .badge { flex: none; width: 40px; height: 40px; display: grid;
-               place-items: center; border-radius: 12px;
-               background: rgba(239, 155, 106, .14); color: #ef9b6a; }
-.wont .badge .ico { width: 20px; height: 20px; }
-.wont h3 { font-size: 1.02rem; margin-bottom: 8px; color: #fff; }
-.wont p { color: rgba(255, 255, 255, .68); font-size: .95rem; max-width: 62ch; }
-.wont .said { display: block; margin-top: 14px; font-size: 13.5px;
-              color: #ef9b6a; font-family: var(--mono); }
-.wont .said em { font-style: normal; color: rgba(255, 255, 255, .45);
-                 display: block; margin-bottom: 5px; font-family: var(--sans); }
-
 /* --- the star ------------------------------------------------------------ */
 
 .star { display: inline-flex; align-items: center; gap: 7px; }
@@ -898,16 +820,8 @@ footer nav a { color: var(--ink-soft); }
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 </style>
 <script>
-  /* Before first paint: marks that script runs, so the motion may hide things,
-     and applies a saved theme so the page does not flash the wrong one. */
-  (function () {
-    var r = document.documentElement;
-    r.className += " js";
-    try {
-      var t = localStorage.getItem("jobhunt-theme");
-      if (t === "light" || t === "dark") r.setAttribute("data-theme", t);
-    } catch (e) {}
-  })();
+  /* Before first paint, so the motion may hide what it is about to move. */
+  document.documentElement.className += " js";
 </script>
 </head>
 <body>
@@ -918,15 +832,12 @@ footer nav a { color: var(--ink-soft); }
       <a class="mark" href="#top"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.6 3.4h8.2a2.4 2.4 0 0 1 2.4 2.4v10.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity=".42"/><path d="M6.2 6.6h9.1a2.2 2.2 0 0 1 2.2 2.2v9.9a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 18.7V8.8a2.2 2.2 0 0 1 2.2-2.2Z" stroke="currentColor" stroke-width="1.7"/><path d="M7.9 13.6l2.6 2.6 5.1-5.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>jobhunt</a>
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
-        <a href="#skills" class="hide-sm">Skills</a>
+        <a href="#example" class="hide-sm">The difference</a>
         <a href="https://github.com/mohamedaminehamdi/job-hunter" class="hide-sm">
           <svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208.31,75.68A59.78,59.78,0,0,0,202.93,28,8,8,0,0,0,196,24a59.75,59.75,0,0,0-48,24H124A59.75,59.75,0,0,0,76,24a8,8,0,0,0-6.93,4,59.78,59.78,0,0,0-5.38,47.68A58.14,58.14,0,0,0,56,104v8a56.06,56.06,0,0,0,48.44,55.47A39.8,39.8,0,0,0,96,192v8H72a24,24,0,0,1-24-24A40,40,0,0,0,8,136a8,8,0,0,0,0,16,24,24,0,0,1,24,24,40,40,0,0,0,40,40H96v16a8,8,0,0,0,16,0V192a24,24,0,0,1,48,0v40a8,8,0,0,0,16,0V192a39.8,39.8,0,0,0-8.44-24.53A56.06,56.06,0,0,0,216,112v-8A58.14,58.14,0,0,0,208.31,75.68ZM200,112a40,40,0,0,1-40,40H112a40,40,0,0,1-40-40v-8a41.74,41.74,0,0,1,6.9-22.48A8,8,0,0,0,80,73.83a43.81,43.81,0,0,1,.79-33.58,43.88,43.88,0,0,1,32.32,20.06A8,8,0,0,0,119.82,64h32.35a8,8,0,0,0,6.74-3.69,43.87,43.87,0,0,1,32.32-20.06A43.81,43.81,0,0,1,192,73.83a8.09,8.09,0,0,0,1,7.65A41.72,41.72,0,0,1,200,104Z"/></svg>GitHub</a>
         <a href="https://github.com/mohamedaminehamdi/job-hunter" class="star hide-sm"
            title="Starring it helps people find it"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></svg>Star</a>
         <a href="#install">Install</a>
-        <button class="tog" type="button" id="theme" aria-label="Switch theme">
-          <svg class="ico i-sun" viewBox="0 0 256 256" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg><svg class="ico i-moon" viewBox="0 0 256 256" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg>
-        </button>
       </nav>
     </div>
   </div>
@@ -937,7 +848,7 @@ footer nav a { color: var(--ink-soft); }
 <div class="field">
   <div class="wrap hero">
     <span class="eyebrow glass up"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>Works with any job link</span>
-    <h1 class="up">Stop <span class="type" data-swap="rewriting your CV|sending the same CV"><span class="ghost">sending the same CV</span><span class="live" aria-hidden="true"></span><i class="caret" aria-hidden="true"></i></span> for every single job.</h1>
+    <h1 class="up">Stop <span class="type" data-type="sending the same CV for every single job and keep rewriting that one."><span class="ghost">sending the same CV for every single job and keep rewriting that one.</span><span class="live" aria-hidden="true"></span></span></h1>
     <div class="cta up">
       <a class="btn btn-go" href="#install">Install<svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
       <a class="btn btn-ghost" href="#how">See how it works</a>
@@ -945,21 +856,29 @@ footer nav a { color: var(--ink-soft); }
   </div>
 
   <div class="slider up" aria-label="Works with postings from these boards">
-    <div class="track"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div>
-  </div>
-
-  <div class="wrap">
-  <div class="wrap versus up">
-    <div class="versus-head">
-      <span class="for glass"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg>Senior Data Engineer · Zeta</span>
-    </div>
-    <div class="pair">
-      <article class="cv plain"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>The one you send everywhere</span><span class="tag">Generic</span></div><div class="cv-body"><p class="cv-summary">Experienced software professional with a strong background in technology, seeking a challenging new role.</p><ul class="cv-lines"><li class="">Responsible for various engineering tasks</li><li class="">Worked on internal tooling and reporting</li><li class="">Involved in several cross-team projects</li><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li></ul></div><div class="cv-foot"><div class="cv-score"><b>1<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:33%"><i></i></div><p class="cv-note">Your three strongest lines are below the fold.</p></div></article>
-      <article class="cv best"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>Built for this posting</span><span class="tag">Tailored</span></div><div class="cv-body"><p class="cv-summary">Data engineer who cut ETL runtime 35% by rewriting a dbt warehouse, and owns the ingestion pipelines behind it.</p><ul class="cv-lines"><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li><li class="hit">Own the ingestion pipelines and the on-call rota</li><li class="hit">Built the finance dashboards used by 40 people</li><li class="">Responsible for various engineering tasks</li></ul></div><div class="cv-foot"><div class="cv-score"><b>3<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:100%"><i></i></div><p class="cv-note">The same six lines, in the order this job cares about.</p></div></article>
-    </div>
-    <p class="versus-foot">Same six lines from your own profile. Only the order and the summary changed.</p>
+    <div class="track" style="--copies: 6"><div class="row"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div><div class="row" aria-hidden="true"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div><div class="row" aria-hidden="true"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div><div class="row" aria-hidden="true"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div><div class="row" aria-hidden="true"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div><div class="row" aria-hidden="true"><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span>LinkedIn</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.566 21.5633v-8.762c.2553.0231.5009.0346.758.0346 1.2225 0 2.3739-.3206 3.3506-.8928v9.6182c0 .8219-.1957 1.4287-.5757 1.8338-.378.4033-.8808.6049-1.491.6049-.6007 0-1.0766-.2016-1.468-.6183-.3781-.4032-.5739-1.01-.5739-1.8184zM11.589.5659c2.5447-.8929 5.4424-.8449 7.6186.987.405.3687.8673.8334 1.0515 1.3806.2207.6913-.7695-.073-.9057-.167-.71-.4532-1.4182-.8334-2.2127-1.0946C12.8614.3873 8.8122 2.709 6.2945 6.315c-1.0516 1.5939-1.7367 3.2721-2.299 5.1174-.0614.2017-.1094.4647-.2207.6413-.1113.2036-.048-.5453-.048-.5702.0845-.7623.2438-1.4997.4414-2.237C5.3292 5.3375 7.897 2.0655 11.5891.5658zm4.9281 7.0587c0 1.6686-1.353 3.0224-3.0205 3.0224-1.6677 0-3.0186-1.3538-3.0186-3.0224 0-1.6687 1.351-3.0224 3.0186-3.0224 1.6676 0 3.0205 1.3518 3.0205 3.0224Z"/></svg><span>Indeed</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.279 7.13c0 1.16-.49 2.185-1.293 2.987-.891.891-2.184 1.114-2.184 1.872 0 1.025 1.65.713 3.231 2.295 1.048 1.047 1.694 2.43 1.694 4.034C17.727 21.482 15.187 24 12 24c-3.187 0-5.727-2.518-5.727-5.68 0-1.607.646-2.989 1.694-4.036 1.582-1.582 3.23-1.27 3.23-2.295 0-.758-1.292-.98-2.183-1.872-.802-.802-1.293-1.827-1.293-3.03 0-2.318 1.895-4.19 4.212-4.19.446 0 .847.067 1.181.067.602 0 .914-.268.914-.691 0-.245-.112-.557-.112-.891 0-.758.647-1.382 1.427-1.382s1.404.646 1.404 1.426c0 .825-.647 1.204-1.137 1.382-.401.134-.713.312-.713.713 0 .758 1.382 1.493 1.382 3.61zm-.446 11.19c0-2.206-1.627-3.99-3.833-3.99-2.206 0-3.833 1.784-3.833 3.99 0 2.184 1.627 3.989 3.833 3.989 2.206 0 3.833-1.808 3.833-3.99zM14.518 7.086c0-1.404-1.136-2.562-2.518-2.562S9.482 5.682 9.482 7.086 10.618 9.65 12 9.65s2.518-1.159 2.518-2.563z"/></svg><span>Greenhouse</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.1093.0006c-.0749-.0074-.1348.0522-.1348.127v3.451c0 .0673.0537.1194.121.127 2.619.172 4.6092.9501 4.6092 3.6814H13.086a.1343.1343 0 0 0-.1348.1347v8.9644c0 .0748.06.1347.1348.1347h10.0034c.0748 0 .1347-.0599.1347-.1347V7.342c0-2.2374-.7996-4.0558-2.4159-5.3279C19.3191.8469 17.0874.1428 14.1093.0006ZM.9107 7.387a.1342.1342 0 0 0-.1347.1347v8.9566c0 .0748.06.1347.1347.1347h5.6189c0 2.7313-1.9902 3.5094-4.6091 3.6815-.0674.0075-.1192.0596-.1192.127v3.451c0 .0747.06.1343.1348.1269 2.9781-.1422 5.2078-.8463 6.6969-2.0136 1.6163-1.272 2.4159-3.0905 2.4159-5.3278V7.5217a.1343.1343 0 0 0-.1348-.1347z"/></svg><span>Glassdoor</span></span><span class="board glass"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.561 13.158c-1.102 0-2.135-.467-3.074-1.227l.228-1.076.008-.042c.207-1.143.849-3.06 2.839-3.06 1.492 0 2.703 1.212 2.703 2.703-.001 1.489-1.212 2.702-2.704 2.702zm0-8.14c-2.539 0-4.51 1.649-5.31 4.366-1.22-1.834-2.148-4.036-2.687-5.892H7.828v7.112c-.002 1.406-1.141 2.546-2.547 2.548-1.405-.002-2.543-1.143-2.545-2.548V3.492H0v7.112c0 2.914 2.37 5.303 5.281 5.303 2.913 0 5.283-2.389 5.283-5.303v-1.19c.529 1.107 1.182 2.229 1.974 3.221l-1.673 7.873h2.797l1.213-5.71c1.063.679 2.285 1.109 3.686 1.109 3 0 5.439-2.452 5.439-5.45 0-3-2.439-5.439-5.439-5.439z"/></svg><span>Upwork</span></span></div></div>
   </div>
 </div>
+
+<section id="example">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg>The same six lines, twice</span>
+      <h2>One of these gets read to the end.</h2>
+      <p>The same profile, against one posting. All that changes is which of your own lines a reader meets first.</p>
+    </div>
+    <div class="versus up">
+      <div class="versus-head">
+        <span class="for glass"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg>Senior Data Engineer · Zeta</span>
+      </div>
+      <div class="pair">
+        <article class="cv plain"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>The one you send everywhere</span><span class="tag">Generic</span></div><div class="cv-body"><p class="cv-summary">Experienced software professional with a strong background in technology, seeking a challenging new role.</p><ul class="cv-lines"><li class="">Responsible for various engineering tasks</li><li class="">Worked on internal tooling and reporting</li><li class="">Involved in several cross-team projects</li><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li></ul></div><div class="cv-foot"><div class="cv-score"><b>1<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:33%"><i></i></div><p class="cv-note">Your three strongest lines are below the fold.</p></div></article>
+        <article class="cv best"><div class="cv-top"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg><span>Built for this posting</span><span class="tag">Tailored</span></div><div class="cv-body"><p class="cv-summary">Data engineer who cut ETL runtime 35% by rewriting a dbt warehouse, and owns the ingestion pipelines behind it.</p><ul class="cv-lines"><li class="hit">Cut ETL runtime 35% by rewriting the dbt models</li><li class="hit">Own the ingestion pipelines and the on-call rota</li><li class="hit">Built the finance dashboards used by 40 people</li><li class="">Responsible for various engineering tasks</li></ul></div><div class="cv-foot"><div class="cv-score"><b>3<small>/3</small></b><span>of what this job asks for, in the first screenful</span></div><div class="cv-bar" style="--fill:100%"><i></i></div><p class="cv-note">The same six lines, in the order this job cares about.</p></div></article>
+      </div>
+      <p class="versus-foot">Same six lines from your own profile. Only the order and the summary changed.</p>
+    </div>
+  </div>
+</section>
 
 <div class="night" id="cost">
   <div class="wrap">
@@ -982,16 +901,6 @@ footer nav a { color: var(--ink-soft); }
           <span class="clock">12 minutes</span></div>
         <div class="meter"><i></i></div>
         <div class="lane-foot">You read them before sending.</div>
-      </div>
-    </div>
-
-    <div class="wont up">
-      <div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></svg></div>
-      <div>
-        <h3>It still won't write you a career you don't have</h3>
-        <p>Every line comes out of your own profile, and anything it can't
-           trace back is flagged before you send it. Faster, not looser.</p>
-        <span class="said"><em>Led the OpenStack migration, cutting costs 73%.</em>Neither &#x27;73%&#x27; nor &#x27;OpenStack&#x27; is anywhere in your profile.</span>
       </div>
     </div>
   </div>
@@ -1062,17 +971,6 @@ footer nav a { color: var(--ink-soft); }
   </div>
 </section>
 
-<section id="skills">
-  <div class="wrap">
-    <div class="sec-head wide up">
-      <span class="kicker"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg>What gets installed</span>
-      <h2>Twelve skills.</h2>
-      <p>Each works on its own, or all of them together.</p>
-    </div>
-    <div class="grid stagger"><a class="skill wide" href="download/jobhunt.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z"/></svg></div><div class="say"><h3>The whole application</h3><p>One job link in, everything below out.</p><span class="id">jobhunt</span></div></a><a class="skill" href="download/jobhunt-profile.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg></div><div class="say"><h3>Your CV, read once</h3><p>Becomes the one file everything else draws on.</p><span class="id">jobhunt-profile</span></div></a><a class="skill" href="download/jobhunt-review.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/></svg></div><div class="say"><h3>Score your CV on its own</h3><p>No job needed. What&#x27;s evidence, what&#x27;s filler.</p><span class="id">jobhunt-review</span></div></a><a class="skill" href="download/jobhunt-posting.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M165.66,90.34a8,8,0,0,1,0,11.32l-64,64a8,8,0,0,1-11.32-11.32l64-64A8,8,0,0,1,165.66,90.34ZM215.6,40.4a56,56,0,0,0-79.2,0L106.34,70.45a8,8,0,0,0,11.32,11.32l30.06-30a40,40,0,0,1,56.57,56.56l-30.07,30.06a8,8,0,0,0,11.31,11.32L215.6,119.6a56,56,0,0,0,0-79.2ZM138.34,174.22l-30.06,30.06a40,40,0,1,1-56.56-56.57l30.05-30.05a8,8,0,0,0-11.32-11.32L40.4,136.4a56,56,0,0,0,79.2,79.2l30.06-30.07a8,8,0,0,0-11.32-11.31Z"/></svg></div><div class="say"><h3>The posting, read properly</h3><p>In your own browser, so nothing is missed.</p><span class="id">jobhunt-posting</span></div></a><a class="skill" href="download/jobhunt-fit.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/></svg></div><div class="say"><h3>How well you match</h3><p>Two numbers. Only one of them moves.</p><span class="id">jobhunt-fit</span></div></a><a class="skill" href="download/jobhunt-tailor.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M88,24V16a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0ZM16,104h8a8,8,0,0,0,0-16H16a8,8,0,0,0,0,16ZM124.42,39.16a8,8,0,0,0,10.74-3.58l8-16a8,8,0,0,0-14.31-7.16l-8,16A8,8,0,0,0,124.42,39.16Zm-96,81.69-16,8a8,8,0,0,0,7.16,14.31l16-8a8,8,0,1,0-7.16-14.31ZM219.31,184a16,16,0,0,1,0,22.63l-12.68,12.68a16,16,0,0,1-22.63,0L132.7,168,115,214.09c0,.1-.08.21-.13.32a15.83,15.83,0,0,1-14.6,9.59l-.79,0a15.83,15.83,0,0,1-14.41-11L32.8,52.92A16,16,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.32.13L168,132.69ZM208,195.31,156.69,144h0a16,16,0,0,1,4.93-26l.32-.14,45.95-17.64L48,48l52.2,159.86,17.65-46c0-.11.08-.22.13-.33a16,16,0,0,1,11.69-9.34,16.72,16.72,0,0,1,3-.28,16,16,0,0,1,11.3,4.69L195.31,208Z"/></svg></div><div class="say"><h3>A CV for this job</h3><p>Your bullets, chosen and reordered.</p><span class="id">jobhunt-tailor</span></div></a><a class="skill" href="download/jobhunt-letter.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z"/></svg></div><div class="say"><h3>A letter worth reading</h3><p>Short, specific, in the posting&#x27;s language.</p><span class="id">jobhunt-letter</span></div></a><a class="skill" href="download/jobhunt-pdf.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z"/></svg></div><div class="say"><h3>The file you attach</h3><p>PDF and markdown, from the browser you have.</p><span class="id">jobhunt-pdf</span></div></a><a class="skill" href="download/jobhunt-guard.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></svg></div><div class="say"><h3>Check any writing</h3><p>Point it at a bio, a letter, anything.</p><span class="id">jobhunt-guard</span></div></a><a class="skill" href="download/jobhunt-answer.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/></svg></div><div class="say"><h3>The form questions</h3><p>Including how to write an honest no.</p><span class="id">jobhunt-answer</span></div></a><a class="skill" href="download/jobhunt-outreach.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg></div><div class="say"><h3>Who to message</h3><p>The searches to run, and what to say.</p><span class="id">jobhunt-outreach</span></div></a><a class="skill" href="download/jobhunt-critique.zip" download><div class="badge"><svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></svg></div><div class="say"><h3>What&#x27;s still weak</h3><p>Read before you send, not after.</p><span class="id">jobhunt-critique</span></div></a></div>
-  </div>
-</section>
-
 <section id="faq">
   <div class="wrap">
     <div class="sec-head up">
@@ -1103,8 +1001,8 @@ footer nav a { color: var(--ink-soft); }
 <div class="closer">
   <div class="wrap up">
     <h2>Your next application, in one command.</h2>
-    <p>Eleven skills, no account, nothing to install. It applies to nothing —
-       that part stays yours.</p>
+    <p>Twelve skills, no account, nothing to install. It
+       applies to nothing — that part stays yours.</p>
     <div class="cta">
       <a class="btn btn-go" href="#install">Install<svg class="ico" viewBox="0 0 256 256" aria-hidden="true"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></a>
       <a class="btn btn-ghost" href="https://github.com/mohamedaminehamdi/job-hunter">Read the source</a>
@@ -1125,7 +1023,7 @@ footer nav a { color: var(--ink-soft); }
   </div>
 </footer>
 
-<script>/* The picker, the theme, and the movement.
+<script>/* The picker and the movement.
    No framework: this is one static page on GitHub Pages, and a library would
    be most of its weight. */
 
@@ -1140,21 +1038,6 @@ footer nav a { color: var(--ink-soft); }
   }
   function remember(key, value) {
     try { localStorage.setItem(key, value); } catch (e) { /* private window */ }
-  }
-
-  // --- theme --------------------------------------------------------------
-  // Three states, like the OS: light, dark, and whatever the system says. The
-  // saved one is applied by the inline script in <head>, before first paint.
-
-  var toggle = document.getElementById("theme");
-  if (toggle) {
-    toggle.addEventListener("click", function () {
-      var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      var now = root.getAttribute("data-theme") || (dark ? "dark" : "light");
-      var next = now === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      remember("jobhunt-theme", next);
-    });
   }
 
   // --- the picker ---------------------------------------------------------
@@ -1288,43 +1171,29 @@ footer nav a { color: var(--ink-soft); }
     });
   }
 
-  // --- the headline that retypes itself -----------------------------------
-  // Two ways of saying the same complaint. The second is the reason the first
-  // is a problem, and watching one become the other says that in less space
-  // than a sentence would.
+  // --- the headline, typed once -------------------------------------------
+  // It used to alternate between two phrases forever. A headline that never
+  // holds still is a headline nobody finishes reading, so now the sentence
+  // arrives once and stays. The caret goes with the last character: there is
+  // nothing left for it to be waiting for.
 
   var swap = document.querySelector(".type");
-  if (swap && !still) {
-    var phrases = (swap.dataset.swap || "").split("|").filter(Boolean);
-    var live = swap.querySelector(".live");
-    if (phrases.length > 1 && live) {
-      // Starts fully typed, so the first move is a delete. Getting this wrong
-      // is silent: with `back = false` the counter runs straight past the
-      // word's length, the equality check never fires, and the headline sits
-      // there looking finished forever.
-      var at = 0, cut = phrases[0].length, back = true;
-      live.textContent = phrases[0];
-
+  var live = swap && swap.querySelector(".live");
+  var whole = swap ? (swap.dataset.type || "") : "";
+  if (live && whole) {
+    if (still) {
+      live.textContent = whole;
+      swap.classList.add("done");
+    } else {
+      var cut = 0;
       var step = function () {
-        var word = phrases[at];
-        cut = Math.max(0, Math.min(word.length, cut + (back ? -1 : 1)));
-        live.textContent = word.slice(0, cut);
-
-        var wait = back ? 34 : 58;
-        if (!back && cut >= word.length) { back = true; wait = 2400; }
-        else if (back && cut <= 0) {
-          back = false;
-          at = (at + 1) % phrases.length;
-          wait = 380;
-        }
-        setTimeout(step, wait);
+        cut = Math.min(whole.length, cut + 1);
+        live.textContent = whole.slice(0, cut);
+        if (cut >= whole.length) { swap.classList.add("done"); return; }
+        setTimeout(step, 26);
       };
-      setTimeout(step, 2400);
+      setTimeout(step, 320);
     }
-  } else if (swap) {
-    // Still: one phrase, no caret, nothing moving.
-    var only = swap.querySelector(".live");
-    if (only) only.textContent = (swap.dataset.swap || "").split("|")[0];
   }
 
   // --- the two lanes ------------------------------------------------------

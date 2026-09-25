@@ -1,29 +1,30 @@
 /* jobhunt — one accent, one radius scale, two type families.
-   Bone and ink rather than the dark-terminal-with-neon a developer tool
-   reaches for: the subject is somebody's career, and it should read like
-   paper. Green is used only where something has been verified. */
+   One palette, dark. The page alternates between a green field, ink, and the
+   near-black "paper" below - the light theme and its toggle were removed, so
+   every colour below is the only value that token ever takes. Green is used
+   only where something has been verified. */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --bone:      #faf9f6;
-  --paper:     #ffffff;
-  --sunk:      #f2f0ea;
-  --ink:       #12161a;
-  --ink-soft:  #4d565d;
-  --ink-faint: #8a9298;
-  --rule:      #e6e3dc;
-  --rule-soft: #efece6;
+  --bone:      #0d1012;
+  --paper:     #15191b;
+  --sunk:      #191e20;
+  --ink:       #f0f3f2;
+  --ink-soft:  #a9b3b2;
+  --ink-faint: #737d7c;
+  --rule:      #252b2d;
+  --rule-soft: #1d2224;
 
-  --accent:      #12664a;
-  --accent-deep: #0c4a35;
-  --accent-wash: #e6f1ec;
+  --accent:      #45c795;
+  --accent-deep: #6ddcb1;
+  --accent-wash: #12302599;
 
   /* The hero sits on a colour field rather than on paper. Both ends are dark
      enough that white body text clears AA on the brightest point of the
      highlight - 5.9:1 - which is the constraint that picked them. */
-  --field-base: #093d2b;
-  --field-lift: #14724f;
+  --field-base: #061f16;
+  --field-lift: #0d5238;
   --on-field:      #ffffff;
   --on-field-soft: rgba(255, 255, 255, .78);
   --on-field-dim:  rgba(255, 255, 255, .58);
@@ -34,10 +35,10 @@
   --glass-edge:   rgba(255, 255, 255, .34);
 
   /* The ink ground the page alternates onto. */
-  --night:      #0a0d0e;
-  --night-lift: #141a1c;
-  --flag:        #a63d19;
-  --flag-wash:   #fdeee6;
+  --night:      #06090a;
+  --night-lift: #10161a;
+  --flag:        #ef9b6a;
+  --flag-wash:   #2b1a11;
 
   --r-sm: 8px;
   --r-md: 12px;
@@ -50,41 +51,13 @@
           Consolas, monospace;
 
   --page: 1120px;
-  --lift: 0 1px 2px rgba(18, 22, 26, .04), 0 12px 32px -16px rgba(18, 22, 26, .16);
-  --lift-hi: 0 1px 2px rgba(18, 22, 26, .05), 0 28px 60px -28px rgba(18, 22, 26, .28);
-  --lift-float: 0 2px 4px rgba(6, 30, 22, .10), 0 30px 70px -24px rgba(6, 30, 22, .45);
+  --lift: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .7);
+  --lift-hi: 0 1px 2px rgba(0, 0, 0, .5), 0 28px 60px -28px rgba(0, 0, 0, .9);
+  --lift-float: 0 2px 4px rgba(0, 0, 0, .5), 0 30px 70px -24px rgba(0, 0, 0, .85);
 
   --ease: cubic-bezier(.22, 1, .36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bone: #0d1012; --paper: #15191b; --sunk: #191e20;
-    --ink: #f0f3f2; --ink-soft: #a9b3b2; --ink-faint: #737d7c;
-    --rule: #252b2d; --rule-soft: #1d2224;
-    --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
-    --flag: #ef9b6a; --flag-wash: #2b1a11;
-    --field-base: #061f16; --field-lift: #0d5238;
-    --night: #06090a; --night-lift: #10161a;
-    --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
-    --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
-    --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bone: #0d1012; --paper: #15191b; --sunk: #191e20;
-  --ink: #f0f3f2; --ink-soft: #a9b3b2; --ink-faint: #737d7c;
-  --rule: #252b2d; --rule-soft: #1d2224;
-  --accent: #45c795; --accent-deep: #6ddcb1; --accent-wash: #12302599;
-  --flag: #ef9b6a; --flag-wash: #2b1a11;
-  --field-base: #061f16; --field-lift: #0d5238;
-  --night: #06090a; --night-lift: #10161a;
-  --lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
-  --lift-hi: 0 1px 2px rgba(0,0,0,.5), 0 28px 60px -28px rgba(0,0,0,.9);
-  --lift-float: 0 2px 4px rgba(0,0,0,.5), 0 30px 70px -24px rgba(0,0,0,.85);
-}
 
 * { box-sizing: border-box; }
 
@@ -215,23 +188,6 @@ svg { display: block; }
 .bar.stuck nav a:hover { background: var(--rule-soft); }
 @media (max-width: 760px) { .bar nav a.hide-sm { display: none; } }
 
-.tog { width: 38px; height: 38px; display: grid; place-items: center;
-       border-radius: 999px; cursor: pointer; color: inherit;
-       background: rgba(255, 255, 255, .14);
-       border: 1px solid rgba(255, 255, 255, .20);
-       transition: background .18s, border-color .18s; }
-.tog:hover { background: rgba(255, 255, 255, .24); }
-.bar.stuck .tog { background: var(--paper); border-color: var(--rule);
-                  color: var(--ink-soft); }
-.bar.stuck .tog:hover { border-color: var(--ink-faint); color: var(--ink); }
-.tog .ico { width: 17px; height: 17px; }
-:root[data-theme="dark"] .i-sun, .i-moon { display: none; }
-:root[data-theme="dark"] .i-moon { display: block; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .i-sun { display: none; }
-  :root:not([data-theme="light"]) .i-moon { display: block; }
-}
-
 /* --- buttons ------------------------------------------------------------ */
 
 .btn {
@@ -260,12 +216,8 @@ svg { display: block; }
 /* Paper is the default and the field is the exception, not the other way
    round: most of this page is on paper, and a button that forgets to opt in
    should look ordinary rather than look like nothing. */
-.btn-go { background: var(--accent); color: #fff; box-shadow: var(--lift); }
+.btn-go { background: var(--accent); color: #052018; box-shadow: var(--lift); }
 .btn-go:hover { background: var(--accent-deep); box-shadow: var(--lift-hi); }
-:root[data-theme="dark"] .btn-go { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .btn-go { color: #052018; }
-}
 .btn-ghost { background: var(--paper); color: var(--ink); border-color: var(--rule); }
 .btn-ghost:hover { border-color: var(--ink-faint); }
 
@@ -310,39 +262,65 @@ h1 em { font-style: italic; font-weight: 620; }
 .cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 40px;
        justify-content: center; }
 
-/* --- the headline that retypes itself ----------------------------------- */
-/* The swapped half is absolutely sized by the longest option, so the line
-   below it does not jump every time a character lands. */
+/* --- the headline, typed once ------------------------------------------- */
+/* A hidden copy of the whole sentence holds the box open, and the characters
+   land into a copy laid over it. So the button below does not move while the
+   line is arriving.
 
-.type { position: relative; display: inline-block; white-space: nowrap; }
+   No `white-space: nowrap` on either. It was here while the typed part was
+   three words; a whole sentence under that rule runs straight off the right
+   edge of the page, which is what it did. Both copies wrap, and the live one
+   is given the ghost's width so it wraps at exactly the same words. */
+
+.type { position: relative; display: inline-block; max-width: 100%; }
 .type .ghost { visibility: hidden; }
-.type .live { position: absolute; left: 0; top: 0; white-space: nowrap; }
-.type .caret {
-  display: inline-block; width: .06em; height: .82em; margin-left: .06em;
-  background: currentColor; vertical-align: -.06em; border-radius: 1px;
-  animation: blink 1.05s steps(1) infinite;
+.type .live { position: absolute; left: 0; top: 0; width: 100%; }
+/* The caret rides the last typed character rather than sitting at the end of
+   the reserved box, which on a sentence this long is a different line. */
+.type .live::after {
+  content: ""; display: inline-block; width: .055em; height: .8em;
+  margin-left: .06em; background: currentColor; vertical-align: -.04em;
+  border-radius: 1px; animation: blink 1.05s steps(1) infinite;
 }
+.type.done .live::after { display: none; }
 @keyframes blink { 50% { opacity: 0; } }
-/* Without script the whole phrase is simply there, and there is no caret to
-   sit blinking beside a sentence that will never change. */
-html:not(.js) .type .live, html:not(.js) .type .caret { display: none; }
+/* Without script the whole sentence is simply there, and there is no caret to
+   sit blinking beside a line that will never change. */
+html:not(.js) .type .live { display: none; }
 html:not(.js) .type .ghost { visibility: visible; }
 
 /* --- the boards, sliding -------------------------------------------------- */
 
+/* The strip is whole copies of the same row, and each row carries the gap
+   that follows it in its own padding. That is the whole trick: translating by
+   exactly one row lands the next one where the first stood.
+
+   Two earlier versions of this were wrong in ways you could see. Laying the
+   chips out with `gap` on the track and translating -50% is half a gap short
+   every lap - a 7px snap, once a lap, forever. And two copies of five chips
+   is 1428px, which left 492px of empty green inside a 1920px bar, hard left.
+   Hence whole copies, and enough of them that the strip still covers the bar
+   after one has slid off: (copies - 1) x ~720px. */
 .slider { margin-top: 56px; position: relative;
+          display: flex; justify-content: center; overflow: hidden;
           -webkit-mask-image: linear-gradient(90deg, transparent,
                               #000 9%, #000 91%, transparent);
           mask-image: linear-gradient(90deg, transparent,
                       #000 9%, #000 91%, transparent); }
-.track { display: flex; gap: 14px; width: max-content;
+.track { display: flex; flex: none; width: max-content;
          animation: slide 34s linear infinite; }
+.row { display: flex; flex: none; gap: 14px; padding-right: 14px; }
 .slider:hover .track { animation-play-state: paused; }
-@keyframes slide { to { transform: translateX(-50%); } }
+/* -100%/copies is one row exactly, because every row is the same width. */
+@keyframes slide { to { transform: translateX(calc(-100% / var(--copies))); } }
 @media (prefers-reduced-motion: reduce) {
-  .track { animation: none; }
   .slider { -webkit-mask-image: none; mask-image: none; }
-  .track { flex-wrap: wrap; justify-content: center; width: auto; }
+  .track { animation: none; width: auto; flex: 1 1 auto; }
+  .row { flex-wrap: wrap; justify-content: center; flex: 1 1 auto;
+         padding-right: 0; }
+  /* One row is the whole point when nothing moves; the rest are the same
+     five names again. */
+  .row:not(:first-child) { display: none; }
 }
 
 .board { display: inline-flex; align-items: center; gap: 10px; flex: none;
@@ -393,11 +371,7 @@ html:not(.js) .type .ghost { visibility: visible; }
   text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
   background: var(--rule-soft); color: var(--ink-faint);
 }
-.cv.best .cv-top .tag { background: var(--accent); color: #fff; }
-:root[data-theme="dark"] .cv.best .cv-top .tag { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .cv.best .cv-top .tag { color: #052018; }
-}
+.cv.best .cv-top .tag { background: var(--accent); color: #052018; }
 
 .cv-body { padding: 22px 24px 20px; flex: 1; }
 .cv-summary { font-size: 14.5px; line-height: 1.5; color: var(--ink);
@@ -557,12 +531,7 @@ section { padding: clamp(74px, 12vh, 128px) 0; }
   transition: background .18s, color .18s;
 }
 .agents button[aria-selected="true"] .tick { background: var(--accent);
-                                             color: #fff; }
-:root[data-theme="dark"] .agents button[aria-selected="true"] .tick { color: #052018; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .agents button[aria-selected="true"] .tick {
-    color: #052018; }
-}
+                                             color: #052018; }
 .agents .group { font-size: 11.5px; font-weight: 560; letter-spacing: .09em;
                  text-transform: uppercase; color: var(--ink-faint);
                  padding: 20px 14px 8px; }
@@ -628,36 +597,6 @@ html:not(.js) .picker { grid-template-columns: minmax(0, 1fr); }
 .note.warn { background: var(--flag-wash);
              border-color: color-mix(in srgb, var(--flag) 24%, transparent); }
 .note b { color: var(--ink); font-weight: 560; }
-
-/* --- the eleven --------------------------------------------------------- */
-
-.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-@media (max-width: 880px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-
-.skill { background: var(--paper); border: 1px solid var(--rule);
-         border-radius: var(--r-lg); padding: 22px 22px 20px; display: block;
-         color: inherit;
-         transition: transform .26s var(--ease), box-shadow .26s var(--ease),
-                     border-color .26s; }
-.skill:hover { text-decoration: none; transform: translateY(-3px);
-               box-shadow: var(--lift-hi);
-               border-color: color-mix(in srgb, var(--accent) 32%, var(--rule)); }
-.skill.wide { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; }
-@media (max-width: 560px) { .skill.wide { display: block; } }
-.skill .badge { width: 38px; height: 38px; display: grid; place-items: center;
-                border-radius: 11px; background: var(--accent-wash);
-                color: var(--accent); margin-bottom: 16px; flex: none; }
-.skill.wide .badge { margin-bottom: 0; }
-.skill .badge .ico { width: 19px; height: 19px; }
-.skill h3 { font-size: 1.02rem; margin-bottom: 7px; }
-.skill p { color: var(--ink-soft); font-size: .92rem; }
-.skill .id { display: block; margin-top: 13px; font-family: var(--mono);
-             font-size: 11.5px; color: var(--ink-faint); }
-.skill.wide .id { margin-top: 8px; }
-/* `.skill.wide > div` matched the badge too - it is a div - and stretched it
-   across half the card. Named, so it cannot happen again. */
-.skill.wide .say { flex: 1; min-width: 0; }
 
 /* --- outreach ----------------------------------------------------------- */
 /* The second field. Glass again, because there is colour behind it again. */
@@ -795,23 +734,6 @@ html:not(.js) .lane.fast .meter i { width: 4%; }
 .soon-note { margin-top: 26px; font-size: .92rem; color: rgba(255,255,255,.55);
              display: flex; gap: 10px; align-items: flex-start; max-width: 62ch; }
 .soon-note .ico { width: 17px; height: 17px; flex: none; margin-top: 2px; }
-
-/* --- the one it still will not do ---------------------------------------- */
-
-.wont { display: flex; gap: 18px; align-items: flex-start; margin-top: 44px;
-        padding: 24px 26px; border-radius: var(--r-lg);
-        background: var(--night-lift);
-        border: 1px solid rgba(255, 255, 255, .09); max-width: 880px; }
-.wont .badge { flex: none; width: 40px; height: 40px; display: grid;
-               place-items: center; border-radius: 12px;
-               background: rgba(239, 155, 106, .14); color: #ef9b6a; }
-.wont .badge .ico { width: 20px; height: 20px; }
-.wont h3 { font-size: 1.02rem; margin-bottom: 8px; color: #fff; }
-.wont p { color: rgba(255, 255, 255, .68); font-size: .95rem; max-width: 62ch; }
-.wont .said { display: block; margin-top: 14px; font-size: 13.5px;
-              color: #ef9b6a; font-family: var(--mono); }
-.wont .said em { font-style: normal; color: rgba(255, 255, 255, .45);
-                 display: block; margin-bottom: 5px; font-family: var(--sans); }
 
 /* --- the star ------------------------------------------------------------ */
 

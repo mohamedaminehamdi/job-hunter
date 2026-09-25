@@ -67,9 +67,15 @@ def test_a_new_skill_cannot_be_forgotten():
 
 # --- the page describes what actually ships --------------------------------
 
-def test_every_skill_has_a_card(page):
-    for skill in SKILLS:
-        assert f">{skill}<" in page, f"{skill} is not on the page"
+def test_the_page_counts_the_skills_rather_than_claiming_a_number(page):
+    """The card grid is gone, but the page still says how many skills there
+    are, twice. Both numbers are counted from the folder now - the closer read
+    "Eleven skills" for as long as it took someone to notice the twelfth."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import build_site
+    assert build_site.HOW_MANY == build_site._WORDS[len(SKILLS)]
+    assert f"All {build_site.HOW_MANY} skills" in page
+    assert f"{build_site.HOW_MANY.capitalize()} skills" in page
 
 
 def test_every_download_link_points_at_an_archive_that_exists(page):
@@ -79,9 +85,12 @@ def test_every_download_link_points_at_an_archive_that_exists(page):
         assert (DOCS / link).exists(), f"{link} is linked but was never built"
 
 
-def test_every_skill_can_be_downloaded_on_its_own(page):
+def test_every_skill_is_still_built_as_its_own_archive():
+    """The page no longer links these one by one - the card grid that did was
+    removed. They are still built, because `install.sh --only` fetches them
+    and the download route offers the whole set."""
     for skill in SKILLS:
-        assert f'href="download/{skill}.zip"' in page, skill
+        assert (DOWNLOAD / f"{skill}.zip").exists(), skill
 
 
 def test_the_page_offers_no_skill_that_does_not_exist(page):
@@ -201,14 +210,29 @@ def test_white_text_on_the_field_clears_wcag_aa(page):
     assert ratio >= 4.5, f"white on {lift} is {ratio:.2f}:1, below AA"
 
 
-def test_both_themes_define_every_colour(page):
+def test_there_is_one_palette_and_no_way_to_switch_it(page):
+    """The light theme and its toggle were removed. What is left has to be
+    genuinely one palette: no theme attribute, no colour-scheme query, and no
+    button offering a switch that no longer exists."""
     css = page.split("<style>", 1)[1].split("</style>")[0]
-    light = set(re.findall(r"(--[a-z-]+):", css.split("@media")[0]))
-    for block in ("@media (prefers-color-scheme: dark)", ':root[data-theme="dark"]'):
-        assert block in css
-    # every token redefined in dark must exist in light, or the light theme has a hole
-    dark = set(re.findall(r"(--[a-z-]+):", css.split(':root[data-theme="dark"]')[1]))
-    assert dark <= light, dark - light
+    for gone in ("data-theme", "prefers-color-scheme", 'id="theme"',
+                 "jobhunt-theme", "i-sun", "i-moon"):
+        assert gone not in page, f"{gone} survived the removal"
+    assert "color-scheme: dark" in css
+    assert '<meta name="color-scheme" content="dark">' in page
+
+
+def test_every_colour_the_page_asks_for_is_defined(page):
+    """With one palette there is no second block to catch a token the first
+    one forgot. Folding the themes together nearly shipped a white label on
+    the bright-green install button, because the value it needed only ever
+    existed in the block that was deleted."""
+    css = page.split("<style>", 1)[1].split("</style>")[0]
+    root = css.split(":root {", 1)[1].split("\n}", 1)[0]
+    defined = set(re.findall(r"(--[a-z-]+)\s*:", root))
+    asked = set(re.findall(r"var\((--[a-z-]+)", css))
+    local = {"--fill", "--copies"}          # set on the elements themselves
+    assert asked - defined <= local, asked - defined - local
 
 
 def test_the_page_says_what_it_will_not_do(page):
@@ -291,6 +315,53 @@ PROBE = r"""
   out.push('reduced=' +
            window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   out.push('js=' + /(^| )js( |$)/.test(document.documentElement.className));
+
+  // The boards strip, measured rather than eyeballed. Both numbers below were
+  // wrong on the shipped page: the loop moved half a gap less than one copy,
+  // and the strip was narrower than the bar it sat in.
+  (function () {
+    var slider = document.querySelector('.slider'),
+        track = document.querySelector('.track'),
+        rows = track.children, total = 0, i;
+    for (i = 0; i < rows.length; i++) total += rows[i].getBoundingClientRect().width;
+    var one = rows[0].getBoundingClientRect().width,
+        bar = slider.getBoundingClientRect().width;
+    out.push('rows=' + rows.length);
+    out.push('rowsAllSameWidth=' + (function () {
+      for (var j = 1; j < rows.length; j++) {
+        if (Math.abs(rows[j].getBoundingClientRect().width - one) > 0.5) return false;
+      }
+      return true;
+    })());
+    // The stride that would be seamless: where the second row actually
+    // starts, which includes any gap between them. Transform-invariant,
+    // because both rows carry the same one.
+    var stride = rows.length > 1
+        ? rows[1].getBoundingClientRect().left - rows[0].getBoundingClientRect().left
+        : 0;
+    // How far the animation really travels: run it to its last frame and read
+    // the matrix. Computing this from --copies instead proved worthless - it
+    // agreed with itself while the keyframe said something else entirely.
+    var moved = -1;
+    var anims = track.getAnimations ? track.getAnimations() : [];
+    if (anims.length) {
+      // Sampled at the halfway point and doubled, because the timing is
+      // linear. Reading it at exactly the duration gives zero: an infinite
+      // animation has already wrapped round to its first frame by then.
+      var a = anims[0];
+      a.currentTime = a.effect.getComputedTiming().duration / 2;
+      var m = new DOMMatrix(getComputedStyle(track).transform);
+      moved = Math.abs(m.m41) * 2;
+      a.currentTime = 0;
+    }
+    out.push('stride=' + Math.round(stride));
+    out.push('travels=' + Math.round(moved));
+    out.push('seamJump=' + (moved < 0 ? -1 : Math.round(Math.abs(moved - stride))));
+    out.push('coversBarAfterOneRow=' + (total - one >= bar));
+    out.push('pageScrollsSideways=' +
+             (document.documentElement.scrollWidth >
+              document.documentElement.clientWidth));
+  })();
 
   setTimeout(function () {
     // 1. the first screenful, at rest
@@ -444,14 +515,27 @@ def test_the_first_screenful_is_visible_at_rest(moving, part):
 
 
 @needs_browser
-def test_the_headline_retypes_itself(moving):
-    """The swapped half is the page's one moving headline. Checked by sampling
-    it twice: the first sample is only the text the script seeds before the
-    loop starts, and a broken animation passes that test happily - which it
-    did, until this one sampled again later."""
-    assert int(moving["typed"]) > 0, "nothing was typed at all"
-    assert moving["typedMoved"] == "true", (
-        f"the headline never changed: {moving['typed']} -> {moving['typedLater']}")
+def test_the_headline_types_itself_out_and_then_holds_still(moving):
+    """One sentence, typed once. Sampled twice, because a headline that never
+    starts and a headline that never stops both pass a single sample - the
+    first sample is only what the script seeds, and an earlier version of this
+    test was fooled by exactly that.
+
+    The second sample has to be the whole sentence and nothing less: the old
+    headline deleted itself and started over forever, which is the behaviour
+    this replaced."""
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+    whole = len(data.HEADLINE_TYPED)
+    # The early sample is allowed to be empty - the sentence starts after a
+    # beat now, where the old one was seeded whole before the loop touched it.
+    # What has to hold is that it changed between the samples (so it typed
+    # rather than simply appearing) and that it ended up complete.
+    assert moving["typedMoved"] == "true", "the headline never typed anything"
+    assert int(moving["typedLater"]) == whole, (
+        f"settled at {moving['typedLater']} of {whole} characters")
+    assert int(moving["typed"]) < whole, (
+        "it was already finished at the first sample, so nothing was typed")
 
 
 @needs_browser
@@ -459,7 +543,7 @@ def test_reduced_motion_leaves_a_whole_phrase_not_a_stub(stilled):
     """Nothing types, so whatever is there has to be a finished sentence."""
     sys.path.insert(0, str(ROOT / "tools" / "site"))
     import data
-    assert int(stilled["typed"]) == len(data.HEADLINE_SWAP[0]), stilled["typed"]
+    assert int(stilled["typed"]) == len(data.HEADLINE_TYPED), stilled["typed"]
     assert stilled["typedMoved"] == "false", "it moved anyway"
 
 
@@ -468,10 +552,9 @@ def test_the_headline_never_leaves_a_hole_without_script(page):
     The `.ghost` copy carries it and is un-hidden by a `html:not(.js)` rule."""
     sys.path.insert(0, str(ROOT / "tools" / "site"))
     import data
-    longest = max(data.HEADLINE_SWAP, key=len)
-    assert f'<span class="ghost">{longest}</span>' in page
+    assert f'<span class="ghost">{data.HEADLINE_TYPED}</span>' in page
     assert "html:not(.js) .type .ghost { visibility: visible; }" in page
-    assert "html:not(.js) .type .live, html:not(.js) .type .caret" in page
+    assert "html:not(.js) .type .live { display: none; }" in page
 
 
 def test_the_two_cvs_are_right_without_any_script(page):
@@ -551,3 +634,41 @@ def test_reduced_motion_still_shows_the_whole_page(stilled):
     for part in ("hero-h1", "hero-cta", "hero-eyebrow", "hero-slider"):
         assert stilled[part] == "1", f"{part} is invisible"
     assert pair(stilled["railPast"])[1] == 4, "the steps never light"
+
+
+# --- the boards strip -------------------------------------------------------
+
+
+def test_the_boards_strip_loops_without_a_jump(moving):
+    """Every row the same width, and the animation moving exactly one of them.
+
+    The shipped version laid the chips out with `gap` on the track and
+    translated -50%. A gap sits *between* chips, so half of one is left over
+    every lap: the strip snapped 7px sideways, once a lap, forever.
+    """
+    assert int(moving["rows"]) > 1, "one copy cannot loop"
+    assert moving["rowsAllSameWidth"] == "true"
+    assert int(moving["travels"]) > 0, "the strip has no animation at all"
+    assert int(moving["seamJump"]) == 0, (
+        f"it travels {moving['travels']}px where one copy starts every "
+        f"{moving['stride']}px - a {moving['seamJump']}px snap, every lap")
+
+
+def test_the_boards_strip_fills_the_bar_it_sits_in(moving):
+    """Two copies of five chips is 1428px. In a 1920px bar that left 492px of
+    empty green, hard against the left edge, and the strip ran out mid-slide -
+    which is what "the slider is not centered" meant."""
+    assert moving["coversBarAfterOneRow"] == "true", (
+        "the strip runs out before the right edge once a copy has slid off")
+    assert moving["pageScrollsSideways"] == "false", (
+        "the strip is wider than the page and nothing is clipping it")
+
+
+def test_the_copy_count_in_the_markup_matches_the_one_the_animation_uses(page):
+    """The keyframe divides by --copies. If the markup and the property ever
+    disagree the strip jumps every lap, which is the bug this replaced."""
+    sys.path.insert(0, str(ROOT / "tools" / "site"))
+    import data
+    assert f'style="--copies: {data.BOARD_COPIES}"' in page
+    assert page.count('<div class="row"') == data.BOARD_COPIES
+    assert "translateX(calc(-100% / var(--copies)))" in page

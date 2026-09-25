@@ -162,7 +162,7 @@ def routes(agent):
         "that directory if it is not there yet.</p>"
         f'<p style="margin-top:14px"><a class="btn btn-ghost" '
         f'href="download/jobhunt-all.zip" download>{icon("download-simple")}'
-        "All twelve skills</a></p></div>")
+        f"All {HOW_MANY} skills</a></p></div>")
 
     warn = " warn" if agent["scope"] == "project" else ""
     lead = "<b>Per project, not per user.</b> " if agent["scope"] == "project" else ""
@@ -170,26 +170,37 @@ def routes(agent):
     return "".join(out)
 
 
+#: Spelled out because both places it appears are prose. Counted rather than
+#: typed: the closer said "eleven" for a while after the twelfth was added.
+_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven",
+          "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen"]
+HOW_MANY = _WORDS[len(data.read_skills())]
+
+#: Repeated rows say nothing new to a screen reader.
+HIDDEN = ' aria-hidden="true"' 
+
+
 def build():
-    skills = data.read_skills()
     css = (SITE / "style.css").read_text(encoding="utf-8")
     js = (SITE / "app.js").read_text(encoding="utf-8")
 
-    # The swapped half is sized by the longest option so nothing below it
-    # jumps as characters land.
-    longest = max(data.HEADLINE_SWAP, key=len)
+    # The ghost holds the sentence's full size from the first frame, so the
+    # page below it does not jump as characters land.
     headline = (
         f'{e(data.HEADLINE_FIXED)}<span class="type" '
-        f'data-swap="{e("|".join(data.HEADLINE_SWAP))}">'
-        f'<span class="ghost">{e(longest)}</span>'
-        f'<span class="live" aria-hidden="true"></span>'
-        f'<i class="caret" aria-hidden="true"></i></span> '
-        f"{e(data.HEADLINE_TAIL)}")
+        f'data-type="{e(data.HEADLINE_TYPED)}">'
+        f'<span class="ghost">{e(data.HEADLINE_TYPED)}</span>'
+        f'<span class="live" aria-hidden="true"></span></span>')
 
-    # Doubled, so the track can translate half its width and start over with
-    # no visible seam.
+    # Whole copies, each carrying the gap that follows it, so translating by
+    # exactly one copy lands the next one where it stood. The old version was
+    # two copies translated -50%: half a gap short every lap, a 7px snap, and
+    # 1428px of chips left 492px of blank inside a 1920px bar.
     one = "".join(brand(key) for key in data.BOARDS)
-    boards = one + one
+    # Only the first row is read out; the rest are the same five names again.
+    boards = "".join(
+        f'<div class="row"{"" if i == 0 else HIDDEN}>{one}</div>'
+        for i in range(data.BOARD_COPIES))
 
     cv_plain = cv_card(data.GENERIC, best=False)
     cv_best = cv_card(data.TAILORED, best=True)
@@ -224,28 +235,18 @@ def build():
         f'<div class="panel-name">{e(a["name"])}</div>{routes(a)}</div>'
         for a in data.AGENTS)
 
-    cards = []
-    for skill in skills:
-        wide = " wide" if skill["name"] == "jobhunt" else ""
-        cards.append(
-            f'<a class="skill{wide}" href="download/{e(skill["name"])}.zip" '
-            f'download><div class="badge">{icon(skill["icon"])}</div>'
-            f'<div class="say"><h3>{e(skill["headline"])}</h3>'
-            f'<p>{e(skill["plain"])}</p>'
-            f'<span class="id">{e(skill["name"])}</span></div></a>')
-
     page = f"""<!doctype html>
-<html lang="en" data-theme="">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>jobhunt — job applications you can stand behind</title>
 <meta name="description"
       content="{e(data.NET_TITLE)} {e(data.DAY_SUB)}">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <meta property="og:title" content="jobhunt">
 <meta property="og:description"
-      content="{e(data.HEADLINE_FIXED + data.HEADLINE_SWAP[0])} {e(data.HEADLINE_TAIL)}">
+      content="{e(data.HEADLINE_FIXED + data.HEADLINE_TYPED)}">
 <meta property="og:type" content="website">
 <link rel="icon" href="{FAVICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -253,16 +254,8 @@ def build():
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <style>{css}</style>
 <script>
-  /* Before first paint: marks that script runs, so the motion may hide things,
-     and applies a saved theme so the page does not flash the wrong one. */
-  (function () {{
-    var r = document.documentElement;
-    r.className += " js";
-    try {{
-      var t = localStorage.getItem("jobhunt-theme");
-      if (t === "light" || t === "dark") r.setAttribute("data-theme", t);
-    }} catch (e) {{}}
-  }})();
+  /* Before first paint, so the motion may hide what it is about to move. */
+  document.documentElement.className += " js";
 </script>
 </head>
 <body>
@@ -273,15 +266,12 @@ def build():
       <a class="mark" href="#top">{logo.mark(26)}jobhunt</a>
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
-        <a href="#skills" class="hide-sm">Skills</a>
+        <a href="#example" class="hide-sm">The difference</a>
         <a href="https://github.com/{REPO}" class="hide-sm">
           {icon("github-logo")}GitHub</a>
         <a href="https://github.com/{REPO}" class="star hide-sm"
            title="Starring it helps people find it">{icon("star")}Star</a>
         <a href="#install">Install</a>
-        <button class="tog" type="button" id="theme" aria-label="Switch theme">
-          {icon("sun", "i-sun")}{icon("moon", "i-moon")}
-        </button>
       </nav>
     </div>
   </div>
@@ -300,21 +290,29 @@ def build():
   </div>
 
   <div class="slider up" aria-label="Works with postings from these boards">
-    <div class="track">{boards}</div>
-  </div>
-
-  <div class="wrap">
-  <div class="wrap versus up">
-    <div class="versus-head">
-      <span class="for glass">{icon("link-simple")}{e(data.JOB)}</span>
-    </div>
-    <div class="pair">
-      {cv_plain}
-      {cv_best}
-    </div>
-    <p class="versus-foot">{e(data.COMPARE_NOTE)}</p>
+    <div class="track" style="--copies: {data.BOARD_COPIES}">{boards}</div>
   </div>
 </div>
+
+<section id="example">
+  <div class="wrap">
+    <div class="sec-head wide up">
+      <span class="kicker">{icon("link-simple")}The same six lines, twice</span>
+      <h2>{e(data.COMPARE_TITLE)}</h2>
+      <p>{e(data.COMPARE_SUB)}</p>
+    </div>
+    <div class="versus up">
+      <div class="versus-head">
+        <span class="for glass">{icon("link-simple")}{e(data.JOB)}</span>
+      </div>
+      <div class="pair">
+        {cv_plain}
+        {cv_best}
+      </div>
+      <p class="versus-foot">{e(data.COMPARE_NOTE)}</p>
+    </div>
+  </div>
+</section>
 
 <div class="night" id="cost">
   <div class="wrap">
@@ -337,16 +335,6 @@ def build():
           <span class="clock">{e(data.DAY_WITH["time"])}</span></div>
         <div class="meter"><i></i></div>
         <div class="lane-foot">{e(data.DAY_WITH["note"])}</div>
-      </div>
-    </div>
-
-    <div class="wont up">
-      <div class="badge">{icon("shield-check")}</div>
-      <div>
-        <h3>It still won't write you a career you don't have</h3>
-        <p>Every line comes out of your own profile, and anything it can't
-           trace back is flagged before you send it. Faster, not looser.</p>
-        <span class="said"><em>{e(data.FLAG["claim"])}</em>{e(data.FLAG["finding"])}</span>
       </div>
     </div>
   </div>
@@ -417,17 +405,6 @@ def build():
   </div>
 </section>
 
-<section id="skills">
-  <div class="wrap">
-    <div class="sec-head wide up">
-      <span class="kicker">{icon("briefcase")}What gets installed</span>
-      <h2>Twelve skills.</h2>
-      <p>Each works on its own, or all of them together.</p>
-    </div>
-    <div class="grid stagger">{"".join(cards)}</div>
-  </div>
-</section>
-
 <section id="faq">
   <div class="wrap">
     <div class="sec-head up">
@@ -458,8 +435,8 @@ def build():
 <div class="closer">
   <div class="wrap up">
     <h2>Your next application, in one command.</h2>
-    <p>Eleven skills, no account, nothing to install. It applies to nothing —
-       that part stays yours.</p>
+    <p>{HOW_MANY.capitalize()} skills, no account, nothing to install. It
+       applies to nothing — that part stays yours.</p>
     <div class="cta">
       <a class="btn btn-go" href="#install">Install{icon("arrow-right")}</a>
       <a class="btn btn-ghost" href="https://github.com/{REPO}">Read the source</a>

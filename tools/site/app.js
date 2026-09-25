@@ -1,4 +1,4 @@
-/* The picker, the theme, and the movement.
+/* The picker and the movement.
    No framework: this is one static page on GitHub Pages, and a library would
    be most of its weight. */
 
@@ -13,21 +13,6 @@
   }
   function remember(key, value) {
     try { localStorage.setItem(key, value); } catch (e) { /* private window */ }
-  }
-
-  // --- theme --------------------------------------------------------------
-  // Three states, like the OS: light, dark, and whatever the system says. The
-  // saved one is applied by the inline script in <head>, before first paint.
-
-  var toggle = document.getElementById("theme");
-  if (toggle) {
-    toggle.addEventListener("click", function () {
-      var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      var now = root.getAttribute("data-theme") || (dark ? "dark" : "light");
-      var next = now === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      remember("jobhunt-theme", next);
-    });
   }
 
   // --- the picker ---------------------------------------------------------
@@ -161,43 +146,29 @@
     });
   }
 
-  // --- the headline that retypes itself -----------------------------------
-  // Two ways of saying the same complaint. The second is the reason the first
-  // is a problem, and watching one become the other says that in less space
-  // than a sentence would.
+  // --- the headline, typed once -------------------------------------------
+  // It used to alternate between two phrases forever. A headline that never
+  // holds still is a headline nobody finishes reading, so now the sentence
+  // arrives once and stays. The caret goes with the last character: there is
+  // nothing left for it to be waiting for.
 
   var swap = document.querySelector(".type");
-  if (swap && !still) {
-    var phrases = (swap.dataset.swap || "").split("|").filter(Boolean);
-    var live = swap.querySelector(".live");
-    if (phrases.length > 1 && live) {
-      // Starts fully typed, so the first move is a delete. Getting this wrong
-      // is silent: with `back = false` the counter runs straight past the
-      // word's length, the equality check never fires, and the headline sits
-      // there looking finished forever.
-      var at = 0, cut = phrases[0].length, back = true;
-      live.textContent = phrases[0];
-
+  var live = swap && swap.querySelector(".live");
+  var whole = swap ? (swap.dataset.type || "") : "";
+  if (live && whole) {
+    if (still) {
+      live.textContent = whole;
+      swap.classList.add("done");
+    } else {
+      var cut = 0;
       var step = function () {
-        var word = phrases[at];
-        cut = Math.max(0, Math.min(word.length, cut + (back ? -1 : 1)));
-        live.textContent = word.slice(0, cut);
-
-        var wait = back ? 34 : 58;
-        if (!back && cut >= word.length) { back = true; wait = 2400; }
-        else if (back && cut <= 0) {
-          back = false;
-          at = (at + 1) % phrases.length;
-          wait = 380;
-        }
-        setTimeout(step, wait);
+        cut = Math.min(whole.length, cut + 1);
+        live.textContent = whole.slice(0, cut);
+        if (cut >= whole.length) { swap.classList.add("done"); return; }
+        setTimeout(step, 26);
       };
-      setTimeout(step, 2400);
+      setTimeout(step, 320);
     }
-  } else if (swap) {
-    // Still: one phrase, no caret, nothing moving.
-    var only = swap.querySelector(".live");
-    if (only) only.textContent = (swap.dataset.swap || "").split("|")[0];
   }
 
   // --- the two lanes ------------------------------------------------------
