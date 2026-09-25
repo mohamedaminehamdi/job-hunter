@@ -4,8 +4,10 @@ description: >
   Score a CV on its own, with no job description - how much of it is evidence
   rather than duties, whether the strongest lines are where a reader reaches
   them, and which listed skills nothing in the CV demonstrates. Use when
-  someone asks how good their CV is, what is wrong with it, or wants it
-  reviewed without a specific job in mind.
+  someone asks how good their CV is, what is wrong with it, how to improve
+  it, or wants it rated or reviewed without a specific job in mind. Returns a
+  score out of 100, the weakest dimension to start with, and a question per
+  weak bullet whose answer is the fix.
 allowed-tools: Bash, Read
 ---
 

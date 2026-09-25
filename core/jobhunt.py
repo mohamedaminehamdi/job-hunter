@@ -3538,14 +3538,74 @@ MANY_BULLETS = 8
 TOP_BULLETS = 2
 
 
+#: The question to ask about a bullet with no figure in it, chosen by what the
+#: bullet is about. "Add a metric" is advice nobody can act on; "how long did a
+#: release take before this, and after?" is a question with an answer.
+#:
+#: Matched in order, first hit wins, so specific patterns come before general
+#: ones. Nothing here guesses at a number - it asks for one.
+_ASK = [
+    (r"pipelin|ci/cd|\bci\b|deploy|release|rollout",
+     "How long did a release take before this, and after?"),
+    (r"monitor|alert|observab|dashboard|prometheus|grafana|logging",
+     "How many sources does it watch, and how fast does an alert arrive now?"),
+    (r"harden|secur|vulnerab|complian|audit|patch|penetration",
+     "How many findings, across how many machines?"),
+    (r"cost|spend|bill|budget|licen[cs]e",
+     "By how much, and from what baseline?"),
+    (r"automat|script|manual",
+     "How much manual work did this remove, per week?"),
+    (r"migrat|replac|consolidat|standardi|refactor",
+     "What did it replace, and what did the old way cost?"),
+    (r"integrat|webhook|sync|\bapi\b|etl|ingest",
+     "How many records or events a day, and what was the manual step before?"),
+    (r"\btest|coverage|\bqa\b",
+     "What is covered now that was not before?"),
+    (r"document|report|train|mentor|onboard|workshop",
+     "For how many people, and how often?"),
+    (r"built|develop|created|shipped|implement|designed",
+     "Who uses it, and how many of them?"),
+    (r"scal|perform|latency|throughput|uptime|availab",
+     "From what, to what?"),
+]
+_ASK = [(re.compile(pattern, re.IGNORECASE), question)
+        for pattern, question in _ASK]
+
+#: What to do about a whole dimension, said once rather than once per line.
+ADVICE = {
+    "evidence": ("Every bullet has to answer 'so what'. The figures are almost "
+                 "always in your head and not on the page - answer the "
+                 "questions below and put the answer in the line."),
+    "openers": ("Cut the opener and start with the verb. 'Responsible for the "
+                "pipelines' becomes 'Owned the pipelines' and loses nothing."),
+    "order": ("The material is right and it is buried. Move the strongest line "
+              "to the top of its role - this one is free to fix."),
+    "complete": "Five minutes of work, and a reader cannot act without it.",
+    "shown": ("Either the skill belongs in a bullet, or it does not belong on "
+              "the CV. A list nobody can check reads as a list."),
+    "shape": ("A bullet past two lines gets skimmed and a role past eight "
+              "bullets reads as a job description. Cut, do not summarise."),
+}
+
+
+def ask_about(line):
+    """The question worth asking about one unquantified bullet."""
+    for pattern, question in _ASK:
+        if pattern.search(line):
+            return question
+    return "How many, how much, how fast - and compared with what?"
+
+
 @dataclass
 class Finding:
-    """One thing to fix, and where."""
+    """One thing to fix, where, and what to do about it."""
 
     where: str = ""
     what: str = ""
     #: The line itself, so the reader can judge rather than trust a count.
     quote: str = ""
+    #: A finding without this is a complaint.
+    ask: str = ""
 
 
 @dataclass
@@ -3556,6 +3616,8 @@ class Dimension:
     points: int = 0
     #: The count behind the points, in the reader's terms.
     tally: str = ""
+    #: What to do about the whole dimension.
+    advice: str = ""
     findings: list = field(default_factory=list)
 
     SHAPE = {"findings": (list, Finding), "out_of": "raw", "points": "raw"}
@@ -3648,8 +3710,8 @@ def review(profile):
         name="evidence", out_of=WEIGHTS["evidence"],
         points=round(WEIGHTS["evidence"] * _share(len(quantified), len(every))),
         tally=f"{len(quantified)} of {len(every)} bullets carry a figure",
-        findings=[Finding(f"{w}.bullets[{j}]",
-                          "No figure - what changed, and by how much?", b)
+        advice=ADVICE["evidence"],
+        findings=[Finding(f"{w}.bullets[{j}]", "No figure", b, ask_about(b))
                   for w, j, b in misses[:6]]))
 
     # --- openers -----------------------------------------------------------
@@ -3659,8 +3721,9 @@ def review(profile):
         points=round(WEIGHTS["openers"] * _clean(len(weak), len(every))),
         tally=(f"{len(weak)} of {len(every)} bullets open by describing a duty"
                if weak else "every bullet opens with something you did"),
-        findings=[Finding(f"{w}.bullets[{j}]",
-                          f"Starts with {phrase!r} - lead with the verb instead", b)
+        advice=ADVICE["openers"],
+        findings=[Finding(f"{w}.bullets[{j}]", f"Starts with {phrase!r}", b,
+                          "Delete the opener and start with the verb.")
                   for w, j, b, phrase in weak[:6]]))
 
     # --- order -------------------------------------------------------------
@@ -3682,9 +3745,10 @@ def review(profile):
         points=round(WEIGHTS["order"] * _share(led, have)) if have else 0,
         tally=(f"{led} of {have} roles lead with a quantified line"
                if have else "no role has a quantified line to lead with"),
+        advice=ADVICE["order"],
         findings=[Finding(f"experience[{i}]",
-                          f"Strongest line is at number {at + 1} - move it up",
-                          role.bullets[at])
+                          f"Strongest line is at number {at + 1}",
+                          role.bullets[at], "Move it to the top of the role.")
                   for i, role, at in buried[:4]]))
 
     # --- complete ----------------------------------------------------------
@@ -3705,6 +3769,7 @@ def review(profile):
         points=round(WEIGHTS["complete"] * _share(len(wanted) - len(missing),
                                                   len(wanted))),
         tally=f"{len(wanted) - len(missing)} of {len(wanted)} things a reader looks for",
+        advice=ADVICE["complete"],
         findings=[Finding("personal", f"Missing: {label}") for label in missing]))
 
     # --- shown -------------------------------------------------------------
@@ -3724,9 +3789,10 @@ def review(profile):
         points=round(WEIGHTS["shown"] * _clean(len(unshown), len(profile.skills))),
         tally=(f"{len(profile.skills) - len(unshown)} of {len(profile.skills)} "
                "listed skills appear in your work"),
-        findings=([Finding("skills",
-                           "Listed but never shown in a bullet, project or "
-                           "certification", ", ".join(unshown[:14]))]
+        advice=ADVICE["shown"],
+        findings=([Finding("skills", "Listed but never shown in your work",
+                           ", ".join(unshown[:14]),
+                           "Work each one into a bullet, or take it off.")]
                   if unshown else [])))
 
     # --- shape -------------------------------------------------------------
@@ -3749,6 +3815,7 @@ def review(profile):
     found.dimensions.append(Dimension(
         name="shape", out_of=WEIGHTS["shape"],
         points=round(WEIGHTS["shape"] * _clean(len(problems), units)),
+        advice=ADVICE["shape"],
         tally=(f"{len(problems)} bullets or roles are the wrong size"
                if problems else "every bullet and role is a readable length"),
         findings=problems[:6]))
@@ -3769,27 +3836,66 @@ def band(score, out_of=100):
     return "Most of this describes duties rather than results."
 
 
+def biggest_win(found):
+    """The dimension with the most points left on the table.
+
+    Ranked by points lost, not by how low the score looks: a 0/10 is a smaller
+    problem than a 4/30, and telling somebody to fix the small one first is
+    how a review wastes their evening.
+    """
+    lost = [d for d in found.dimensions if d.points < d.out_of]
+    return max(lost, key=lambda d: d.out_of - d.points) if lost else None
+
+
+def _wrapped(body, width=78, pad="  "):
+    """Soft-wrap a paragraph for a terminal, without pulling in textwrap."""
+    out, line = [], pad
+    for word in body.split():
+        if len(line) + len(word) + 1 > width and line.strip():
+            out.append(line.rstrip())
+            line = pad
+        line += word + " "
+    if line.strip():
+        out.append(line.rstrip())
+    return out
+
+
 def review_page(found):
-    """The review as something a person reads, worst dimension first."""
-    out = [f"CV review — {found.name or 'your CV'}", "",
+    """The review as something a person reads: score, then what to do."""
+    out = [f"CV review - {found.name or 'your CV'}", "",
            f"{found.score} / {found.out_of}   {band(found.score, found.out_of)}",
            f"{found.roles} roles, {found.bullets} bullets", ""]
 
     for d in sorted(found.dimensions, key=lambda d: _share(d.points, d.out_of)):
-        bar = "█" * round(10 * _share(d.points, d.out_of))
-        out.append(f"{d.name:<10} {d.points:>2}/{d.out_of:<3} {bar:<10}  {d.tally}")
-    out.append("")
+        bar = "#" * round(10 * _share(d.points, d.out_of))
+        out.append(f"  {d.name:<9} {d.points:>2}/{d.out_of:<3} {bar:<10}  {d.tally}")
+
+    first = biggest_win(found)
+    if first is not None:
+        out += ["", "START HERE",
+                f"  {first.name} - {first.out_of - first.points} points are "
+                "sitting in this one."]
+        out += _wrapped(first.advice)
 
     for d in sorted(found.dimensions, key=lambda d: _share(d.points, d.out_of)):
         if not d.findings:
             continue
-        out.append(f"{d.name.upper()}")
+        out += ["", f"{d.name.upper()}  {d.points}/{d.out_of}"]
+        # Said once. Repeating it under the heading it was just quoted in is
+        # how a report teaches people to skim it.
+        if first is None or d.name != first.name:
+            out += _wrapped(d.advice)
         for f in d.findings:
-            out.append(f"  · {f.what}")
+            out.append("")
+            out.append(f"  - {f.what}")
             if f.quote:
-                out.append(f"      {_excerpt(f.quote, 92)}")
-        out.append("")
+                out.append(f"      {_excerpt(f.quote, 88)}")
+            if f.ask:
+                # A question is something to answer; an instruction is
+                # something to do. Labelling both the same makes neither land.
+                lead = "ask yourself" if f.ask.rstrip().endswith("?") else "do"
+                out.append(f"      {lead}: {f.ask}")
 
-    out += ["This measures how the CV is built, not whether you will get a job.",
+    out += ["", "This measures how the CV is built, not whether you will get a job.",
             "For a particular posting, score the fit against it instead."]
     return "\n".join(out)

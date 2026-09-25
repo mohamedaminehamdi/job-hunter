@@ -165,7 +165,7 @@ yours. Read what you send.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), and [AGENTS.md](AGENTS.md) for how the
-repo is laid out. `pytest` — 373 tests, on Python 3.9 and up.
+repo is laid out. `pytest` — 443 tests, on Python 3.9 and up.
 
 ## License
 

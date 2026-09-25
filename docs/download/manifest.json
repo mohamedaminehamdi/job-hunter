@@ -6,62 +6,62 @@
   },
   "jobhunt-all": {
     "file": "jobhunt-all.zip",
-    "bytes": 560462,
-    "sha256": "6217a8a7db785335"
+    "bytes": 579813,
+    "sha256": "a08a30e89398591f"
   },
   "jobhunt-answer": {
     "file": "jobhunt-answer.zip",
-    "bytes": 50817,
-    "sha256": "86f18ffd2029a120"
+    "bytes": 52571,
+    "sha256": "f34042f4a557650d"
   },
   "jobhunt-critique": {
     "file": "jobhunt-critique.zip",
-    "bytes": 50336,
-    "sha256": "d9b08b4cf552035a"
+    "bytes": 52090,
+    "sha256": "c15020fdd7adbba9"
   },
   "jobhunt-fit": {
     "file": "jobhunt-fit.zip",
-    "bytes": 50739,
-    "sha256": "2682961cc7d4797f"
+    "bytes": 52493,
+    "sha256": "903e63cfa830b66b"
   },
   "jobhunt-guard": {
     "file": "jobhunt-guard.zip",
-    "bytes": 50595,
-    "sha256": "15dd8327da3ad8f9"
+    "bytes": 52349,
+    "sha256": "2d4be4c1ff77c1fb"
   },
   "jobhunt-letter": {
     "file": "jobhunt-letter.zip",
-    "bytes": 50439,
-    "sha256": "c2d859fd363ee11a"
+    "bytes": 52193,
+    "sha256": "175c3600cce65756"
   },
   "jobhunt-outreach": {
     "file": "jobhunt-outreach.zip",
-    "bytes": 50451,
-    "sha256": "45993ad71bd5c17d"
+    "bytes": 52205,
+    "sha256": "a04bc29ca555c195"
   },
   "jobhunt-pdf": {
     "file": "jobhunt-pdf.zip",
-    "bytes": 50355,
-    "sha256": "c6c68171bb834735"
+    "bytes": 52109,
+    "sha256": "4441309b21cfd0c7"
   },
   "jobhunt-posting": {
     "file": "jobhunt-posting.zip",
-    "bytes": 51502,
-    "sha256": "cae0b0595a6e619f"
+    "bytes": 53256,
+    "sha256": "8b95a3299292b0b5"
   },
   "jobhunt-profile": {
     "file": "jobhunt-profile.zip",
-    "bytes": 51359,
-    "sha256": "d2bbaa2b2c3d8a67"
+    "bytes": 53113,
+    "sha256": "2e34a9ffca2773fd"
   },
   "jobhunt-review": {
     "file": "jobhunt-review.zip",
-    "bytes": 51231,
-    "sha256": "61dae19be91e351b"
+    "bytes": 53042,
+    "sha256": "2637fa7775621813"
   },
   "jobhunt-tailor": {
     "file": "jobhunt-tailor.zip",
-    "bytes": 50859,
-    "sha256": "0c13081b50ef0a94"
+    "bytes": 52613,
+    "sha256": "75acbfefd5ba9130"
   }
 }

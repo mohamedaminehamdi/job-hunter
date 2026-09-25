@@ -209,12 +209,28 @@ def test_a_pdf_comes_out_of_the_browser_already_installed(tmp_path):
 
 
 @needs_browser
-def test_the_browser_does_not_hold_the_run_open(tmp_path):
-    """Chrome lingers after writing; waiting on it turns 2s into 5 minutes."""
-    import time
-    start = time.monotonic()
+def test_the_browser_does_not_hold_the_run_open(tmp_path, monkeypatch):
+    """Chrome lingers after writing the PDF; it does not exit on its own. Wait
+    on it and a 2-second render becomes a hang.
+
+    This used to assert a wall clock bound, which measured the machine rather
+    than the code and flaked on a loaded one. The regression is specifically an
+    unbounded `wait()`, so that is what is asserted: every wait the render does
+    carries a timeout, and none of them is long.
+    """
+    import subprocess
+    waits = []
+    real = subprocess.Popen.wait
+
+    def spy(self, timeout=None):
+        waits.append(timeout)
+        return real(self, timeout=timeout)
+
+    monkeypatch.setattr(subprocess.Popen, "wait", spy)
     jh.write_pdf("<p>hi</p>", tmp_path / "x.pdf")
-    assert time.monotonic() - start < 30
+    assert all(t is not None for t in waits), \
+        f"an unbounded wait on the browser: {waits}"
+    assert all(t <= 5 for t in waits if t is not None), waits
 
 
 def test_no_browser_says_the_markdown_was_still_written(tmp_path, monkeypatch):
@@ -393,3 +409,74 @@ def test_the_review_never_claims_to_predict_hiring():
     assert "not whether you will get a job" in page
     for wrong in ("chance of", "likely to be hired", "probability", "guarantee"):
         assert wrong not in page, wrong
+
+
+# --- the advice half: a finding without it is a complaint ------------------
+
+def test_every_dimension_says_what_to_do_about_itself():
+    assert set(jh.ADVICE) == set(jh.WEIGHTS), "a dimension with no advice"
+    for name, said in jh.ADVICE.items():
+        assert len(said) > 40, f"{name}: too short to act on"
+
+
+@pytest.mark.parametrize("line, expect", [
+    ("Deployed a CI/CD pipeline with GitHub Actions", "release take"),
+    ("Built a monitoring and alerting tool", "how fast does an alert"),
+    ("Hardened Linux production servers", "how many machines"),
+    ("Integrated HubSpot CRM via webhooks", "records or events"),
+    ("Cut multi-cloud spend across AWS and GCP", "from what baseline"),
+    ("Mentored the new starters", "how many people"),
+    ("Reorganised the filing cabinet", "How many, how much, how fast"),
+])
+def test_the_question_fits_the_bullet(line, expect):
+    """"Add a metric" is advice nobody can act on. The question has to be one
+    the person can actually answer about that line."""
+    assert expect.lower() in jh.ask_about(line).lower()
+
+
+def test_every_unquantified_bullet_gets_a_question():
+    profile = jh.Profile(experience=[jh.Role(company="A", bullets=[
+        "Deployed a CI/CD pipeline.", "Wrote some documentation.",
+        "Did an unusual thing nobody has a pattern for."])])
+    evidence = next(d for d in jh.review(profile).dimensions
+                    if d.name == "evidence")
+    assert len(evidence.findings) == 3
+    for f in evidence.findings:
+        assert f.ask, f"no question for {f.quote!r}"
+        assert f.quote, "a question with no line to attach it to"
+
+
+def test_the_report_starts_with_the_biggest_win_not_the_lowest_bar():
+    """A 0/10 is a smaller problem than a 4/30. Sending somebody at the small
+    one first is how a review wastes their evening."""
+    profile = jh.Profile(
+        personal=jh.Personal(name="A", surname="B", email="a@b.co", phone="1",
+                             city="X", country="Y", headline="Z",
+                             github="https://g/a"),
+        summary="s", skills=["dbt"],
+        experience=[jh.Role(company="A", start="2021", bullets=[
+            "Responsible for the pipelines.",
+            "Involved in the migration."])])
+    found = jh.review(profile)
+    assert jh.biggest_win(found).name == "evidence", \
+        [(d.name, d.points, d.out_of) for d in found.dimensions]
+    page = jh.review_page(found)
+    assert "START HERE" in page and "evidence -" in page
+
+
+def test_the_advice_is_not_repeated_under_its_own_heading():
+    """Saying it twice is how a report teaches people to skim it."""
+    profile = jh.Profile(experience=[jh.Role(company="A", bullets=["Did work."])])
+    page = jh.review_page(jh.review(profile))
+    assert page.count("answer the questions below") == 1, page
+
+
+def test_an_instruction_is_not_labelled_as_a_question():
+    profile = jh.Profile(skills=["Jenkins"],
+                         experience=[jh.Role(company="A", bullets=["Cut 35%."])])
+    page = jh.review_page(jh.review(profile))
+    for line in page.splitlines():
+        if "ask yourself:" in line:
+            assert line.rstrip().endswith("?"), line
+        if line.strip().startswith("do:"):
+            assert not line.rstrip().endswith("?"), line
