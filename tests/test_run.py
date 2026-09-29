@@ -212,6 +212,19 @@ def test_unreadable_json_says_so_and_does_not_traceback(work, skill, name):
     assert "Traceback" not in done.stderr
 
 
+def test_a_broken_profile_names_the_line_not_a_missing_name(work):
+    """The regression the YAML reader was rewritten to fix, seen from the
+    script: a `{a: b}` on line 4 used to come out as "A name is required"."""
+    (Path(work) / "jobhunt" / "profile.yaml").write_text(
+        "personal:\n  name: Ada\n  surname: Lovelace\nskills: {a: b}\n",
+        encoding="utf-8")
+    done = run("jobhunt-profile", work=work, check=False)
+    assert done.returncode == jh.BLOCKED
+    assert "line 4" in done.stderr
+    assert "name is required" not in done.stderr
+    assert "Traceback" not in done.stderr
+
+
 def test_a_run_outside_the_runs_directory_is_refused(work):
     done = run("jobhunt-fit", "--run", "/etc", "--when", "before",
                work=work, check=False)

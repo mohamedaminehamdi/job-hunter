@@ -410,10 +410,12 @@ def yaml_dump(data, indent=0):
 
 # --- model ------------------------------------------------------------------
 #
-# Loading a profile or a posting NEVER raises. Intake produces partial, messy
-# data - a half-parsed PDF, a template with placeholders still in it, a posting
-# behind a login wall - and the right response is a checklist the user can act
-# on, not a stack trace. Validation reports; it does not reject.
+# Loading a profile or a posting never rejects its *content*. Intake produces
+# partial, messy data - a half-parsed PDF, a template with placeholders still in
+# it, a posting behind a login wall - and the right response is a checklist the
+# user can act on, not a stack trace. Validation reports; it does not reject.
+# The one thing `load` does raise on is a file that is not YAML at all, with
+# the line number, because "fix line 14" is the checklist for that.
 
 #: Deliberately loose: these catch obvious junk without rejecting unusual-but-real
 #: values. Someone's email really can have a + and four dots in it.
@@ -730,18 +732,21 @@ class Job:
 def load(cls, path, **overrides):
     """Read a record from YAML. Returns an empty one if there is nothing there.
 
-    Malformed YAML yields an empty record rather than raising: something always
-    has to be shown to the user, and `report()` is where they find out what is
-    wrong with it.
+    Missing fields never raise - `report()` is where the user hears about
+    those. A file that is not the YAML subset does raise, as `YamlError` with
+    the line, because swallowing it here reported a `{a: b}` on line 14 as
+    "a name is required" and "add at least one role": the exact failure the
+    reader was rewritten to stop, put back one layer up. Every script runs
+    under `run_cli`, which turns the error into exit 1 and that one sentence.
     """
     path = Path(path)
     if not path.exists():
         return build(cls, {}, **overrides)
     try:
-        raw = yaml_load(path.read_text(encoding="utf-8"))
-    except (YamlError, OSError, UnicodeDecodeError):
-        raw = {}
-    return build(cls, raw, **overrides)
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return build(cls, {}, **overrides)
+    return build(cls, yaml_load(source), **overrides)
 
 
 def save(obj, path):
