@@ -225,6 +225,26 @@ def test_a_broken_profile_names_the_line_not_a_missing_name(work):
     assert "Traceback" not in done.stderr
 
 
+def test_the_brief_needs_no_dummy_selection(work):
+    """The brief is read before there is a selection to give. The positional
+    used to be required anyway, so the skill said to pass an `x` on the end."""
+    run_dir = Path(work) / "jobhunt" / "runs" / "2026-01-01-zeta"
+    run_dir.mkdir(parents=True)
+    jh.save(jh.build(jh.Job, JOB), run_dir / "job.yaml")
+    done = run("jobhunt-tailor", "--brief", "--run", run_dir, work=work)
+    assert "[0] Data Engineer - Acme" in done.stdout
+    assert emitted(done)["roles"] == 2
+
+
+def test_tailoring_with_nothing_to_tailor_from_says_so(work):
+    run_dir = Path(work) / "jobhunt" / "runs" / "2026-01-01-zeta"
+    run_dir.mkdir(parents=True)
+    done = run("jobhunt-tailor", "--run", run_dir, work=work, check=False)
+    assert done.returncode != jh.OK
+    assert "--brief" in done.stderr
+    assert "Traceback" not in done.stderr
+
+
 def test_a_run_outside_the_runs_directory_is_refused(work):
     done = run("jobhunt-fit", "--run", "/etc", "--when", "before",
                work=work, check=False)

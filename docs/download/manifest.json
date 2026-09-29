@@ -6,8 +6,8 @@
   },
   "jobhunt-all": {
     "file": "jobhunt-all.zip",
-    "bytes": 523092,
-    "sha256": "542eb4c5ae4b3a9d"
+    "bytes": 523233,
+    "sha256": "ba78aa138bdaea00"
   },
   "jobhunt-answer": {
     "file": "jobhunt-answer.zip",
@@ -56,7 +56,7 @@
   },
   "jobhunt-tailor": {
     "file": "jobhunt-tailor.zip",
-    "bytes": 51978,
-    "sha256": "ef9dfe79b1f6f511"
+    "bytes": 52119,
+    "sha256": "5262079aed098409"
   }
 }
