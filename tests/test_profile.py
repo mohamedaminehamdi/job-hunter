@@ -102,6 +102,8 @@ def test_load_malformed_yaml_names_the_line_instead_of_an_empty_profile(tmp_path
         load(Profile, bad)
     assert caught.value.line == 3
     assert "this reader does not do" in str(caught.value)
+    # A run holds four YAML files; "line 3" alone sends them to the wrong one.
+    assert str(caught.value).startswith(f"{bad}, line 3: ")
 
 
 def test_load_yaml_that_merely_lacks_fields_reports_rather_than_raising(tmp_path: Path):

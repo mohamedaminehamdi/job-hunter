@@ -179,11 +179,16 @@ def clone(obj, **changes):
 
 
 class YamlError(ValueError):
-    """A YAML file we could not read, and where."""
+    """A YAML file we could not read, and where: the line, and the file when
+    whoever raised it knows which. A run holds four YAML files, so "line 4"
+    on its own sends the user to the wrong one."""
 
-    def __init__(self, line, message):
+    def __init__(self, line, message, path=""):
         self.line = line
-        super().__init__(f"line {line}: {message}")
+        self.message = message
+        self.path = str(path)
+        where = f"{self.path}, line {line}" if self.path else f"line {line}"
+        super().__init__(f"{where}: {message}")
 
 
 _KEY = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*)\s*:(?:\s+(?P<value>.*))?$")
@@ -746,7 +751,11 @@ def load(cls, path, **overrides):
         source = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return build(cls, {}, **overrides)
-    return build(cls, yaml_load(source), **overrides)
+    try:
+        raw = yaml_load(source)
+    except YamlError as exc:
+        raise YamlError(exc.line, exc.message, path) from None
+    return build(cls, raw, **overrides)
 
 
 def save(obj, path):

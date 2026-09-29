@@ -220,7 +220,7 @@ def test_a_broken_profile_names_the_line_not_a_missing_name(work):
         encoding="utf-8")
     done = run("jobhunt-profile", work=work, check=False)
     assert done.returncode == jh.BLOCKED
-    assert "line 4" in done.stderr
+    assert "profile.yaml, line 4" in done.stderr
     assert "name is required" not in done.stderr
     assert "Traceback" not in done.stderr
 
