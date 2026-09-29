@@ -348,13 +348,19 @@ _LOOKS_TYPED = re.compile(
     r"|true|false|yes|no|on|off|null|~|\d{4}-\d\d-\d\d.*)$", re.IGNORECASE)
 
 
+#: A hash after whitespace opens a comment, so "Python # scripting" written
+#: bare reads back as "Python" - from this reader and from every other one.
+_COMMENTISH = re.compile(r"[ \t]#")
+
+
 def _scalar(value):
     text_value = "" if value is None else str(value)
     if "\n" in text_value:
         return None                                   # caller writes a | block
     if (text_value == "" or not _PLAIN.match(text_value)
             or _LOOKS_TYPED.match(text_value) or text_value.endswith(" ")
-            or ": " in text_value or text_value.endswith(":")):
+            or ": " in text_value or text_value.endswith(":")
+            or _COMMENTISH.search(text_value)):
         return '"' + text_value.replace("\\", "\\\\").replace('"', '\\"') + '"'
     return text_value
 
