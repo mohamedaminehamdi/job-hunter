@@ -2225,9 +2225,13 @@ _SETTLE = 0.4
 def find_browser():
     """A Chromium-family browser on this machine, or None.
 
-    `JOB_HUNTER_BROWSER` overrides, for a machine with one somewhere unusual.
+    `JOBHUNT_BROWSER` overrides, for a machine with one somewhere unusual -
+    the name the README, the pdf skill and CI give. The code read only the
+    older `JOB_HUNTER_BROWSER` for a while, so the documented one did nothing;
+    the old name is still honoured for anyone who set it.
     """
-    named = os.environ.get("JOB_HUNTER_BROWSER", "").strip()
+    named = (os.environ.get("JOBHUNT_BROWSER", "").strip()
+             or os.environ.get("JOB_HUNTER_BROWSER", "").strip())
     if named:
         return named if Path(named).exists() else shutil.which(named)
     for candidate in _CHROMES:
@@ -2611,7 +2615,7 @@ def write_pdf(page, path):
         raise PdfError(
             "No Chrome, Chromium, Edge or Brave found, so the PDF could not be "
             "made. The markdown version was still written and is ready to send. "
-            "Install any of those browsers, or set JOB_HUNTER_BROWSER to one.")
+            "Install any of those browsers, or set JOBHUNT_BROWSER to one.")
 
     work = Path(tempfile.mkdtemp(prefix="jobhunt-pdf-"))
     source = work / "document.html"
