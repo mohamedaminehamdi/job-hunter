@@ -1,0 +1,137 @@
+personal:
+  name: Tomasz
+  surname: Kowalski
+  headline: Staff Engineer - Payments Infrastructure
+  email: tomasz.kowalski@example.com
+  phone: "+48 600 000 000"
+  city: Warsaw
+  country: Poland
+  github: https://github.com/tkowalski
+  linkedin: https://linkedin.com/in/tkowalski
+  website: https://tkowalski.dev
+summary: Staff engineer with fourteen years in payments and platform infrastructure, most recently owning the ledger and settlement systems behind 3 billion euros a year of transfers.
+skills:
+- Go
+- Java
+- Kotlin
+- PostgreSQL
+- Kafka
+- Kubernetes
+- Terraform
+- AWS
+- GCP
+- gRPC
+- Redis
+- Prometheus
+- Grafana
+- Distributed Systems
+- Incident Management
+- Technical Leadership
+experience:
+- position: Staff Engineer, Payments Infrastructure
+  company: Vistula Pay
+  start: "2021-03"
+  end: Present
+  location: Warsaw, Poland
+  industry: Fintech
+  bullets:
+  - Own the ledger and settlement platform processing 3 billion euros a year across 14 services in Go.
+  - Led the migration from a single Postgres primary to a sharded layout, taking p99 write latency from 400 ms to 45 ms.
+  - Designed the Kafka-based event backbone that replaced nightly reconciliation with real-time settlement for 220 merchants.
+  - Ran the incident process for a team of 30 engineers; mean time to resolve fell from 3 hours to 40 minutes over two years.
+  - Mentored 6 engineers to senior, two of them now leading teams.
+  - Wrote the platform's reliability standards, adopted by 5 teams outside payments.
+  - Responsible for the quarterly capacity plan and the 1.8 million euro infrastructure budget.
+  skills:
+  - Go
+  - Kafka
+  - PostgreSQL
+- position: Senior Software Engineer
+  company: Baltic Commerce
+  start: "2017-06"
+  end: "2021-02"
+  location: Gdansk, Poland
+  industry: E-commerce
+  bullets:
+  - Built the checkout service in Java that handled 12,000 orders an hour at peak.
+  - Moved 40 services from VMs to Kubernetes on GCP with Terraform, cutting the infrastructure bill by 28%.
+  - Introduced canary deployments, taking failed releases from 6 a quarter to 1.
+  - Led a team of 5 through the PSD2 strong customer authentication rollout on schedule.
+  - Built the Grafana dashboards the whole engineering group used for on-call.
+  - Interviewed 80 candidates and wrote the backend hiring rubric.
+  skills:
+  - Java
+  - Kubernetes
+  - GCP
+- position: Software Engineer
+  company: Odra Systems
+  start: "2014-01"
+  end: "2017-05"
+  location: Wroclaw, Poland
+  industry: Banking software
+  bullets:
+  - Developed the core banking batch engine in Java that settled 2 million transactions a night for 3 banks.
+  - Cut the nightly batch window from 6 hours to 2 by rewriting the posting logic and adding partitioning.
+  - Built the reconciliation reports regulators asked for, replacing a manual process that took 2 people a day.
+  - Worked on the SWIFT message integration.
+  - On-call for the production estate one week in four.
+  skills:
+  - Java
+  - PostgreSQL
+- position: Junior Software Engineer
+  company: Odra Systems
+  start: "2012-02"
+  end: "2013-12"
+  location: Wroclaw, Poland
+  industry: Banking software
+  bullets:
+  - Implemented the account statement generator used by 400,000 customers a month.
+  - Fixed 120 defects in the first year and wrote the regression suite that stopped 30 of them recurring.
+  - Involved in the migration from SVN to Git for a team of 25.
+  skills:
+  - Java
+- position: Software Engineering Intern
+  company: Warsaw University of Technology
+  start: "2011-07"
+  end: "2011-09"
+  location: Warsaw, Poland
+  industry: Research
+  bullets:
+  - Built a Monte Carlo simulation of order-book dynamics in C++ for a research group of 4.
+  skills:
+  - C++
+education:
+- level: MSc
+  institution: Warsaw University of Technology
+  field_of_study: Computer Science
+  start: "2009"
+  end: "2011"
+  grade: ""
+  location: Warsaw, Poland
+  courses: []
+projects:
+- name: ledgerkit
+  description: An open-source double-entry ledger library in Go with 1,400 GitHub stars, used by two fintechs in production.
+  link: https://github.com/tkowalski/ledgerkit
+  tech:
+  - Go
+- name: Payments Reliability talk series
+  description: Six conference talks on settlement reliability, including two at the European Payments Conference.
+  link: ""
+  tech: []
+certifications:
+- name: AWS Certified Solutions Architect - Professional
+  issuer: Amazon Web Services
+  year: "2022"
+  description: ""
+- name: Certified Kubernetes Administrator
+  issuer: Cloud Native Computing Foundation
+  year: "2020"
+  description: ""
+languages:
+- name: Polish
+  level: native
+- name: English
+  level: fluent
+- name: German
+  level: intermediate

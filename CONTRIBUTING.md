@@ -86,6 +86,45 @@ When a test's name reads like a sentence about behaviour, keep it that way.
 The point of `test_evidenced_is_identical_before_and_after` is that someone
 reading the failure knows what broke without opening the file.
 
+## Testing the rendered CV
+
+The CV is the product, and a CV that is correct and looks generated has
+failed. Two kinds of check, because two kinds of thing go wrong.
+
+**What a test can read off the page** runs on every change:
+
+- `tests/test_layout.py` asks every renderer - HTML, markdown, LaTeX - the
+  same questions side by side: is every section there, are dates written as a
+  person writes them, is the order right for the person, does a heading ever
+  end a page, does the density ladder tighten the page, does trimming cut what
+  it says and nothing else, does the page count come out of the PDF.
+- `tests/test_corpus.py` runs the same questions over `tests/corpus/`, five
+  profiles standing for five kinds of person (its README says who), and where
+  the machine has a browser or a TeX engine it renders each one and asserts it
+  fits its page budget.
+- `tests/test_latex.py` and `tests/test_render.py` hold the escaping: nothing
+  a person types may break the compile or inject markup.
+
+**What only an eye can judge** - whether it looks like a CV somebody would
+send - is rendered by `tools/gallery.py` and kept as a CI artifact named
+`cv-gallery` for a week. When you change anything under `render`, download it
+and open the PDFs. Look for, in this order:
+
+1. Page count against the budget, and nothing orphaned on a last page.
+2. Name, headline and contact line first, on one or two lines, no `https://`.
+3. Dates on the right, month and year, an en dash between.
+4. Section order: a student's degree first, an experienced hire's roles.
+5. The same sections in the LaTeX PDF and the browser PDF.
+6. French: accents set, nothing dropped.
+
+**When a CV goes wrong that the corpus does not cover**, add a profile to
+`tests/corpus/` and a row to its README saying what it is there to catch.
+That is how the corpus grows: from failures, not from imagination.
+
+**Thresholds** - one page, two past ten years, five bullets before trimming,
+sixty words of summary - are constants in `core/jobhunt.py` with a comment
+saying why. Change the number and the comment together.
+
 ## Style
 
 - Comments say **why**, not what. If a line needs a comment to say what it

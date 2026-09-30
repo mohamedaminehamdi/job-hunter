@@ -1,0 +1,95 @@
+personal:
+  name: Priya
+  surname: Menon
+  headline: Data Analyst - formerly a secondary school maths teacher
+  email: priya.menon@example.com
+  phone: "+44 7700 900123"
+  city: Manchester
+  country: United Kingdom
+  github: https://github.com/priyamenon
+  linkedin: https://linkedin.com/in/priyamenon
+  website: ""
+summary: Data analyst with a year in an analytics team and eight years teaching mathematics, comfortable turning a messy spreadsheet into a decision and explaining it to people who do not like numbers.
+skills:
+- SQL
+- Python
+- pandas
+- Power BI
+- Excel
+- dbt
+- Statistics
+- Data Visualisation
+- Stakeholder Communication
+- Teaching
+experience:
+- position: Junior Data Analyst
+  company: Northern Rail Analytics
+  start: "2025-01"
+  end: Present
+  location: Manchester, United Kingdom
+  industry: Transport
+  bullets:
+  - Built the punctuality dashboard in Power BI used by 60 station managers every morning.
+  - Wrote the SQL and dbt models that replaced a 3-hour weekly manual report with a nightly job.
+  - Found a data entry fault that had overstated delays on one line by 12% for two years.
+  skills:
+  - SQL
+  - dbt
+  - Power BI
+- position: Head of Mathematics
+  company: Ashworth Academy
+  start: "2020-09"
+  end: "2024-12"
+  location: Manchester, United Kingdom
+  industry: Education
+  bullets:
+  - Led a department of 9 teachers; GCSE pass rate rose from 61% to 74% over four years.
+  - Built the department's attainment tracker in Excel, adopted by three other departments.
+  - Responsible for timetabling and the exam calendar for 900 students.
+  skills:
+  - Excel
+  - Statistics
+- position: Mathematics Teacher
+  company: Ashworth Academy
+  start: "2016-09"
+  end: "2020-08"
+  location: Manchester, United Kingdom
+  industry: Education
+  bullets:
+  - Taught mathematics to 150 students a year across five year groups.
+  - Ran the after-school statistics club that entered 40 students for the UKMT challenge each year.
+  skills: []
+education:
+- level: PGCE
+  institution: Manchester Metropolitan University
+  field_of_study: Secondary Mathematics
+  start: "2015"
+  end: "2016"
+  grade: ""
+  location: Manchester, United Kingdom
+  courses: []
+- level: BSc
+  institution: University of Leeds
+  field_of_study: Mathematics
+  start: "2012"
+  end: "2015"
+  grade: "2:1"
+  location: Leeds, United Kingdom
+  courses: []
+projects:
+- name: Bus punctuality open data
+  description: Analysed 2 million open bus-arrival records in Python to show which routes lose most time at which stops; written up with charts for a local transport forum.
+  link: https://github.com/priyamenon/bus-punctuality
+  tech:
+  - Python
+  - pandas
+certifications:
+- name: Google Data Analytics Professional Certificate
+  issuer: Google
+  year: "2024"
+  description: ""
+languages:
+- name: English
+  level: native
+- name: Malayalam
+  level: native

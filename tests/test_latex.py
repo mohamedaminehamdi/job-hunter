@@ -70,6 +70,42 @@ def test_a_separator_is_never_fed_through_the_escaper():
     assert r"\$" not in jh._tex_dots("a", "b")
 
 
+# --- the contact line and the letter ----------------------------------------
+
+def test_links_are_printed_without_their_scheme_and_still_link():
+    """The full https:// URL ran off the right margin on a real CV."""
+    who = jh.Personal(name="Ada", email="a@b.co", github="https://github.com/ada",
+                      linkedin="https://linkedin.com/in/ada-lovelace")
+    line = jh._tex_contact(who)
+    assert "https://" not in line.replace(r"\href{https://", "")
+    assert r"\href{https://github.com/ada}{github.com/ada}" in line
+    assert "a@b.co" in line
+
+
+def test_a_url_hyperref_would_choke_on_is_printed_not_linked():
+    assert jh._tex_link("https://x.y/a%20b") == "x.y/a\\%20b"
+
+
+def test_the_latex_letter_writes_the_date_out_and_names_the_role(profile, job):
+    """The HTML letter said "7 September 2026" and "Application: ..."; the
+    LaTeX one printed 2026-09-07 and nothing."""
+    letter = jh.write_letter(profile, job, {"greeting": "Dear Zeta,", "paragraphs": ["x"],
+                                            "closing": "Kind regards,"})
+    letter.written_on = "2026-09-07"
+    source = jh.letter_latex(letter)
+    assert "7 September 2026" in source and "2026-09-07" not in source
+    assert r"\cvsubject{Application: Senior Data Engineer}" in source
+
+
+def test_an_old_two_argument_template_still_gets_a_document(profile):
+    """A hand-written template from before `\\cventrydated` existed. The
+    prelude's `\\providecommand` gives it the old look, not a compile error."""
+    old = ("%%JOBHUNT-BODY%%\n")
+    source = jh.cv_latex(profile, template=old)
+    assert r"\providecommand{\cventrydated}" in source
+    assert r"\cventrydated{Data Engineer}" in source
+
+
 # --- templates --------------------------------------------------------------
 
 def test_a_built_in_template_resolves_by_name():

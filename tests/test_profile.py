@@ -129,6 +129,11 @@ def test_partial_section_salvaged_when_another_is_broken():
 
 
 def test_period_formatting():
-    assert Role(start="2024", end="2026").period == "2024 - 2026"
+    """Years as written, an en dash between, and a machine month spelled out:
+    "2025-11 - Present" on a CV reads as a database dump."""
+    assert Role(start="2024", end="2026").period == "2024 – 2026"
     assert Role(start="2024").period == "2024"
     assert Role().period == ""
+    assert Role(start="2025-11", end="Present").period == "Nov 2025 – Present"
+    assert Role(start="2023-02-15", end="2024-06").period == "Feb 2023 – Jun 2024"
+    assert Role(start="Summer 2024", end="2025-13").period == "Summer 2024 – 2025-13"

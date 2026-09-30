@@ -1,0 +1,96 @@
+personal:
+  name: Grace
+  surname: Adeyemi
+  headline: Ward Manager and Registered Nurse
+  email: grace.adeyemi@example.com
+  phone: "+44 7700 900456"
+  city: Leeds
+  country: United Kingdom
+  github: ""
+  linkedin: https://linkedin.com/in/graceadeyemi
+  website: ""
+summary: Registered nurse with eleven years in acute medicine, the last four managing a 28-bed ward and a team of 34.
+skills:
+- Acute Medicine
+- Ward Management
+- Rostering
+- Safeguarding
+- Medicines Management
+- Clinical Audit
+- Infection Control
+- Mentoring
+- NMC Revalidation
+- Datix
+- ESR
+- SystmOne
+experience:
+- position: Ward Manager
+  company: St Aidan's Hospital NHS Trust
+  start: "2022-04"
+  end: Present
+  location: Leeds, United Kingdom
+  industry: Healthcare
+  bullets:
+  - Manage a 28-bed acute medical ward with a team of 34 nurses and healthcare assistants.
+  - Cut agency staffing spend by 35% in two years by rebuilding the roster and recruiting 9 permanent nurses.
+  - Led the ward to a CQC rating of Good from Requires Improvement in the 2024 inspection.
+  - Introduced daily safety huddles; falls with harm fell from 14 to 5 a year.
+  - Responsible for medicines management audits and the ward's controlled drugs register.
+  skills:
+  - Ward Management
+  - Rostering
+- position: Senior Staff Nurse
+  company: St Aidan's Hospital NHS Trust
+  start: "2018-01"
+  end: "2022-03"
+  location: Leeds, United Kingdom
+  industry: Healthcare
+  bullets:
+  - Nurse in charge on 4 shifts a week for a 28-bed ward.
+  - Mentored 22 student nurses to registration over four years as a sign-off mentor.
+  - Ran the ward's clinical audit programme, presenting to the trust's quality committee twice a year.
+  skills:
+  - Mentoring
+  - Clinical Audit
+- position: Staff Nurse
+  company: Pennine Acute Hospitals
+  start: "2014-09"
+  end: "2017-12"
+  location: Oldham, United Kingdom
+  industry: Healthcare
+  bullets:
+  - Delivered nursing care on a 32-bed respiratory ward.
+  - Completed the trust's non-invasive ventilation competency and trained 6 colleagues in it.
+  skills: []
+education:
+- level: BSc (Hons)
+  institution: University of Salford
+  field_of_study: Adult Nursing
+  start: "2011"
+  end: "2014"
+  grade: First
+  location: Salford, United Kingdom
+  courses: []
+projects: []
+certifications:
+- name: NMC Registered Nurse (Adult)
+  issuer: Nursing and Midwifery Council
+  year: "2014"
+  description: ""
+- name: Advanced Life Support
+  issuer: Resuscitation Council UK
+  year: "2024"
+  description: ""
+- name: Leadership for Ward Managers
+  issuer: NHS Leadership Academy
+  year: "2023"
+  description: ""
+- name: Safeguarding Adults Level 3
+  issuer: St Aidan's Hospital NHS Trust
+  year: "2025"
+  description: ""
+languages:
+- name: English
+  level: native
+- name: Yoruba
+  level: fluent

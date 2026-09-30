@@ -1,0 +1,101 @@
+personal:
+  name: Nour
+  surname: Haddad
+  headline: Software Engineering Student - Backend & Infrastructure
+  email: nour.haddad@example.com
+  phone: ""
+  city: Tunis
+  country: Tunisia
+  github: https://github.com/nourhaddad
+  linkedin: https://linkedin.com/in/nourhaddad
+  website: ""
+summary: Final-year software engineering student with two production internships, building backend services in Python and Go and the Kubernetes tooling around them.
+skills:
+- Python
+- Go
+- TypeScript
+- SQL
+- PostgreSQL
+- Kubernetes
+- Docker
+- CI/CD
+- Git
+- Linux
+- FastAPI
+- React
+- Redis
+- Kafka
+- AWS
+- Terraform
+- Prometheus
+- gRPC
+experience:
+- position: Backend Engineering Intern
+  company: Medina Pay
+  start: "2025-06"
+  end: "2025-09"
+  location: Tunis, Tunisia
+  industry: Fintech
+  bullets:
+  - Built the merchant settlement service in Go and PostgreSQL, processing 40,000 transfers a day.
+  - Added Prometheus alerting to the payments API, cutting mean time to detect from an hour to 6 minutes.
+  - Wrote the GitHub Actions pipeline that took a deploy from 30 minutes to 8.
+  - Responsible for triaging incoming bug reports during the internship.
+  skills: []
+- position: Software Engineering Intern
+  company: Carthage Logistics
+  start: "2024-07"
+  end: "2024-09"
+  location: Sfax, Tunisia
+  industry: Logistics
+  bullets:
+  - Developed the driver-facing tracking API in Python (FastAPI) used by 120 drivers daily.
+  - Migrated three cron jobs to a Kubernetes CronJob controller, removing a weekly manual restart.
+  skills: []
+education:
+- level: Engineering Degree
+  institution: National Institute of Applied Science and Technology (INSAT)
+  field_of_study: Software Engineering
+  start: "2022"
+  end: "2027"
+  grade: ""
+  location: Tunis, Tunisia
+  courses:
+  - Distributed Systems
+  - Databases
+  - Operating Systems
+projects:
+- name: kvlite
+  description: A replicated key-value store in Go with Raft consensus, tested with 5 nodes under network partitions.
+  link: https://github.com/nourhaddad/kvlite
+  tech:
+  - Go
+  - gRPC
+- name: Agent Evaluation Harness
+  description: Evaluated 1,200 open-source agent repositories against a 40-point rubric; deployed the 8 that passed and load-tested 3.
+  link: ""
+  tech:
+  - Python
+  - Docker
+- name: Inference Cluster
+  description: Designed a distributed inference layout on Kubernetes with vLLM, exploring tensor and pipeline parallelism across 4 GPUs.
+  link: ""
+  tech:
+  - Kubernetes
+  - vLLM
+- name: Apache Superset (open source)
+  description: Merged a pull request improving cache timeout validation.
+  link: ""
+  tech: []
+certifications:
+- name: AWS Certified Cloud Practitioner
+  issuer: Amazon Web Services
+  year: "2025"
+  description: ""
+languages:
+- name: Arabic
+  level: native
+- name: French
+  level: fluent
+- name: English
+  level: fluent

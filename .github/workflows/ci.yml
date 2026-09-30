@@ -62,6 +62,19 @@ jobs:
       - name: Test
         run: pytest -q
 
+      # The pages a person will send, rendered from the corpus on the runner
+      # that has a browser, kept for a week so a rendering change can be
+      # looked at rather than imagined. tools/gallery.py says what it makes.
+      - name: Render the gallery
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        run: python tools/gallery.py gallery
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        with:
+          name: cv-gallery
+          path: gallery
+          retention-days: 7
+
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10

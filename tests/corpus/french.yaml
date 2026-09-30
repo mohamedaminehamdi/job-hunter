@@ -1,0 +1,83 @@
+personal:
+  name: Élodie
+  surname: Bérenger
+  headline: Ingénieure Data - pipelines et qualité des données
+  email: elodie.berenger@example.com
+  phone: "+33 6 00 00 00 00"
+  city: Lyon
+  country: France
+  github: https://github.com/eberenger
+  linkedin: https://linkedin.com/in/eberenger
+  website: ""
+summary: Ingénieure data avec cinq ans d'expérience sur des pipelines de données à grande échelle, attachée à la qualité des données et à la clarté des chiffres livrés aux métiers.
+skills:
+- Python
+- SQL
+- Spark
+- Airflow
+- dbt
+- Snowflake
+- Kafka
+- Docker
+- Terraform
+- GCP
+- Qualité des données
+- Modélisation
+experience:
+- position: Ingénieure Data Senior
+  company: Rhône Énergie
+  start: "2023-01"
+  end: Présent
+  location: Lyon, France
+  industry: Énergie
+  bullets:
+  - Conception du pipeline d'ingestion des compteurs communicants, 40 millions de mesures par jour, en Spark et Kafka.
+  - Réduction de 30 % du temps d'exécution des traitements nocturnes en réécrivant les modèles dbt.
+  - Mise en place de 120 tests de qualité des données qui ont divisé par 4 les incidents signalés par les métiers.
+  - Responsable de l'astreinte data pour une équipe de 8 personnes.
+  skills:
+  - Spark
+  - Kafka
+  - dbt
+- position: Ingénieure Data
+  company: Saône Assurances
+  start: "2020-09"
+  end: "2022-12"
+  location: Lyon, France
+  industry: Assurance
+  bullets:
+  - Migration de 60 tables d'un entrepôt Oracle vers Snowflake, sans interruption de service.
+  - Développement des DAG Airflow qui alimentent 15 rapports réglementaires mensuels.
+  - Formation de 12 analystes à SQL et à la modélisation en étoile.
+  skills:
+  - Snowflake
+  - Airflow
+education:
+- level: Diplôme d'ingénieur
+  institution: INSA Lyon
+  field_of_study: Informatique
+  start: "2015"
+  end: "2020"
+  grade: ""
+  location: Lyon, France
+  courses:
+  - Bases de données
+  - Systèmes distribués
+projects:
+- name: qualité-data
+  description: Une bibliothèque Python open source de tests de qualité de données, 300 étoiles sur GitHub, utilisée par 3 entreprises.
+  link: https://github.com/eberenger/qualite-data
+  tech:
+  - Python
+certifications:
+- name: Google Cloud Professional Data Engineer
+  issuer: Google
+  year: "2023"
+  description: ""
+languages:
+- name: Français
+  level: langue maternelle
+- name: Anglais
+  level: courant
+- name: Espagnol
+  level: intermédiaire
