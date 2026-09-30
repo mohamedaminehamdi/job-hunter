@@ -58,7 +58,9 @@ python3 tailor.py selection.json --run <run>
 - **The summary may name the company and the role.** Nothing else new.
 - **Lead with what the posting asks for**, where the profile backs it. That is
   the entire mechanism by which `shown` improves, and it is legitimate: you are
-  surfacing evidence, not creating it.
+  surfacing evidence, not creating it. Do it in the summary
+  and the first bullets: the skills list sits below the fold and does not
+  count as shown.
 
 ## Exit 2
 

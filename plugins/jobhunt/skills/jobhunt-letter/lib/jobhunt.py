@@ -1217,8 +1217,18 @@ def mentions_any(body, terms):
 
 
 def _skim(document, bullets):
-    """The first screenful: who they are, what they claim, the opening bullets."""
-    parts = [document.personal.headline, document.summary, " ".join(document.skills)]
+    """The first screenful, as the page lays it out: the headline, the summary,
+    then each role's title and its opening bullets until the budget runs out.
+
+    Not the skills list. Every renderer here puts Skills after Experience,
+    Projects and Education, so a term that lives only in that list is on the
+    page but below the fold. Counting it as shown meant `shown` could never
+    move for anyone who lists their tools - which is everyone - and the
+    before-and-after comparison this tool is built around read +0 on every
+    real CV it was tried on. The way to show a skill is to name it in the
+    summary or an opening bullet, which is what tailoring is for.
+    """
+    parts = [document.personal.headline, document.summary]
     seen = 0
     for role in document.experience:
         parts.append(f"{role.position} {role.company}")

@@ -21,6 +21,12 @@ front of a reader in the first screenful? This is the one tailoring moves, and
 moving it is the whole job: the evidence was already there, buried at bullet
 nine.
 
+The first screenful is the headline, the summary and the first ten bullets,
+in the order the page prints them. The skills list is not in it - every layout
+puts Skills below Education - so a tool that appears only there is *present*
+but not *shown*. Naming it in the summary or an opening bullet is what moves
+the number.
+
 So a CV that pastes the posting's requirements into its summary scores **zero**
 extra and is told off for it - that appears as `parroting`.
 
