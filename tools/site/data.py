@@ -187,6 +187,7 @@ ALSO = [
     ("jobhunt", "All six steps, in order, from one sentence"),
     ("jobhunt-profile", "Your CV, read once into one file"),
     ("jobhunt-review", "Score your CV with no job at all"),
+    ("jobhunt-find", "A careers board, ranked against your profile"),
     ("jobhunt-answer", "Application form questions"),
     ("jobhunt-critique", "What is still weak, before you send"),
 ]
@@ -203,8 +204,6 @@ SOON_TITLE = "What's next."
 SOON = [
     {"icon": "cursor-click", "title": "One-click apply",
      "body": "Fill and submit the form for you, on the boards that allow it."},
-    {"icon": "magnifying-glass", "title": "Jobs found for you",
-     "body": "Watch the boards for postings your profile already answers."},
     {"icon": "briefcase", "title": "Application tracking",
      "body": "What you sent, when, and what came back — in one list."},
 ]
@@ -214,7 +213,7 @@ SOON_NOTE = "Not built yet. Today it prepares the application; you send it."
 # --- the skills -------------------------------------------------------------
 
 ORDER = [
-    "jobhunt", "jobhunt-profile", "jobhunt-review", "jobhunt-posting",
+    "jobhunt", "jobhunt-profile", "jobhunt-review", "jobhunt-find", "jobhunt-posting",
     "jobhunt-fit", "jobhunt-tailor", "jobhunt-letter", "jobhunt-pdf",
     "jobhunt-answer", "jobhunt-outreach", "jobhunt-critique",
 ]
@@ -228,6 +227,8 @@ CARDS = {
                          "Becomes the one file everything else draws on."),
     "jobhunt-review":   ("gauge", "Score your CV on its own",
                          "No job needed. What's evidence, what's filler."),
+    "jobhunt-find":     ("magnifying-glass", "Openings worth reading",
+                         "A whole careers board, ranked by your skills."),
     "jobhunt-posting":  ("link-simple", "The posting, read properly",
                          "In your own browser, so nothing is missed."),
     "jobhunt-fit":      ("gauge", "How well you match",

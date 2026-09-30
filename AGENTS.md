@@ -1,6 +1,6 @@
 # jobhunt — instructions for any coding agent
 
-This repo is a set of **eleven skills** for preparing job applications, plus
+This repo is a set of **twelve skills** for preparing job applications, plus
 the tooling that builds and ships them. It is read by OpenAI Codex, Cursor,
 Cline, Aider, Gemini CLI, Windsurf and anything else that picks up
 `AGENTS.md`; Claude Code reads [CLAUDE.md](CLAUDE.md), which says the same
@@ -23,6 +23,7 @@ Start here:
 | a whole application prepared from a job link | `plugins/jobhunt/skills/jobhunt/SKILL.md` |
 | their CV turned into a profile | `.../jobhunt-profile/SKILL.md` |
 | to know how well they match a job | `.../jobhunt-fit/SKILL.md` |
+| to know which openings at a company are worth reading | `.../jobhunt-find/SKILL.md` |
 | a CV tailored to one posting | `.../jobhunt-tailor/SKILL.md` |
 | a cover letter | `.../jobhunt-letter/SKILL.md` |
 | help answering an application question | `.../jobhunt-answer/SKILL.md` |
@@ -45,7 +46,7 @@ folder per job. Nothing else is written and nothing is uploaded.
 4. **Never work around a login wall.** If a posting comes back thin, ask for
    the description as text. Working around the wall means inventing the job.
 
-Exit codes are the same in all eleven: `0` fine, `1` the **user** must fix
+Exit codes are the same in all twelve: `0` fine, `1` the **user** must fix
 something (stop and relay it), `2` the draft is not fit to send (rewrite the
 JSON, once), `3` your JSON could not be read (write it again, once).
 

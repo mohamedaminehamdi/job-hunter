@@ -19,7 +19,7 @@ set -eu
 
 REPO="mohamedaminehamdi/job-hunter"
 BRANCH="main"
-SKILLS="jobhunt jobhunt-profile jobhunt-review jobhunt-posting jobhunt-fit \
+SKILLS="jobhunt jobhunt-profile jobhunt-review jobhunt-find jobhunt-posting jobhunt-fit \
 jobhunt-tailor jobhunt-letter jobhunt-answer jobhunt-pdf \
 jobhunt-outreach jobhunt-critique"
 

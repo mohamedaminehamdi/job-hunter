@@ -36,6 +36,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
@@ -2856,6 +2858,7 @@ def restore_scheme(profile):
 #     jobhunt/cv/                       your CV, as you have it
 #     jobhunt/runs/<date>-<slug>/       everything made for one job
 #     jobhunt/runs/log.md               one line per job
+#     jobhunt/found/<date>-<board>.md   a careers board, ranked against you
 #
 # The date prefix means re-running the same job on the same day overwrites,
 # which is what you want while iterating, and two jobs at the same company a
@@ -2867,6 +2870,7 @@ RUNS_DIR = "runs"
 PROFILE_NAME = "profile.yaml"
 LOG_NAME = "log.md"
 INCOMING = ".incoming"
+FOUND_DIR = "found"
 
 
 def home():
@@ -2896,6 +2900,10 @@ def runs_dir(base=None):
 
 def profile_path(base=None):
     return (Path(base) if base else home()) / PROFILE_NAME
+
+
+def found_dir(base=None):
+    return (Path(base) if base else home()) / FOUND_DIR
 
 
 def log_path(base=None):
@@ -3499,6 +3507,222 @@ def check_posting(url, body):
         raise FetchError(
             f"Only {len(body)} characters came back from {url} - not enough to be "
             "a job description. Paste the description text instead.")
+
+
+# --- finding postings on a board --------------------------------------------
+#
+# Greenhouse and Lever publish every board's openings as public JSON, meant for
+# exactly this: no login, no scraping, no browser. A company's careers page is
+# one of the two more often than not - its job links carry `gh_jid=` or
+# `lever.co`. The request is a plain GET with a User-Agent, which is what any
+# job-board integration sends. `urllib` is used here and nowhere else: the
+# browser-driven fetch exists to get past walls, and there is no wall in front
+# of a board's API.
+#
+# What comes back is ranked lexically against the profile: how many of the
+# candidate's own listed skills each posting names. That is a filter for what
+# is worth an evening, not a fit score. The fit score needs the posting read
+# properly, which is what jobhunt-posting and jobhunt-fit are for, and the page
+# says so. Nothing here applies to anything.
+
+GREENHOUSE = "greenhouse"
+LEVER = "lever"
+BOARD_KINDS = (GREENHOUSE, LEVER)
+_BOARD_APIS = {
+    GREENHOUSE: "https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true",
+    LEVER: "https://api.lever.co/v0/postings/{token}?mode=json",
+}
+#: The addresses people paste, with the board token where each host puts it.
+_BOARD_URLS = (
+    (GREENHOUSE, re.compile(r"(?:boards|job-boards|boards-api)\.greenhouse\.io/"
+                            r"(?:v1/boards/)?([A-Za-z0-9_-]+)", re.IGNORECASE)),
+    (LEVER, re.compile(r"(?:jobs|api)\.lever\.co/(?:v0/postings/)?([A-Za-z0-9_-]+)",
+                       re.IGNORECASE)),
+)
+_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+FIND_TIMEOUT = 30.0
+
+
+@dataclass
+class Board:
+    """One careers board: which host, and the token in its URL."""
+
+    kind: str = GREENHOUSE
+    token: str = ""
+
+    @property
+    def api(self):
+        return _BOARD_APIS[self.kind].format(token=self.token)
+
+    @property
+    def label(self):
+        return f"{self.kind}:{self.token}"
+
+
+def parse_board(given):
+    """The boards to try for what someone typed, most likely first.
+
+    "greenhouse:figma" and "lever:palantir" name one. A careers URL on either
+    host names one. A bare token - "figma" - could be either, so both come
+    back and the caller takes the first that answers.
+    """
+    typed = (given or "").strip()
+    if not typed:
+        raise FetchError("No board given. Name one as greenhouse:<token> or "
+                         "lever:<token>, or paste the careers page URL.")
+    kind, _, token = typed.partition(":")
+    if kind.lower() in BOARD_KINDS and _TOKEN.match(token or ""):
+        return [Board(kind.lower(), token)]
+    for kind, pattern in _BOARD_URLS:
+        found = pattern.search(typed)
+        if found:
+            return [Board(kind, found.group(1))]
+    if _TOKEN.match(typed):
+        return [Board(GREENHOUSE, typed), Board(LEVER, typed)]
+    raise FetchError(f"{given!r} is not a board this reads. Name one as greenhouse:<token> "
+                     "or lever:<token>, or paste the careers page URL. The token is the "
+                     "part after the host in boards.greenhouse.io/<token> or "
+                     "jobs.lever.co/<token>.")
+
+
+def fetch_json(url, timeout=FIND_TIMEOUT):
+    """GET a board's public JSON. Raises FetchError saying what to do instead."""
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
+                                                   "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read()
+    except urllib.error.HTTPError as exc:
+        raise FetchError(f"{url} answered {exc.code}. Check the board token - it is the "
+                         "part of the careers URL after the host.") from exc
+    except (urllib.error.URLError, OSError) as exc:
+        raise FetchError(f"Could not reach {url}: {getattr(exc, 'reason', exc)}") from exc
+    try:
+        return json.loads(raw.decode("utf-8", "replace"))
+    except json.JSONDecodeError as exc:
+        raise FetchError(f"{url} did not answer with JSON. This company may not be on "
+                         "Greenhouse or Lever - look at where its job links point.") from exc
+
+
+@dataclass
+class Opening:
+    """One posting, as a board's API describes it."""
+
+    url: str = ""
+    title: str = ""
+    company: str = ""
+    location: str = ""
+    team: str = ""
+    #: The posting's readable text, for matching. Kept in memory, not on disk.
+    text: str = ""
+    board: str = ""
+    posted: str = ""
+
+    SHAPE = {"text": "raw"}
+
+
+def _greenhouse_openings(payload, board):
+    jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+    out = []
+    for job in jobs:
+        if not isinstance(job, dict):
+            continue
+        # `content` is the posting's HTML, entity-escaped once more for JSON.
+        body, _, _ = html_to_text(html.unescape(job.get("content") or ""))
+        teams = [d.get("name", "") for d in job.get("departments") or [] if isinstance(d, dict)]
+        out.append(Opening(
+            url=text(job.get("absolute_url")), title=text(job.get("title")),
+            company=text(job.get("company_name")) or board.token,
+            location=text((job.get("location") or {}).get("name")),
+            team=", ".join(t for t in teams if t), text=body, board=board.label,
+            posted=text(job.get("updated_at"))[:10]))
+    return out
+
+
+def _lever_openings(payload, board):
+    out = []
+    for job in payload if isinstance(payload, list) else []:
+        if not isinstance(job, dict):
+            continue
+        parts = [text(job.get("descriptionPlain"))]
+        for block in job.get("lists") or []:
+            if isinstance(block, dict):
+                parts.append(text(block.get("text")))
+                parts.append(html_to_text(block.get("content") or "")[0])
+        parts.append(text(job.get("additionalPlain")))
+        categories = job.get("categories") or {}
+        created = job.get("createdAt")
+        posted = ""
+        if isinstance(created, (int, float)):
+            posted = datetime.fromtimestamp(created / 1000, UTC).date().isoformat()
+        out.append(Opening(
+            url=text(job.get("hostedUrl")), title=text(job.get("text")), company=board.token,
+            location=text(categories.get("location")), team=text(categories.get("team")),
+            text="\n".join(p for p in parts if p), board=board.label, posted=posted))
+    return out
+
+
+def openings(board, fetch=None):
+    """Every opening on `board`. `fetch` is injectable so a test never touches the network."""
+    payload = (fetch or fetch_json)(board.api)
+    reader = _greenhouse_openings if board.kind == GREENHOUSE else _lever_openings
+    return reader(payload, board)
+
+
+@dataclass
+class Lead:
+    """An opening, and which of the candidate's own skills it names."""
+
+    opening: Opening = field(default_factory=Opening)
+    named: list = field(default_factory=list)
+
+    SHAPE = {"opening": "raw", "named": "lines"}
+    COERCE = {"opening": lambda v: build(Opening, v)}
+
+    @property
+    def score(self):
+        return len(self.named)
+
+
+def leads(found, profile, at_least=1):
+    """Openings ranked by how many of the profile's listed skills they name.
+
+    Lexical on purpose, and the page says so: this decides which postings are
+    worth reading properly, not how well the candidate fits them. Nothing from
+    a posting widens the skills, and a single-letter skill - C, R - is skipped,
+    because a boundary match on one letter means nothing.
+    """
+    skills = [skill for skill in skills_index(profile) if len(skill.strip()) > 1]
+    out = []
+    for opening in found:
+        body = f"{opening.title}\n{opening.text}"
+        named = [skill for skill in skills if _mentions(skill, body)]
+        if len(named) >= max(at_least, 0):
+            out.append(Lead(opening=opening, named=named))
+    out.sort(key=lambda lead: (-lead.score, lead.opening.title.lower()))
+    return out
+
+
+def leads_page(ranked, boards, total):
+    """The list a person reads: each opening, its link, and the skills it names."""
+    names = ", ".join(b.label for b in boards)
+    out = [f"# Openings worth reading - {names}", "",
+           f"{len(ranked)} of {total} openings name at least one of your listed skills,",
+           "ranked by how many. This is a filter, not a fit score: read one with",
+           "jobhunt-posting and score it with jobhunt-fit before spending an evening on it.",
+           ""]
+    for lead in ranked:
+        o = lead.opening
+        out.append(f"## {o.title}" + (f" - {o.company}" if o.company else ""))
+        where = " · ".join(x for x in (o.location, o.team, o.posted) if x)
+        if where:
+            out.append(where)
+        if o.url:
+            out.append(f"<{o.url}>")
+        out.append(f"Names {lead.score} of your skills: {', '.join(lead.named)}")
+        out.append("")
+    out += ["---", "", "Nothing here applied to anything. Pick one and read it properly."]
+    return "\n".join(out).rstrip() + "\n"
 
 
 # --- what a skill script exits with -----------------------------------------

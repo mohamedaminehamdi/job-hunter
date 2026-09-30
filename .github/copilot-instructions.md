@@ -2,7 +2,7 @@
 
 The full instructions are in [AGENTS.md](../AGENTS.md). Read that file.
 
-In short: this repo is eleven skills for preparing job applications. Each lives
+In short: this repo is twelve skills for preparing job applications. Each lives
 in `plugins/jobhunt/skills/<name>/` with a `SKILL.md` saying when to use it and
 a Python script beside it that needs no API key and nothing installed.
 

@@ -30,7 +30,7 @@ Found a security problem? See [SECURITY.md](SECURITY.md) - not a public issue.
 
 ## The two rules that are not obvious
 
-**`core/jobhunt.py` is the only place to edit the library.** The eleven
+**`core/jobhunt.py` is the only place to edit the library.** Every
 `plugins/jobhunt/skills/*/lib/jobhunt.py` are generated from it by
 `python tools/sync.py`, and a test fails if one has drifted. The duplication is
 deliberate: skills are installed one at a time, and a skill importing from a
@@ -66,7 +66,7 @@ stale.
 2. The script beside it, ending with `raise SystemExit(jh.run_cli(work))` so
    the exit codes mean the same thing as everywhere else.
 3. `python tools/sync.py` to give it the library.
-4. Add it to `tools/site/data.py` — `ORDER`, `HEADLINES`, `PLAIN` — and to
+4. Add it to `tools/site/data.py` — `ORDER` and `CARDS` — and to
    `SKILLS` in `install.sh`. Tests fail if you forget either.
 
 ## How the tests are organised

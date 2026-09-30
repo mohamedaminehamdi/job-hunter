@@ -268,6 +268,9 @@ ALLOWED = {
     "__future__", "ast", "copy", "dataclasses", "datetime", "hashlib", "html",
     "json", "os", "pathlib", "re", "shutil", "subprocess", "sys", "tempfile",
     "time", "xml", "zipfile",
+    # For a board's public JSON API and nothing else: the browser-driven fetch
+    # exists to get past walls, and there is no wall in front of those.
+    "urllib",
 }
 
 

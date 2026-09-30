@@ -1,6 +1,6 @@
 # jobhunt
 
-Eleven skills for the coding agent you already use. Keep everything you have
+Twelve skills for the coding agent you already use. Keep everything you have
 ever done in one place; paste a job link and get a CV built for it, the people
 worth messaging, and the message to send them.
 
@@ -42,8 +42,7 @@ You press send.
 
 ## Coming soon
 
-One-click apply on the boards that allow it, jobs found for you, and
-application tracking. **Not built yet** — today it prepares the application and
+One-click apply on the boards that allow it, and application tracking. **Not built yet** — today it prepares the application and
 hands it to you; the sending is still yours.
 
 ## Install
@@ -102,7 +101,7 @@ jobhunt/runs/2026-09-24-acme-senior-data-engineer/
 └── job.yaml          the posting, as read
 ```
 
-## The eleven
+## The twelve
 
 Each works on its own. Install just the review to score your CV, or just the
 fit score to decide whether a job is worth an evening.
@@ -112,6 +111,7 @@ fit score to decide whether a job is worth an evening.
 | `jobhunt` | the whole thing, in order |
 | `jobhunt-profile` | your CV → one YAML file everything else reads |
 | `jobhunt-review` | score the CV on its own, with no job description |
+| `jobhunt-find` | a company's careers board, ranked by how many of your skills each opening names |
 | `jobhunt-posting` | a job URL → structured posting, in your own browser |
 | `jobhunt-fit` | how well you match, before and after |
 | `jobhunt-tailor` | a CV for this job, out of what you have already done |
@@ -128,7 +128,8 @@ fit score to decide whether a job is worth an evening.
 - **Scrape LinkedIn.** LinkedIn walls and throttles automated access and the
   risk lands on *your* account. It builds the searches; you run them, and that
   is not changing.
-- **Search for jobs.** You bring the link, for now.
+- **Search the whole web for jobs.** It reads one company's Greenhouse or Lever
+  board and ranks the openings against your profile; you name the company.
 - **Track your applications**, beyond one line per run in `runs/log.md`. It is
   markdown; type what happened next into it.
 
