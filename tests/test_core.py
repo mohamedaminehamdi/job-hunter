@@ -358,6 +358,36 @@ def test_a_perfect_cv_scores_full_marks():
     assert found.score == found.out_of == 100, jh.review_page(found)
 
 
+def test_a_projects_figure_counts_as_evidence():
+    """A student's numbers live in project descriptions. A review that read
+    only role bullets scored a CV with "23%" and "2.4x" in its projects as
+    carrying no evidence at all."""
+    profile = jh.Profile(
+        experience=[jh.Role(company="A", bullets=["Built the ingestion service."])],
+        projects=[jh.Project(name="tune", description="Fine-tuned a 9B model with "
+                             "LoRA, cutting validation loss by 23%."),
+                  jh.Project(name="eval", description="Evaluated agent frameworks.")])
+    evidence = next(d for d in jh.review(profile).dimensions if d.name == "evidence")
+    assert evidence.points == 10, evidence.tally          # 1 of 3 lines
+    assert "3 lines" in evidence.tally
+    assert {f.where for f in evidence.findings} == {"experience[0].bullets[0]",
+                                                    "projects[1].description"}
+
+
+def test_order_and_shape_still_measure_roles_only():
+    """A project description can be two sentences; only role bullets are held
+    to the bullet length, and only roles can lead with their strongest line."""
+    long = "word " * 40
+    profile = jh.Profile(
+        experience=[jh.Role(company="A", bullets=["Cut runtime 35%."])],
+        projects=[jh.Project(name="x", description=long)])
+    found = jh.review(profile)
+    shape = next(d for d in found.dimensions if d.name == "shape")
+    order = next(d for d in found.dimensions if d.name == "order")
+    assert shape.points == shape.out_of, shape.tally
+    assert order.points == order.out_of, order.tally
+
+
 def test_an_empty_profile_scores_nothing_and_does_not_raise():
     found = jh.review(jh.Profile())
     assert found.score == 0
