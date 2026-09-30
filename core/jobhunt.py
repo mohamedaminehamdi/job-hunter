@@ -3339,6 +3339,7 @@ class _Text(HTMLParser):
         self.title = ""
         self.brand = ""
         self._in_title = False
+        self._in_head = False
         # 0 none, 1 newline, 2 blank line. Held rather than written, so the
         # </li><li> boundary is one break and not two - a list otherwise comes
         # out double-spaced and every requirement gains a blank line.
@@ -3358,7 +3359,14 @@ class _Text(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag in _DROP:
             self.skip += 1
-        elif tag == "title":
+            if tag == "head":
+                self._in_head = True
+        elif tag == "title" and not self.title and self.skip == int(self._in_head):
+            # The document's own title, once: the one in <head>, or the first
+            # in a page with no head. Every inline SVG icon carries a <title>
+            # too, and a careers page full of them read as "Software
+            # Engineering Intern | Datadog Careerssecurity-platformrumcidashboard
+            # Icon/worldinstagram" - the icons glued onto the job title.
             self._in_title = True
         elif tag == "meta":
             got = dict(attrs)
@@ -3374,6 +3382,8 @@ class _Text(HTMLParser):
     def handle_endtag(self, tag):
         if tag in _DROP and self.skip:
             self.skip -= 1
+            if tag == "head":
+                self._in_head = False
         elif tag == "title":
             self._in_title = False
         self._break(tag)

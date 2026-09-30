@@ -205,6 +205,17 @@ def test_the_title_and_theme_colour_are_read_not_guessed():
     assert brand == "#7b2ff7"
 
 
+def test_an_icons_title_does_not_join_the_page_title():
+    """Found on a real careers page: every inline SVG icon carries a <title>,
+    and all of them were glued onto the job title."""
+    _, title, _ = fetch.html_to_text(
+        "<head><title>Software Engineering Intern | Datadog Careers</title></head>"
+        "<body><svg><title>security-platform</title></svg>"
+        "<h1>Software Engineering Intern</h1>"
+        "<svg><title>Icon/world</title></svg><title>later</title></body>")
+    assert title == "Software Engineering Intern | Datadog Careers"
+
+
 def test_a_theme_colour_that_is_not_a_colour_is_dropped():
     """It reaches a stylesheet, so it is validated at the door."""
     _, _, brand = fetch.html_to_text('<meta name="theme-color" content="red;}body{">')
