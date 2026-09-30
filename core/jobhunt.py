@@ -591,6 +591,10 @@ class Profile:
                                     f"No achievements for {role.company or 'this role'} - "
                                     "the tailorer has nothing to work with."))
 
+        # Template text copied from a CV - "[MONTH] 2027" - reached a real PDF
+        # once. A warning, not a block: the person decides what it should say.
+        issues.extend(placeholder_issues(self))
+
         if not self.skills:
             issues.append(Issue("skills", INFO,
                                 "Listing skills improves keyword matching."))
@@ -795,6 +799,105 @@ def words(text):
     accents, and that behaviour is tested here.
     """
     return [m.group() for m in _WORD.finditer(text)]
+
+
+# --- what the model wrote: a review aid -------------------------------------
+#
+# The facts are safe by construction - see assemble: employers, titles, dates
+# and degrees are copied, never written. What a model can still slip into free
+# text is a figure - "cut p99 latency 40%" in a bullet whose original said
+# nothing about 40%, or a letter that promises "three years" nobody has. And
+# what it copies faithfully from a template CV is the placeholder still in it:
+# "[MONTH] 2027" reached a real PDF.
+#
+# Both are warnings addressed to the person about to send the document. They
+# never block an export and never rewrite anything: the tool points, the
+# reader judges. A figure the posting mentions is not support - a number is a
+# claim wherever it appears - so the only source of a figure is the profile.
+
+#: A number that stands alone. A digit glued to a letter - p99, S3, Qwen3 - is
+#: part of a name, not a figure: "p99 latency" would otherwise report 99, or
+#: with a letters-only lookbehind, the 9 that follows the first 9.
+_FIGURE = re.compile(r"(?<![A-Za-z0-9])\d[\d,.]*%?")
+#: Template text: anything in square brackets that is not a markdown link,
+#: and the usual stand-ins.
+_PLACEHOLDER = re.compile(r"\[[^\]\n]{1,40}\](?!\()|\bTBD\b|\bXXX\b|\bTODO\b|lorem ipsum",
+                          re.IGNORECASE)
+
+
+def _digits(raw):
+    """A figure folded to the digits it denotes, so 1,200 and 1200 are one and
+    so is 40% and "40 people" - a number is compared, not its unit."""
+    return raw.replace(",", "").rstrip("%").strip(".")
+
+
+def figures(text):
+    """Every number in `text`, folded with `_digits`."""
+    return {d for m in _FIGURE.finditer(str(text)) if (d := _digits(m.group()))}
+
+
+def strings_of(value):
+    """Every string inside a record, a list or a dict, flattened. Issues are
+    diagnostics about content, not content, and are left out."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, Issue):
+        return []
+    if dataclasses.is_dataclass(value):
+        return [s for f in fields(value) for s in strings_of(getattr(value, f.name))]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in strings_of(v)]
+    if isinstance(value, (list, tuple)):
+        return [s for v in value for s in strings_of(v)]
+    return []
+
+
+def profile_figures(profile):
+    """Every number the profile holds - bullets, dates, grades, all of it."""
+    return figures(" ".join(strings_of(profile)))
+
+
+def unbacked_figures(text, known):
+    """The figures in `text` the profile does not hold, as written, in order."""
+    seen, out = set(), []
+    for match in _FIGURE.finditer(str(text)):
+        digits = _digits(match.group())
+        if digits and digits not in known and digits not in seen:
+            seen.add(digits)
+            out.append(match.group().strip(".,"))
+    return out
+
+
+def figure_issues(written, known):
+    """A warning per figure in `written` - {path: text} - that the profile lacks."""
+    return [Issue(path, WARNING, f"The figure {figure!r} is not in your profile - "
+                                 "check it before you send this.")
+            for path, text in written.items() for figure in unbacked_figures(text, known)]
+
+
+def placeholder_issues(value, path=""):
+    """Every string inside `value` that is still template text."""
+    found = []
+
+    def walk(current, at):
+        if isinstance(current, Issue):
+            return
+        if isinstance(current, str):
+            if current and _PLACEHOLDER.search(current):
+                found.append(Issue(at or "text", WARNING,
+                                   f"Unfilled placeholder text: {current[:40]!r}"))
+        elif dataclasses.is_dataclass(current):
+            for f in fields(current):
+                walk(getattr(current, f.name), f"{at}.{f.name}" if at else f.name)
+        elif isinstance(current, dict):
+            for key, item in current.items():
+                walk(item, f"{at}.{key}" if at else str(key))
+        elif isinstance(current, (list, tuple)):
+            for i, item in enumerate(current):
+                walk(item, f"{at}[{i}]")
+
+    walk(value, path)
+    return found
 
 
 # --- fit --------------------------------------------------------------------
@@ -1440,6 +1543,9 @@ class CoverLetter:
     @property
     def all_issues(self):
         found = [*self.issues]
+        found.extend(placeholder_issues(self.greeting, "greeting"))
+        found.extend(placeholder_issues(self.paragraphs, "paragraphs"))
+        found.extend(placeholder_issues(self.closing, "closing"))
         if not self.paragraphs:
             found.append(Issue("paragraphs", BLOCKING, "The letter has no body text."))
         if not self.signature:
@@ -1489,6 +1595,15 @@ def tailor(profile, job, data):
         job_slug=job.slug,
     )
 
+    # The one thing the model writes freely is bullet text and a summary, and
+    # the one thing it can invent there is a number. Text that fell back to
+    # the profile's own is in the profile and passes without a word.
+    written = {"summary": summary}
+    for i, role in enumerate(experience):
+        for j, bullet in enumerate(role.bullets):
+            written[f"experience[{i}].bullets[{j}]"] = bullet
+    issues.extend(figure_issues(written, profile_figures(profile)))
+
     document.issues = issues
     return document
 
@@ -1499,7 +1614,11 @@ def write_letter(profile, job, data):
     greeting = _line(data.get("greeting")) or "Dear Hiring Team,"
     closing = _line(data.get("closing")) or "Kind regards,"
 
-    issues = []
+    # A letter is where a model most wants to help with a number. The job's
+    # own figures are not support: "your 12-week programme" is fine to write
+    # and will be flagged, and the warning says to read it, not to remove it.
+    issues = figure_issues({f"paragraphs[{i}]": p for i, p in enumerate(paragraphs)},
+                           profile_figures(profile))
 
     return CoverLetter(
         personal=profile.personal, greeting=greeting, paragraphs=paragraphs,
