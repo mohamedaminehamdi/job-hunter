@@ -146,7 +146,7 @@ fit score to decide whether a job is worth an evening.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), and [AGENTS.md](AGENTS.md) for how the
-repo is laid out. `pytest` — 444 tests, on Python 3.9 and up.
+repo is laid out. `pytest` runs the suite on Python 3.9 and up.
 
 ## License
 

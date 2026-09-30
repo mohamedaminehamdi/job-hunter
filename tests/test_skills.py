@@ -163,6 +163,24 @@ def test_the_codex_manifest_points_at_the_skills():
     assert (ROOT / "plugins" / "jobhunt" / codex["skills"]).resolve() == SKILLS
 
 
+_COUNTS = {"nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13}
+
+
+@pytest.mark.parametrize("manifest", [
+    "plugins/jobhunt/.claude-plugin/plugin.json",
+    "plugins/jobhunt/.codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+])
+def test_a_manifest_that_counts_the_skills_counts_the_ones_that_exist(manifest):
+    """"Twelve skills" outlived the twelfth skill. A count typed into a
+    manifest rots; this pins any that is there to the folder."""
+    import re
+    text = (ROOT / manifest).read_text(encoding="utf-8").lower()
+    for word, number in _COUNTS.items():
+        if re.search(rf"\b{word} skills\b", text):
+            assert number == len(ALL), f"{manifest} says {word}, there are {len(ALL)}"
+
+
 def test_the_plugin_version_matches_the_library():
     sys.path.insert(0, str(ROOT / "core"))
     import jobhunt as jh

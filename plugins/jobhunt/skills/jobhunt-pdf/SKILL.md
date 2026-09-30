@@ -53,9 +53,7 @@ the same template compiles under tectonic, xelatex, lualatex and pdflatex. A
 template needing `fontawesome` or a bespoke class is a template that fails on
 somebody else's machine. If you write one, keep to that.
 
-## Two things worth knowing
-
-## Two things worth knowing generally
+## Two things worth knowing either way
 
 **The markdown is written first, always.** If the PDF step fails - no browser,
 or a browser that will not start - the markdown is still there and still

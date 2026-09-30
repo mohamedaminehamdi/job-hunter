@@ -108,9 +108,10 @@ def test_the_document_carries_the_job_it_was_made_for(profile, job):
 
 
 
-def test_issue_text_does_not_itself_become_a_blocking_issue(profile, job):
-    """A warning mentioning '[Company]' must not be read as placeholder content."""
+def test_a_dropped_role_is_a_warning_not_a_blocker(profile, job):
+    """Leaving Beta off is reported so the candidate can disagree, and it
+    must not stop the document being exported."""
     document = jobhunt.tailor(profile, job, {**REPLY, "roles": [
         {"index": 0, "bullets": ["Ran Kubernetes."]}]})
-    assert document.issues  # the guard fired
-    assert not document.blocking  # but that is not a blocker
+    assert any("Left off" in i.message for i in document.issues)
+    assert not document.blocking

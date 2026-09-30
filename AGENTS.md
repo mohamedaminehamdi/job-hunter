@@ -83,7 +83,7 @@ a test waves through.
 ### Before you push
 
 ```bash
-pytest                                  # 373 tests
+pytest
 ruff check core plugins tools tests
 python tools/sync.py                    # if you touched core/
 python tools/build_site.py              # if you touched a SKILL.md

@@ -3,9 +3,10 @@
 
 Harder to hold the line on than the CV: a letter is where a model most wants to
 help by calling the candidate "deeply experienced in" whatever the posting
-asked for. So the body is checked word by word against the profile, and the job
-contributes only its own name, role and location to the allowed vocabulary -
-never its list of requirements.
+asked for. So the SKILL.md says in as many words that the posting's
+requirements are not a source of claims, and everything that can be copied
+rather than written - the contact block, the signature, the date, the
+posting's language - is copied here from the profile and the job.
 """
 
 import argparse
