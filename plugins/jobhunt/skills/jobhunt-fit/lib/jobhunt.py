@@ -3599,9 +3599,11 @@ _WEAK_OPENERS = (
 )
 
 #: A figure that means something. Years on their own are dates, not results,
-#: so a bullet whose only number is "2024" is not quantified.
+#: so a bullet whose only number is "2024" is not quantified. A digit glued to
+#: a letter is part of a name - S3, EC2, k8s, Python3 - not a quantity, and
+#: "Migrated the archive to S3" was scoring as a bullet with a figure in it.
 _YEARISH = re.compile(r"^(19|20)\d\d$")
-_NUMBER = re.compile(r"\d[\d,.\s]*%?\+?[kKmM]?")
+_NUMBER = re.compile(r"(?<![A-Za-z])\d[\d,.\s]*%?\+?[kKmM]?")
 
 #: Quantities people write as words. "with zero manual intervention" is a
 #: measured outcome and a digits-only test calls it an adjective.

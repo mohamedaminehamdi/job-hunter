@@ -373,6 +373,11 @@ def test_an_empty_profile_scores_nothing_and_does_not_raise():
     ("Doubled the release cadence.", True),
     ("Worked at Acme from 2021 to 2024.", False),
     ("Configured Nginx as a reverse proxy for load balancing.", False),
+    # A digit inside a name is not a figure. These three scored as evidence.
+    ("Migrated the archive to S3.", False),
+    ("Ran the k8s cluster on EC2.", False),
+    ("Ported the service to Python3.", False),
+    ("Moved 3 services to S3.", True),
 ])
 def test_what_counts_as_a_figure(line, quantified):
     assert jh.is_quantified(line) is quantified
