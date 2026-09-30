@@ -23,10 +23,8 @@ SITE = Path(__file__).resolve().parent / "site"
 REPO = data.REPO
 RAW = f"https://raw.githubusercontent.com/{REPO}/main"
 
-#: A dot in the accent, as a data URI - one request fewer and nothing to 404.
-FAVICON = ("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' "
-           "viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%2312664a'/>"
-           "</svg>")
+#: The mark, as a data URI - one request fewer and nothing to 404.
+FAVICON = logo.favicon()
 
 
 def e(value):
