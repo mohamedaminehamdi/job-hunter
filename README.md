@@ -150,4 +150,10 @@ repo is laid out. `pytest` — 444 tests, on Python 3.9 and up.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE), with one addition: anyone may use it
+to look for work for themselves, paid work included. It is not for commercial
+use — recruiters, agencies, employers, CV or coaching services, and paid
+products need a separate license from the author. Every skill carries a copy
+of the [LICENSE](LICENSE).
+
+Earlier versions were released under MIT, and copies of those stay MIT.

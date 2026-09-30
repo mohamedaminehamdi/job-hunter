@@ -1,62 +1,62 @@
 {
   "jobhunt": {
     "file": "jobhunt.zip",
-    "bytes": 1985,
-    "sha256": "a1ce1b385e66bf53"
+    "bytes": 4197,
+    "sha256": "07abb68489332a6c"
   },
   "jobhunt-all": {
     "file": "jobhunt-all.zip",
-    "bytes": 523233,
-    "sha256": "ba78aa138bdaea00"
+    "bytes": 547705,
+    "sha256": "2aa7e4a571abf56c"
   },
   "jobhunt-answer": {
     "file": "jobhunt-answer.zip",
-    "bytes": 51445,
-    "sha256": "b6aeaf31739d91de"
+    "bytes": 53671,
+    "sha256": "b243afba1d4cf59e"
   },
   "jobhunt-critique": {
     "file": "jobhunt-critique.zip",
-    "bytes": 51658,
-    "sha256": "af8ae96b659d91f8"
+    "bytes": 53888,
+    "sha256": "0e6bcfc26e2f0bf9"
   },
   "jobhunt-fit": {
     "file": "jobhunt-fit.zip",
-    "bytes": 52077,
-    "sha256": "b9bdf22746d6f72d"
+    "bytes": 54297,
+    "sha256": "29f894719222a97c"
   },
   "jobhunt-letter": {
     "file": "jobhunt-letter.zip",
-    "bytes": 51673,
-    "sha256": "5ba50d1cdfc7ad7e"
+    "bytes": 53899,
+    "sha256": "6106c95bb2942eed"
   },
   "jobhunt-outreach": {
     "file": "jobhunt-outreach.zip",
-    "bytes": 51789,
-    "sha256": "334e464231cf13c2"
+    "bytes": 54019,
+    "sha256": "30678c453a53b81c"
   },
   "jobhunt-pdf": {
     "file": "jobhunt-pdf.zip",
-    "bytes": 52592,
-    "sha256": "e0bca2dfb457089d"
+    "bytes": 54812,
+    "sha256": "ba633cd53ab6b856"
   },
   "jobhunt-posting": {
     "file": "jobhunt-posting.zip",
-    "bytes": 52792,
-    "sha256": "0a7a5b81141c9883"
+    "bytes": 55020,
+    "sha256": "39ba0645bf2fba45"
   },
   "jobhunt-profile": {
     "file": "jobhunt-profile.zip",
-    "bytes": 52697,
-    "sha256": "967da080fb3ba335"
+    "bytes": 54925,
+    "sha256": "1e4356516b1089f3"
   },
   "jobhunt-review": {
     "file": "jobhunt-review.zip",
-    "bytes": 52626,
-    "sha256": "83599c2a37bcb613"
+    "bytes": 54852,
+    "sha256": "766e3ca200c5c2ed"
   },
   "jobhunt-tailor": {
     "file": "jobhunt-tailor.zip",
-    "bytes": 52119,
-    "sha256": "5262079aed098409"
+    "bytes": 54345,
+    "sha256": "9ba4a6e5286355c3"
   }
 }
