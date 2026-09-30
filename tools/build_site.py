@@ -337,10 +337,11 @@ def build():
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
         <a href="#example" class="hide-sm">The difference</a>
-        <a href="https://github.com/{REPO}" class="hide-sm">
-          {icon("github-logo")}GitHub</a>
-        <a href="https://github.com/{REPO}" class="star hide-sm"
-           title="Starring it helps people find it">{icon("star")}Star</a>
+        <a href="https://github.com/{REPO}" class="icon-sm" title="GitHub">
+          {icon("github-logo")}<span class="label">GitHub</span></a>
+        <a href="https://github.com/{REPO}" class="star icon-sm"
+           title="Starring it helps people find it">{icon("star")}<span
+           class="label">Star</span></a>
         <a href="#install">Install</a>
       </nav>
     </div>
