@@ -181,6 +181,37 @@ def test_a_run_is_addressed_by_name(tmp_path, monkeypatch):
     assert jh.run_dir("2026-09-24-acme") == (tmp_path / "runs" / "2026-09-24-acme").resolve()
 
 
+def test_re_reading_a_posting_keeps_what_was_made_for_it(tmp_path, monkeypatch):
+    """Reading the same job twice on one day used to delete the whole run -
+    the tailored CV and the letter with it - to make room for page.txt."""
+    monkeypatch.setenv("JOBHUNT_HOME", str(tmp_path))
+    fetched = jh.incoming("https://zeta.example/jobs/1")
+    fetched.mkdir(parents=True)
+    (fetched / "page.txt").write_text("the posting, read again")
+    existing = jh.settled("zeta-engineer")
+    existing.mkdir(parents=True)
+    (existing / "page.txt").write_text("the posting, first read")
+    (existing / "cv.yaml").write_text("an hour of tailoring")
+
+    target = jh.promote(fetched, "zeta-engineer")
+
+    assert target == existing
+    assert (target / "cv.yaml").read_text() == "an hour of tailoring"
+    assert (target / "page.txt").read_text() == "the posting, read again"
+    assert not fetched.exists()
+
+
+def test_two_pasted_postings_do_not_share_a_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("JOBHUNT_HOME", str(tmp_path))
+    assert jh.incoming("Data Engineer at Zeta ...") != jh.incoming("Analyst at Acme ...")
+
+
+def test_a_run_with_no_url_is_logged_without_empty_brackets(tmp_path):
+    log = jh.note(tmp_path / "runs" / "2026-01-01-zeta", "Engineer at Zeta", "",
+                  base=tmp_path)
+    assert "<>" not in log.read_text(encoding="utf-8")
+
+
 def test_save_is_atomic(tmp_path):
     """An interrupted write must not leave half a profile where a whole one was."""
     path = tmp_path / "profile.yaml"

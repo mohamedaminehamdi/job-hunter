@@ -40,7 +40,7 @@ def work(argv):
     else:
         parser.error("give a URL, or --text with a file of pasted description")
 
-    run = jh.run_dir(args.run) if args.run else jh.incoming(page.url or "pasted")
+    run = jh.run_dir(args.run) if args.run else jh.incoming(page.url or page.text)
     run.mkdir(parents=True, exist_ok=True)
     jh.write_text(run, "page.txt", jh.trim(page.text))
     # What we observed, kept beside the text so --parse does not have to be

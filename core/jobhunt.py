@@ -2855,9 +2855,9 @@ def restore_scheme(profile):
 #     jobhunt/runs/<date>-<slug>/       everything made for one job
 #     jobhunt/runs/log.md               one line per job
 #
-# The date prefix means re-running the same job on the same day overwrites,
-# which is what you want while iterating, and two jobs at the same company a
-# month apart do not collide.
+# The date prefix means re-reading the same job on the same day lands in the
+# same run - the posting is refreshed and everything else made for it stays -
+# and two jobs at the same company a month apart do not collide.
 
 WORKSPACE = "jobhunt"
 CV_DIR = "cv"
@@ -2900,9 +2900,14 @@ def log_path(base=None):
     return runs_dir(base) / LOG_NAME
 
 
-def incoming(url, base=None):
-    """Where a fetch lands before anyone knows what the job is called."""
-    digest = hashlib.sha1(url.encode()).hexdigest()[:10]
+def incoming(key, base=None):
+    """Where a fetch lands before anyone knows what the job is called.
+
+    `key` is the URL, or the pasted text when there is no URL: every pasted
+    posting used to hash the same placeholder and land in the same directory,
+    so two read before either was parsed overwrote each other.
+    """
+    digest = hashlib.sha1(key.encode()).hexdigest()[:10]
     return runs_dir(base) / INCOMING / digest
 
 
@@ -2916,15 +2921,29 @@ def is_incoming(run):
 
 
 def promote(source, slug, base=None):
-    """Move a fetched run to its real name, now that the job has been read."""
+    """Move a fetched run to its real name, now that the job has been read.
+
+    When a run by that name already exists - the same job read again on the
+    same day - the fetched files move into it and replace their namesakes, and
+    everything else in it stays. This used to delete the existing run first,
+    which took an hour's tailored CV and the letter with the stale page.txt.
+    """
     source = Path(source)
     target = settled(slug, base)
     if target.resolve() == source.resolve():
         return target
     target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        shutil.rmtree(target)
-    shutil.move(str(source), str(target))
+    if not target.exists():
+        shutil.move(str(source), str(target))
+        return target
+    for item in source.iterdir():
+        replaced = target / item.name
+        if replaced.is_dir():
+            shutil.rmtree(replaced)
+        elif replaced.exists():
+            replaced.unlink()
+        shutil.move(str(item), str(replaced))
+    shutil.rmtree(source, ignore_errors=True)
     return target
 
 
@@ -2997,7 +3016,8 @@ def note(run, label, url, base=None):
         log.write_text("# Applications\n\n"
                        "One line per job prepared. Add what happened next yourself.\n\n",
                        encoding="utf-8")
-    line = f"- {today()}  {label}  <{url}>  `{Path(run).name}`\n"
+    where = f"  <{url}>" if url else ""      # pasted text has no address
+    line = f"- {today()}  {label}{where}  `{Path(run).name}`\n"
     if line not in log.read_text(encoding="utf-8"):
         with log.open("a", encoding="utf-8") as handle:
             handle.write(line)

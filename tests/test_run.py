@@ -189,6 +189,37 @@ def test_what_we_observed_beats_what_the_model_wrote(work):
     assert saved.url == "https://real.example/jobs/1"
 
 
+def test_re_reading_a_posting_keeps_the_tailored_cv(work):
+    """The same job, pasted twice on the same day. The second read used to
+    delete the run and everything made for it."""
+    posting = Path(work) / "p.txt"
+    posting.write_text(POSTING, encoding="utf-8")
+    got = emitted(run("jobhunt-posting", "--text", posting, "https://z.example/1",
+                      work=work))
+    got = emitted(run("jobhunt-posting", "--parse", write(work, "j.json", JOB),
+                      "--run", got["run"], work=work))
+    run_dir = Path(got["run"])
+    run("jobhunt-tailor", write(work, "s.json", SELECTION), "--run", run_dir, work=work)
+    assert (run_dir / "cv.yaml").exists()
+
+    got = emitted(run("jobhunt-posting", "--text", posting, "https://z.example/1",
+                      work=work))
+    got = emitted(run("jobhunt-posting", "--parse", write(work, "j.json", JOB),
+                      "--run", got["run"], work=work))
+    assert Path(got["run"]) == run_dir
+    assert (run_dir / "cv.yaml").exists(), "re-reading the posting lost the CV"
+
+
+def test_two_pasted_postings_with_no_url_land_apart(work):
+    first = Path(work) / "a.txt"
+    first.write_text(POSTING, encoding="utf-8")
+    second = Path(work) / "b.txt"
+    second.write_text(POSTING.replace("Zeta", "Acme"), encoding="utf-8")
+    one = emitted(run("jobhunt-posting", "--text", first, work=work))["run"]
+    two = emitted(run("jobhunt-posting", "--text", second, work=work))["run"]
+    assert one != two
+
+
 def test_a_posting_too_thin_to_use_stops_the_run(work):
     thin = Path(work) / "thin.txt"
     thin.write_text("Data Engineer. Apply now.", encoding="utf-8")
