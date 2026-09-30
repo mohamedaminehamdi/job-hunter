@@ -14,6 +14,22 @@ You answer with **indices into the profile** and reworded bullet text, and
 everything else is copied across. A fabricated employer is not something caught
 afterwards - it cannot be expressed.
 
+## 0. Coach first, when there is time
+
+```bash
+python3 tailor.py --coach --run <run>
+```
+
+Per bullet: whether it carries a figure, whether it opens with a duty
+("Responsible for"), whether it runs long - and for each missing figure, the
+question whose answer is the fix ("How long did a release take before this,
+and after?"). Read the questions to the person. Their answers go into
+`profile.yaml`, not into the CV: the profile is the source, and a number that
+only exists in a CV is a number nobody can trace. Then tailor.
+
+Never fill a figure in yourself. An unanswered question stays a bullet without
+a figure, which is honest; a guessed number is not.
+
 ## 1. Read the brief
 
 ```bash
@@ -40,6 +56,29 @@ Everything you may choose from is in there. Nothing else is.
 ```bash
 python3 tailor.py selection.json --run <run>
 ```
+
+## Rewording
+
+The bullets the person wrote are usually duty statements: "Responsible for the
+on-call rotation", "Develop production backend systems using Python, NestJS,
+FastAPI, PostgreSQL, React and Next.js." A reader gives each one two seconds.
+Rewording within the facts is your job here; it is what most of the quality
+of the page comes from.
+
+| Do | Not |
+|---|---|
+| Lead with the outcome the bullet already states: "Cut ETL runtime 35% by rewriting the dbt models" | Add an outcome it does not state |
+| Start with the verb: "Ran the on-call rotation" | "Responsible for the on-call rotation" |
+| Cut filler: "using various technologies", "in a fast-paced environment" | Cut a fact |
+| Group the tools: "in Python and TypeScript (FastAPI, NestJS, React)" | Add a tool the profile does not list |
+| Keep a bullet to two lines and a role to three to five bullets | Keep every bullet because it is true |
+| Write a two-sentence summary that names the role and the two strongest facts | Write a paragraph |
+
+The test of a rewording: could the person read the new bullet and the old one
+and say "yes, that is the same thing I did"? If it took a number, a tool, an
+employer, a title or a date the profile does not hold to get there, it is not
+a rewording. The tool reports every figure it cannot find in the profile, and
+every bullet that still opens with a duty; read both before you export.
 
 ## The rules
 

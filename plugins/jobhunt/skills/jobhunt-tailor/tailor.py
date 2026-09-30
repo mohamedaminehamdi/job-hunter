@@ -24,17 +24,31 @@ def work(argv):
     parser.add_argument("--brief", action="store_true",
                         help="print the profile and the job as a prompt block "
                              "and stop - this is what you write the JSON from")
+    parser.add_argument("--coach", action="store_true",
+                        help="print, per bullet, what a reader will miss and the question "
+                             "whose answer fixes it - ask the person before you tailor")
     args = parser.parse_args(argv)
     # The brief comes before there is a selection to give, so the positional
     # cannot be required: it used to be, and the skill had to be run with a
     # dummy "x" on the end to read it.
-    if not args.brief and not args.selection:
+    if not (args.brief or args.coach) and not args.selection:
         parser.error("give the selection JSON you wrote, or --brief to read "
-                     "the profile and the posting first")
+                     "the profile and the posting first, or --coach")
 
     run = jh.run_dir(args.run)
     job = jh.load(jh.Job, jh.require(run, "job.yaml"))
     profile = jh.load(jh.Profile, args.profile or jh.profile_path())
+
+    if args.coach:
+        page = jh.coaching(profile)
+        print(page)
+        bullets = sum(len(r.bullets) for r in profile.experience)
+        without = sum(1 for r in profile.experience for b in r.bullets
+                      if not jh.is_quantified(b))
+        jh.emit({"run": str(run), "bullets": bullets, "without_figure": without,
+                 "next": "ask the person each question, put the answers in profile.yaml, "
+                         "then --brief"})
+        return jh.OK
 
     if args.brief:
         print(jh.profile_block(profile))

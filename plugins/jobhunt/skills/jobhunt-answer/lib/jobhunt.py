@@ -1491,8 +1491,54 @@ def tailor(profile, job, data):
         job_slug=job.slug,
     )
 
+    # The shape of the page, as a reader meets it: said here, where the
+    # rewording that fixes it happens, and read again by the critique.
+    issues.extend(layout_issues(document))
+
     document.issues = issues
     return document
+
+
+#: What a reader gets through. A summary past this is skimmed, not read.
+SUMMARY_WORDS = 60
+#: More than this in one role reads as a job description, not a highlight reel.
+FULL_ROLE = 6
+#: Past this a skills list stops being read and starts being scrolled.
+MANY_SKILLS = 15
+
+
+def layout_issues(document):
+    """What a reader notices about the shape of the page before judging a word
+    of it. Warnings and notes, never blocks: the fix is in the rewording, and
+    the person may disagree with every one of them."""
+    found = []
+    summary_words = len(str(document.summary).split())
+    if summary_words > SUMMARY_WORDS:
+        found.append(Issue("summary", WARNING,
+                           f"The summary is {summary_words} words. Two sentences is what "
+                           "gets read."))
+    for i, role in enumerate(document.experience):
+        if len(role.bullets) > FULL_ROLE:
+            found.append(Issue(f"experience[{i}]", WARNING,
+                               f"{len(role.bullets)} bullets - past {FULL_ROLE} a role reads "
+                               "as a job description. Keep the ones this posting cares about."))
+        for j, bullet in enumerate(role.bullets):
+            words_in = len(bullet.split())
+            if words_in > LONG_BULLET:
+                found.append(Issue(f"experience[{i}].bullets[{j}]", INFO,
+                                   f"{words_in} words - two sentences doing one sentence's "
+                                   "work."))
+            opener = weak_opener(bullet)
+            if opener:
+                found.append(Issue(f"experience[{i}].bullets[{j}]", INFO,
+                                   f"Starts with {opener!r} - a duty, not a result. Start "
+                                   "with the verb."))
+    if len(document.skills) > MANY_SKILLS:
+        found.append(Issue("skills", INFO,
+                           f"{len(document.skills)} skills listed. Past {MANY_SKILLS} a list "
+                           "stops being read; lead with what this posting asks for and cut "
+                           "the rest."))
+    return found
 
 
 def write_letter(profile, job, data):
@@ -3905,6 +3951,39 @@ def review(profile):
 
 #: What the total means, in words. Deliberately not a grade: the bands say what
 #: to do next, because a CV at 55 is not a worse person than one at 85.
+def coaching(profile):
+    """Per bullet, what a reader will miss and the question whose answer fixes it.
+
+    Written for the agent to read to the person before tailoring. A figure is
+    something to ask for, never to guess: the answer goes into the profile
+    first, and only then into a CV. The questions are the review's own, so the
+    two say the same thing about the same line.
+    """
+    out = ["Before tailoring: what each bullet is missing, and what to ask.", ""]
+    asked = 0
+    for i, role in enumerate(profile.experience):
+        out.append(f"[{i}] " + " - ".join(x for x in (role.position, role.company) if x))
+        for bullet in role.bullets:
+            notes = []
+            if not is_quantified(bullet):
+                notes.append("no figure -> ask: " + ask_about(bullet))
+                asked += 1
+            opener = weak_opener(bullet)
+            if opener:
+                notes.append(f"opens with {opener!r} - start with the verb")
+            if len(bullet.split()) > LONG_BULLET:
+                notes.append(f"{len(bullet.split())} words - one sentence, not two")
+            out.append(("  ok  " if not notes else "  --  ") + _excerpt(bullet, 88))
+            out += [f"        {note}" for note in notes]
+        out.append("")
+    summary_words = len(str(profile.summary).split())
+    if summary_words > SUMMARY_WORDS:
+        out += [f"Summary: {summary_words} words. Two sentences is what gets read.", ""]
+    out.append(f"{asked} bullet(s) carry no figure. Ask the person each question, put the "
+               "answers in profile.yaml, then tailor. Never fill a number in yourself.")
+    return "\n".join(out)
+
+
 def band(score, out_of=100):
     ratio = _share(score, out_of)
     if ratio >= 0.85:

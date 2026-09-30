@@ -100,6 +100,43 @@ def test_projects_are_selected_not_reworded(profile, job):
     assert document.projects == [profile.projects[0]]
 
 
+# --- the shape of the page ------------------------------------------------
+
+def test_the_shape_of_the_page_is_reported_but_never_blocks(profile, job):
+    long = "word " * 40
+    profile.experience[0].bullets = [f"Did thing {i}." for i in range(8)]
+    document = jobhunt.tailor(profile, job, {
+        "summary": "long " * 70,
+        "roles": [{"index": 0, "bullets": [
+            "Responsible for the pipelines.", long.strip(),
+            *[f"Did thing {i}." for i in range(6)]]}],
+        "projects": [], "skills": []})
+    said = {(i.path, i.severity) for i in document.issues}
+    assert ("summary", jobhunt.WARNING) in said
+    assert ("experience[0]", jobhunt.WARNING) in said                 # 8 bullets
+    assert ("experience[0].bullets[0]", jobhunt.INFO) in said         # the opener
+    assert ("experience[0].bullets[1]", jobhunt.INFO) in said         # the length
+    assert not document.blocking
+
+
+def test_a_tidy_document_gets_no_layout_notes(profile, job):
+    document = jobhunt.tailor(profile, job, REPLY)
+    assert not [i for i in document.issues
+                if i.path in ("summary", "skills") or "words" in i.message]
+
+
+def test_coaching_asks_the_review_s_question_for_each_bullet_without_a_figure():
+    profile = jobhunt.Profile(experience=[jobhunt.Role(
+        position="Engineer", company="Acme",
+        bullets=["Responsible for the CI/CD pipelines.", "Cut ETL runtime by 35%."])])
+    page = jobhunt.coaching(profile)
+    assert "How long did a release take before this, and after?" in page
+    assert "opens with 'responsible for'" in page
+    assert "ok  Cut ETL runtime by 35%." in page
+    assert "1 bullet(s) carry no figure" in page
+    assert "Never fill a number in yourself" in page
+
+
 def test_the_document_carries_the_job_it_was_made_for(profile, job):
     document = jobhunt.tailor(profile, job, REPLY)
     assert document.job_label == "Senior Data Engineer at Zeta"
