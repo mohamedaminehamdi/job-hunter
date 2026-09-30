@@ -268,6 +268,9 @@ ALLOWED = {
     "__future__", "ast", "copy", "dataclasses", "datetime", "hashlib", "html",
     "json", "os", "pathlib", "re", "shutil", "subprocess", "sys", "tempfile",
     "time", "xml", "zipfile",
+    # To read a page count out of a PDF a TeX engine wrote, whose page tree
+    # sits in a compressed object stream. No PDF library, still.
+    "zlib",
 }
 
 

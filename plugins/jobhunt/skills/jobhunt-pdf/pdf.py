@@ -27,7 +27,31 @@ def work(argv):
                              "a TeX engine is installed; the browser if not")
     parser.add_argument("--browser", action="store_true",
                         help="render through the browser even if TeX is there")
+    parser.add_argument("--pages", type=int,
+                        help="the page budget: one by default, two past ten years of "
+                             "experience. 0 for no budget")
+    parser.add_argument("--fit", action="store_true",
+                        help="allowed to cut bullets, course lists and project text to "
+                             "make the budget; every cut is reported")
+    parser.add_argument("--order",
+                        help="section order: student, experienced, or a comma list of "
+                             "section names")
     args = parser.parse_args(argv)
+
+    order = None
+    if args.order:
+        named = args.order.strip().lower()
+        if named == "student":
+            order = list(jh.STUDENT_FIRST)
+        elif named == "experienced":
+            order = list(jh.SECTIONS)
+        else:
+            order = [part.strip() for part in named.split(",") if part.strip()]
+            unknown = [part for part in order if part not in jh.SECTIONS]
+            if unknown:
+                print(f"No section called {', '.join(unknown)}. Sections: "
+                      f"{', '.join(jh.SECTIONS)}.", file=sys.stderr)
+                return jh.BLOCKED
 
     source = Path(args.source)
     if not source.exists():
@@ -45,7 +69,8 @@ def work(argv):
     # with no browser.
     markdown = out.with_suffix(".md")
     markdown.parent.mkdir(parents=True, exist_ok=True)
-    markdown.write_text(jh.to_markdown(document), encoding="utf-8")
+    markdown.write_text(jh.cv_markdown(document, order) if not letter
+                        else jh.to_markdown(document), encoding="utf-8")
 
     blocked = jh.blocking_issues(document)
     if blocked:
@@ -59,19 +84,27 @@ def work(argv):
         return jh.BLOCKED
 
     try:
-        if args.browser:
-            jh.write_pdf(jh.to_html(document, theme), out)
-            how = "browser"
-        else:
-            how = jh.export(document, out, theme, args.template)
+        made = jh.export(document, out, theme, args.template, pages=args.pages,
+                         fit=args.fit, order=order,
+                         prefer="browser" if args.browser else None)
     except jh.PdfError as exc:
         jh.emit({"markdown": str(markdown), "pdf": None, "error": str(exc)})
         print(str(exc), file=sys.stderr)
         return jh.OK  # the markdown is real and sendable; this is not a failure
 
     jh.emit({"markdown": str(markdown), "pdf": str(out),
-             "bytes": out.stat().st_size, "theme": theme.name, "rendered": how})
-    print(f"Wrote {out} and {markdown} ({how})", file=sys.stderr)
+             "bytes": out.stat().st_size, "theme": theme.name, "rendered": str(made),
+             "pages": made.pages, "page_budget": made.budget, "density": made.density,
+             "trimmed": list(made.trimmed), "over_budget": made.over})
+    print(f"Wrote {out} and {markdown} ({made}, {made.pages or '?'} page"
+          f"{'' if made.pages == 1 else 's'})", file=sys.stderr)
+    if made.trimmed:
+        print("Cut to fit the page: " + "; ".join(made.trimmed) + ". The markdown "
+              "still has all of it.", file=sys.stderr)
+    if made.over:
+        print(f"That is over the budget of {made.budget}. Run again with --fit to "
+              "let it cut, or --pages 2 to allow two, or tailor with fewer bullets.",
+              file=sys.stderr)
     return jh.OK
 
 

@@ -140,6 +140,14 @@ def test_overlapping_roles_are_counted_once():
     assert jobhunt.years_held(doubled) == 4
 
 
+def test_months_count_for_what_they_are():
+    """Two short roles in one year used to add up to zero: year arithmetic
+    gave April to August nothing. They are a third of a year."""
+    short = Profile(experience=[Role(position="A", company="X", start="2025-04", end="2025-08"),
+                                Role(position="B", company="Y", start="2025-02", end="2025-04")])
+    assert abs(jobhunt.years_held(short) - 0.5) < 0.01
+
+
 def test_undated_roles_are_not_a_short_career():
     undated = Profile(experience=[Role(position="A", company="X", start="recently")])
     assert jobhunt.years_held(undated) is None

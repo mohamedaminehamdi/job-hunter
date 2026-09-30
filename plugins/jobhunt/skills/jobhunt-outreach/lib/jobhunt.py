@@ -36,6 +36,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zlib
 from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, timezone
 from html.parser import HTMLParser
@@ -449,8 +450,30 @@ class Issue:
         return f"[{self.severity}] {self.path}: {self.message}"
 
 
+_MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+_ISO_MONTH = re.compile(r"^(\d{4})-(\d{1,2})(?:-\d{1,2})?$")
+
+
+def format_date(value):
+    """A date as a CV prints it: "2025-11" and "2025-11-03" become "Nov 2025".
+
+    A year on its own, "Present", "Summer 2024" and anything else pass through
+    as written - the profile is the person's own wording, and only the machine
+    form is rewritten, because "2025-11 - Present" on a CV reads as a database
+    dump.
+    """
+    raw = str(value or "").strip()
+    match = _ISO_MONTH.match(raw)
+    if match and 1 <= int(match.group(2)) <= 12:
+        return f"{_MONTH_ABBR[int(match.group(2)) - 1]} {match.group(1)}"
+    return raw
+
+
 def _period(start, end):
-    return f"{start} - {end}" if start and end else (start or end)
+    """"Nov 2025 – Present", with the en dash every renderer here can set."""
+    first, last = format_date(start), format_date(end)
+    return f"{first} – {last}" if first and last else (first or last)
 
 
 @dataclass
@@ -1043,9 +1066,25 @@ def years_required(line):
     return int(asked) if asked.isdigit() else _WORD_NUMBERS[asked.lower()]
 
 
+_DATED = re.compile(r"\b((?:19|20)\d{2})(?:-(\d{1,2}))?\b")
+
+
 def _year_of(body):
     match = re.search(r"\b(19|20)\d{2}\b", str(body))
     return int(match.group()) if match else None
+
+
+def _point_of(body):
+    """A date as a fractional year - "2025-04" is 2025.25 - so a role that ran
+    from April to August counts for the third of a year it was, not for the
+    zero that year arithmetic gave it. A bare year stays a whole number."""
+    match = _DATED.search(str(body))
+    if match is None:
+        return None
+    year, month = int(match.group(1)), match.group(2)
+    if month and 1 <= int(month) <= 12:
+        return year + (int(month) - 1) / 12
+    return float(year)
 
 
 def years_held(profile, as_of=None):
@@ -1055,22 +1094,25 @@ def years_held(profile, as_of=None):
     short career, the same rule the rest of this tool follows.
     """
     current = as_of or datetime.now(UTC).date()
+    now = current.year + (current.month - 1) / 12
     spans = []
     for role in profile.experience:
-        start = _year_of(role.start)
+        start = _point_of(role.start)
         if start is None:
             continue
         if norm(str(role.end)) in _PRESENT or not str(role.end).strip():
-            end = current.year
+            end = now
         else:
-            end = _year_of(role.end) or current.year
+            end = _point_of(role.end)
+            if end is None:
+                end = now
         spans.append((start, max(end, start)))
 
     if not spans:
         return None
 
     # Union the spans so two overlapping roles are not counted twice.
-    total = 0
+    total = 0.0
     covered = []
     for start, end in sorted(spans):
         if covered and start <= covered[-1][1]:
@@ -1079,7 +1121,7 @@ def years_held(profile, as_of=None):
             covered.append((start, end))
     for start, end in covered:
         total += end - start
-    return float(total)
+    return total
 
 
 def extract(job, vocabulary=frozenset()):
@@ -1398,10 +1440,13 @@ class TailoredCV(Profile):
 
     job_label: str = ""
     job_slug: str = ""
+    #: The sections in the order this CV prints them, when someone chose one.
+    #: Empty means by audience: a student leads with the degree.
+    section_order: list = field(default_factory=list)
     #: Findings from the invention guard and from assembling the document.
     issues: list = field(default_factory=list)
 
-    SHAPE = dict(Profile.SHAPE, issues=(list, Issue))
+    SHAPE = dict(Profile.SHAPE, issues=(list, Issue), section_order="lines")
 
     @property
     def all_issues(self):
@@ -1837,37 +1882,84 @@ def _subject(language=""):
     return _SUBJECT[_key(language)]
 
 
-def _page(title, theme, body, extra_css="", lang="en"):
+#: How tightly a page is set. "normal" is the design. The two below are what
+#: the one-page fit falls back to before it touches a word of content.
+DENSITIES = {
+    "normal": {"font": "10.5pt", "line": "1.45", "margin": "16mm 15mm", "block": "11px",
+               "h2": "16px 0 7px", "tex_size": "11pt", "tex_margin": "18mm",
+               "tex_top": "16mm", "tex_itemsep": "1pt", "tex_gap": "8pt"},
+    "compact": {"font": "10pt", "line": "1.38", "margin": "13mm 13mm", "block": "8px",
+                "h2": "12px 0 5px", "tex_size": "10pt", "tex_margin": "15mm",
+                "tex_top": "13mm", "tex_itemsep": "0.5pt", "tex_gap": "6pt"},
+    "dense": {"font": "9.5pt", "line": "1.32", "margin": "11mm 12mm", "block": "6px",
+              "h2": "9px 0 4px", "tex_size": "10pt", "tex_margin": "12mm",
+              "tex_top": "11mm", "tex_itemsep": "0pt", "tex_gap": "4pt"},
+}
+
+#: The sections a CV can have, in the order an experienced hire shows them.
+SECTIONS = ("summary", "experience", "projects", "education", "skills",
+            "certifications", "languages")
+#: A student leads with the degree: it is the strongest thing on the page and
+#: the first thing a reader of a student CV looks for.
+STUDENT_FIRST = ("summary", "education", "experience", "projects", "skills",
+                 "certifications", "languages")
+
+
+def is_student(document, as_of=None):
+    """Still studying, or under two years into work."""
+    year = (as_of or datetime.now(UTC).date()).year
+    if any((_year_of(study.end) or 0) >= year for study in document.education):
+        return True
+    held = years_held(document, as_of)
+    return held is not None and held < 2
+
+
+def section_order(document, given=None):
+    """The order the sections print in: what was asked for, else by audience.
+
+    Every renderer asks this one function, so the PDF, the markdown and the
+    LaTeX source agree on where Education sits.
+    """
+    chosen = getattr(document, "section_order", None) or []
+    asked = [name for name in (given or chosen) if name in SECTIONS]
+    if asked:
+        return asked + [name for name in SECTIONS if name not in asked]
+    return list(STUDENT_FIRST if is_student(document) else SECTIONS)
+
+
+def _page(title, theme, body, extra_css="", lang="en", density="normal"):
     """The shell every document shares: A4, print colours, one accent."""
+    d = DENSITIES.get(density, DENSITIES["normal"])
     return f"""<!doctype html>
 <html lang="{_e(lang)}">
 <head>
 <meta charset="utf-8">
 <title>{_e(title)}</title>
 <style>
-  @page {{ size: A4; margin: 16mm 15mm; }}
+  @page {{ size: A4; margin: {d["margin"]}; }}
   * {{ box-sizing: border-box; }}
   html {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
   body {{
     margin: 0;
     font-family: {theme.body_font};
-    font-size: 10.5pt;
-    line-height: 1.45;
+    font-size: {d["font"]};
+    line-height: {d["line"]};
     color: {theme.ink};
     background: #fff;
   }}
   /* @page only applies when printing. On screen - the review frame - the page
      needs its own margins, or right-aligned dates are clipped at the edge. */
   @media screen {{
-    body {{ max-width: 210mm; margin: 0 auto; padding: 16mm 15mm; }}
+    body {{ max-width: 210mm; margin: 0 auto; padding: {d["margin"]}; }}
   }}
   a {{ color: {theme.accent}; text-decoration: none; }}
   h1, h2, h3 {{ font-family: {theme.heading_font}; margin: 0; }}
   h1 {{ font-size: 20pt; letter-spacing: -0.4pt; line-height: 1.15; }}
   h2 {{
     font-size: 8.5pt; text-transform: uppercase; letter-spacing: 1pt;
-    color: {theme.accent}; margin: 16px 0 7px;
+    color: {theme.accent}; margin: {d["h2"]};
     padding-bottom: 3px; border-bottom: 1px solid {theme.rule};
+    break-after: avoid; page-break-after: avoid;
   }}
   h3 {{ font-size: 11pt; }}
   p {{ margin: 0 0 8px; }}
@@ -1877,7 +1969,7 @@ def _page(title, theme, body, extra_css="", lang="en"):
   .accent-bar {{ height: 3px; background: {theme.accent}; margin-bottom: 14px; }}
   .contact {{ font-size: 9pt; color: {theme.muted}; margin-top: 5px; }}
   .contact span:not(:last-child)::after {{ content: " · "; }}
-  .block {{ break-inside: avoid; page-break-inside: avoid; margin-bottom: 11px; }}
+  .block {{ break-inside: avoid; page-break-inside: avoid; margin-bottom: {d["block"]}; }}
   .row {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }}
   .when {{ font-size: 9pt; color: {theme.muted}; white-space: nowrap; }}
   .tags {{ font-size: 9.5pt; }}
@@ -1892,13 +1984,93 @@ def _page(title, theme, body, extra_css="", lang="en"):
 
 
 _CV_CSS = """  header { margin-bottom: 4px; }
-  .headline { font-size: 10.5pt; color: %(muted)s; margin-top: 2px; }
+  .headline { font-size: %(font)s; color: %(muted)s; margin-top: 2px; }
   .summary { margin-top: 10px; }
   .role-company { font-weight: 600; }
   .edu-line { font-weight: 600; }"""
 
 
-def cv_html(document, theme=NEUTRAL):
+def _html_sections(document):
+    """Each section's markup by name, empty where the document has nothing."""
+    parts = {name: [] for name in SECTIONS}
+
+    if document.summary:
+        parts["summary"] = [f'<div class="summary">{_e(document.summary)}</div>']
+
+    if document.experience:
+        out = ["<h2>Experience</h2>"]
+        for role in document.experience:
+            title = f'<span class="role-company">{_e(role.position)}</span>'
+            if role.company:
+                title += f", {_e(role.company)}"
+            out += ['<div class="block">', '  <div class="row">', f"    <h3>{title}</h3>"]
+            if role.period:
+                out.append(f'    <span class="when">{_e(role.period)}</span>')
+            out.append("  </div>")
+            if role.location:
+                out.append(f'  <div class="muted" style="font-size:9pt">'
+                           f"{_e(role.location)}</div>")
+            if role.bullets:
+                items = "".join(f"<li>{_e(b)}</li>" for b in role.bullets)
+                out.append(f"  <ul>{items}</ul>")
+            out.append("</div>")
+        parts["experience"] = out
+
+    if document.projects:
+        out = ["<h2>Projects</h2>"]
+        for project in document.projects:
+            name = (f'<a href="{_e(project.link)}">{_e(project.name)}</a>'
+                    if project.link else _e(project.name))
+            out += ['<div class="block">', '  <div class="row">', f"    <h3>{name}</h3>"]
+            if project.tech:
+                out.append(f'    <span class="when">{_joined(project.tech, ", ")}</span>')
+            out.append("  </div>")
+            if project.description:
+                out.append(f"  <div>{_e(project.description)}</div>")
+            out.append("</div>")
+        parts["projects"] = out
+
+    if document.education:
+        out = ["<h2>Education</h2>"]
+        for edu in document.education:
+            head = _joined([edu.level, edu.field_of_study], ", ")
+            out += ['<div class="block">', '  <div class="row">',
+                    f'    <h3><span class="edu-line">{head}</span></h3>']
+            if edu.period:
+                out.append(f'    <span class="when">{_e(edu.period)}</span>')
+            out += ["  </div>",
+                    '  <div class="muted" style="font-size:9.5pt">'
+                    + _joined([edu.institution, edu.location, edu.grade]) + "</div>"]
+            if edu.courses:
+                out.append(f'  <div class="tags muted">{_joined(edu.courses, ", ")}</div>')
+            out.append("</div>")
+        parts["education"] = out
+
+    if document.skills:
+        parts["skills"] = ["<h2>Skills</h2>",
+                           f'<div class="tags">{_joined(document.skills)}</div>']
+
+    if document.certifications:
+        out = ["<h2>Certifications</h2>"]
+        for cert in document.certifications:
+            line = _e(cert.name)
+            if cert.issuer:
+                line += f' <span class="muted">— {_e(cert.issuer)}</span>'
+            out += ['<div class="row">', f"  <div>{line}</div>"]
+            if cert.year:
+                out.append(f'  <span class="when">{_e(cert.year)}</span>')
+            out.append("</div>")
+        parts["certifications"] = out
+
+    if document.languages:
+        named = [f'{_e(x.name)} <span class="muted">({_e(x.level)})</span>'
+                 if x.level else _e(x.name) for x in document.languages]
+        parts["languages"] = ["<h2>Languages</h2>",
+                              '<div class="tags">' + " · ".join(named) + "</div>"]
+    return parts
+
+
+def cv_html(document, theme=NEUTRAL, density="normal", order=None):
     """A CV (or a plain profile) as a self-contained HTML page."""
     p = document.personal
     out = ["<header>", f"  <h1>{_e(p.full_name)}</h1>"]
@@ -1916,78 +2088,14 @@ def cv_html(document, theme=NEUTRAL):
             out.append(f'    <span><a href="{_e(link)}">{_e(_strip_scheme(link))}</a></span>')
     out += ["  </div>", "</header>"]
 
-    if document.summary:
-        out.append(f'<div class="summary">{_e(document.summary)}</div>')
-
-    if document.experience:
-        out.append("<h2>Experience</h2>")
-        for role in document.experience:
-            title = f'<span class="role-company">{_e(role.position)}</span>'
-            if role.company:
-                title += f", {_e(role.company)}"
-            out += ['<div class="block">', '  <div class="row">', f"    <h3>{title}</h3>"]
-            if role.period:
-                out.append(f'    <span class="when">{_e(role.period)}</span>')
-            out.append("  </div>")
-            if role.location:
-                out.append(f'  <div class="muted" style="font-size:9pt">'
-                           f"{_e(role.location)}</div>")
-            if role.bullets:
-                items = "".join(f"<li>{_e(b)}</li>" for b in role.bullets)
-                out.append(f"  <ul>{items}</ul>")
-            out.append("</div>")
-
-    if document.projects:
-        out.append("<h2>Projects</h2>")
-        for project in document.projects:
-            name = (f'<a href="{_e(project.link)}">{_e(project.name)}</a>'
-                    if project.link else _e(project.name))
-            out += ['<div class="block">', '  <div class="row">', f"    <h3>{name}</h3>"]
-            if project.tech:
-                out.append(f'    <span class="when">{_joined(project.tech, ", ")}</span>')
-            out.append("  </div>")
-            if project.description:
-                out.append(f"  <div>{_e(project.description)}</div>")
-            out.append("</div>")
-
-    if document.education:
-        out.append("<h2>Education</h2>")
-        for edu in document.education:
-            head = _joined([edu.level, edu.field_of_study], ", ")
-            out += ['<div class="block">', '  <div class="row">',
-                    f'    <h3><span class="edu-line">{head}</span></h3>']
-            if edu.period:
-                out.append(f'    <span class="when">{_e(edu.period)}</span>')
-            out += ["  </div>",
-                    '  <div class="muted" style="font-size:9.5pt">'
-                    + _joined([edu.institution, edu.location, edu.grade]) + "</div>"]
-            if edu.courses:
-                out.append(f'  <div class="tags muted">{_joined(edu.courses, ", ")}</div>')
-            out.append("</div>")
-
-    if document.skills:
-        out += ["<h2>Skills</h2>", f'<div class="tags">{_joined(document.skills)}</div>']
-
-    if document.certifications:
-        out.append("<h2>Certifications</h2>")
-        for cert in document.certifications:
-            line = _e(cert.name)
-            if cert.issuer:
-                line += f' <span class="muted">— {_e(cert.issuer)}</span>'
-            out += ['<div class="row">', f"  <div>{line}</div>"]
-            if cert.year:
-                out.append(f'  <span class="when">{_e(cert.year)}</span>')
-            out.append("</div>")
-
-    if document.languages:
-        named = [f'{_e(x.name)} <span class="muted">({_e(x.level)})</span>'
-                 if x.level else _e(x.name) for x in document.languages]
-        out += ["<h2>Languages</h2>",
-                '<div class="tags">' + " · ".join(named) + "</div>"]
+    parts = _html_sections(document)
+    for name in section_order(document, order):
+        out += parts.get(name, [])
 
     title = getattr(document, "job_label", "") or p.full_name or "CV"
+    d = DENSITIES.get(density, DENSITIES["normal"])
     return _page(f"CV - {title}", theme, "\n".join(out),
-                 _CV_CSS % {"muted": theme.muted})
+                 _CV_CSS % {"muted": theme.muted, "font": d["font"]}, density=density)
 
 
 _LETTER_CSS = """  body { font-size: 11pt; line-height: 1.55; }
@@ -2044,29 +2152,23 @@ def _contact(p):
     return " · ".join(x for x in [*bits, *links] if x)
 
 
-def cv_markdown(document):
-    """A CV as markdown, in the same order the PDF puts it."""
-    out = []
-    out.append(f"# {document.personal.full_name or 'CV'}")
-    if document.personal.headline:
-        out.append(f"*{document.personal.headline}*")
-    contact = _contact(document.personal)
-    if contact:
-        out.append(contact)
+def _markdown_sections(document):
+    parts = {name: [] for name in SECTIONS}
     if document.summary:
-        out += ["", document.summary]
+        parts["summary"] = ["", document.summary]
 
     if document.experience:
-        out += ["", "## Experience"]
+        out = ["", "## Experience"]
         for role in document.experience:
             where = " — ".join(x for x in (role.company, role.location) if x)
             out += ["", f"### {role.position}" + (f", {where}" if where else "")]
             if role.period:
                 out.append(f"*{role.period}*")
             out += [f"- {bullet}" for bullet in role.bullets]
+        parts["experience"] = out
 
     if document.projects:
-        out += ["", "## Projects"]
+        out = ["", "## Projects"]
         for project in document.projects:
             title = (f"### [{project.name}]({project.link})" if project.link
                      else f"### {project.name}")
@@ -2075,9 +2177,10 @@ def cv_markdown(document):
                 out.append(project.description)
             if project.tech:
                 out.append(f"*{', '.join(project.tech)}*")
+        parts["projects"] = out
 
     if document.education:
-        out += ["", "## Education"]
+        out = ["", "## Education"]
         for study in document.education:
             head = ", ".join(x for x in (study.level, study.field_of_study) if x)
             out += ["", f"### {head}" if head else "### Education"]
@@ -2087,20 +2190,36 @@ def cv_markdown(document):
                 out.append(line)
             if study.courses:
                 out.append(f"*{', '.join(study.courses)}*")
+        parts["education"] = out
 
     if document.skills:
-        out += ["", "## Skills", "", " · ".join(document.skills)]
+        parts["skills"] = ["", "## Skills", "", " · ".join(document.skills)]
 
     if document.certifications:
-        out += ["", "## Certifications", ""]
+        out = ["", "## Certifications", ""]
         for cert in document.certifications:
             line = " — ".join(x for x in (cert.name, cert.issuer) if x)
             out.append(f"- {line}" + (f" ({cert.year})" if cert.year else ""))
+        parts["certifications"] = out
 
     if document.languages:
-        out += ["", "## Languages", "",
-                " · ".join(f"{x.name} ({x.level})" if x.level else x.name
-                           for x in document.languages)]
+        parts["languages"] = ["", "## Languages", "",
+                              " · ".join(f"{x.name} ({x.level})" if x.level else x.name
+                                         for x in document.languages)]
+    return parts
+
+
+def cv_markdown(document, order=None):
+    """A CV as markdown, in the same order the PDF puts it."""
+    out = [f"# {document.personal.full_name or 'CV'}"]
+    if document.personal.headline:
+        out.append(f"*{document.personal.headline}*")
+    contact = _contact(document.personal)
+    if contact:
+        out.append(contact)
+    parts = _markdown_sections(document)
+    for name in section_order(document, order):
+        out += parts.get(name, [])
     return "\n".join(out).strip() + "\n"
 
 
@@ -2175,16 +2294,20 @@ def to_markdown(document):
     return (letter_markdown if hasattr(document, "paragraphs") else cv_markdown)(document)
 
 
-def to_html(document, theme=NEUTRAL):
+def to_html(document, theme=NEUTRAL, density="normal", order=None):
     """Render whichever kind of document this is."""
-    return (letter_html if hasattr(document, "paragraphs") else cv_html)(document, theme)
+    if hasattr(document, "paragraphs"):
+        return letter_html(document, theme)
+    return cv_html(document, theme, density, order)
 
 
-def export(document, path, theme=NEUTRAL, template=None):
+def export(document, path, theme=NEUTRAL, template=None, pages=None, fit=False,
+           order=None, prefer=None):
     """Write a CV or a cover letter to `path` as a PDF, and say how.
 
-    LaTeX when a TeX engine is on the machine, the browser otherwise. Returns
-    which, because that belongs in what the user is told rather than in a log.
+    LaTeX when a TeX engine is on the machine, the browser otherwise. Returns a
+    `Rendering` - which renderer ran, and how many pages came out of it -
+    because both belong in what the user is told rather than in a log.
 
     Raises `ExportBlocked` if the document reports a blocking issue - which is
     how "nothing becomes a PDF until it is fit to send" is actually kept.
@@ -2192,7 +2315,8 @@ def export(document, path, theme=NEUTRAL, template=None):
     blocked = blocking_issues(document)
     if blocked:
         raise ExportBlocked(blocked)
-    return render_pdf(document, Path(path), template, theme)
+    return render_pdf(document, Path(path), template, theme, pages=pages, fit=fit,
+                      order=order, prefer=prefer)
 
 
 # --- render: PDF, via the browser already on the machine --------------------
@@ -2334,10 +2458,11 @@ def tex_escape(text):
 #: pdflatex alike. A template that needs fontawesome or a bespoke class is a
 #: template that fails on somebody else's machine.
 PLAIN_TEX = r"""
-\documentclass[11pt,a4paper]{article}
+\documentclass[%%JOBHUNT-SIZE%%,a4paper]{article}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[margin=18mm,top=16mm,bottom=16mm]{geometry}
+\IfFileExists{charter.sty}{\usepackage{charter}}{\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}}
+\usepackage[margin=%%JOBHUNT-MARGIN%%,top=%%JOBHUNT-TOP%%,bottom=%%JOBHUNT-TOP%%]{geometry}
 \usepackage{enumitem}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
@@ -2349,14 +2474,17 @@ PLAIN_TEX = r"""
 
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
-\setlist[itemize]{leftmargin=12pt,itemsep=1pt,parsep=0pt,topsep=3pt}
+\setlist[itemize]{leftmargin=12pt,itemsep=%%JOBHUNT-ITEMSEP%%,parsep=0pt,topsep=2pt}
 
-\newcommand{\cvname}[1]{{\LARGE\bfseries #1}\par\vspace{3pt}}
-\newcommand{\cvcontact}[1]{{\small\color{muted}#1}\par\vspace{10pt}}
-\newcommand{\cvsection}[1]{%
-  \vspace{8pt}{\footnotesize\bfseries\color{accent}\MakeUppercase{#1}}\par
-  \vspace{2pt}\textcolor{muted}{\rule{\linewidth}{0.4pt}}\par\vspace{4pt}}
+\newcommand{\cvname}[1]{{\LARGE\bfseries #1}\par\vspace{2pt}}
+\newcommand{\cvcontact}[1]{{\small\color{muted}\raggedright #1\par}\vspace{8pt}}
+\newcommand{\cvsection}[1]{\filbreak%
+  \vspace{%%JOBHUNT-GAP%%}{\footnotesize\bfseries\color{accent}\MakeUppercase{#1}}\par
+  \vspace{-4pt}\textcolor{muted}{\rule{\linewidth}{0.4pt}}\par\vspace{3pt}}
 \newcommand{\cventry}[2]{\textbf{#1}\par{\small\color{muted}#2}\par}
+\newcommand{\cventrydated}[3]{\textbf{#1}\hfill{\small\color{muted}#3}\par%
+  \ifx&#2&\else{\small\color{muted}#2}\par\fi}
+\newcommand{\cvline}[2]{#1\hfill{\small\color{muted}#2}\par}
 
 \begin{document}
 %%JOBHUNT-BODY%%
@@ -2369,6 +2497,7 @@ PLAIN_LETTER_TEX = r"""
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{textcomp}
+\IfFileExists{charter.sty}{\usepackage{charter}}{\IfFileExists{lmodern.sty}{\usepackage{lmodern}}{}}
 \usepackage[margin=22mm,top=20mm,bottom=20mm]{geometry}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
@@ -2383,7 +2512,8 @@ PLAIN_LETTER_TEX = r"""
 \setlength{\parskip}{9pt}
 
 \newcommand{\cvname}[1]{{\large\bfseries #1}\par}
-\newcommand{\cvcontact}[1]{{\small\color{muted}#1}\par}
+\newcommand{\cvcontact}[1]{{\small\color{muted}\raggedright #1\par}}
+\newcommand{\cvsubject}[1]{{\bfseries\color{accent}#1}\par}
 
 \begin{document}
 %%JOBHUNT-BODY%%
@@ -2426,86 +2556,146 @@ def _tex_dots(*parts):
     return " $\\cdot$ ".join(tex_escape(p) for p in parts if p)
 
 
+_TEX_URL_SAFE = re.compile(r"^[A-Za-z0-9:/._@?=+-]*$")
+
+#: Macros the body leans on that an older or hand-written template may not
+#: define. `\providecommand` is a no-op where the template already has them,
+#: and gives a template written against the two-argument `\cventry` the old
+#: look rather than a compile error.
+_TEX_PRELUDE = (
+    r"\providecommand{\cventrydated}[3]{\cventry{#1}{#2 $\cdot$ #3}}",
+    r"\providecommand{\cvline}[2]{#1\hfill{\small #2}\par}",
+    r"\providecommand{\cvsubject}[1]{{\bfseries #1}\par}",
+)
+
+
+def _tex_link(url):
+    """A link as a CV prints it - "github.com/ada", clickable. A URL carrying
+    characters hyperref chokes on is printed and not linked."""
+    shown = tex_escape(_strip_scheme(url))
+    return _cmd("href", url, shown) if _TEX_URL_SAFE.match(url) else shown
+
+
 def _tex_contact(personal):
-    return _tex_dots(personal.email, personal.phone,
-                     ", ".join(x for x in (personal.city, personal.country) if x),
-                     personal.github, personal.linkedin, personal.website)
+    """The contact line, links included. The scheme is dropped from what is
+    printed, as the HTML does: the full https:// ran off the right margin."""
+    place = ", ".join(x for x in (personal.city, personal.country) if x)
+    parts = [tex_escape(x) for x in (personal.email, personal.phone, place) if x]
+    parts += [_tex_link(x) for x in (personal.linkedin, personal.github, personal.website)
+              if x]
+    return " $\\cdot$ ".join(parts)
 
 
-def cv_latex(document, template=None, theme=NEUTRAL):
+def _tex_sections(document):
+    """Each section as LaTeX lines, by name."""
+    parts = {name: [] for name in SECTIONS}
+    if document.summary:
+        parts["summary"] = [tex_escape(document.summary) + "\\par"]
+
+    if document.experience:
+        out = ["\\cvsection{Experience}"]
+        for role in document.experience:
+            where = [role.company, role.location] if role.position else [role.location]
+            out.append(_cmd("cventrydated", tex_escape(role.position or role.company),
+                            _tex_dots(*where), tex_escape(role.period)))
+            if role.bullets:
+                out.append("\\begin{itemize}")
+                out += ["  \\item " + tex_escape(b) for b in role.bullets]
+                out.append("\\end{itemize}")
+            out.append("\\vspace{4pt}")
+        parts["experience"] = out
+
+    if document.projects:
+        out = ["\\cvsection{Projects}"]
+        for project in document.projects:
+            name = tex_escape(project.name)
+            if project.link and _TEX_URL_SAFE.match(project.link):
+                name = _cmd("href", project.link, name)
+            out.append(_cmd("cventrydated", name,
+                            tex_escape(", ".join(project.tech)) if project.tech else "", ""))
+            if project.description:
+                out.append(tex_escape(project.description) + "\\par")
+            out.append("\\vspace{3pt}")
+        parts["projects"] = out
+
+    if document.education:
+        out = ["\\cvsection{Education}"]
+        for study in document.education:
+            head = ", ".join(x for x in (study.level, study.field_of_study) if x)
+            out.append(_cmd("cventrydated", tex_escape(head or study.institution),
+                            _tex_dots(study.institution if head else "", study.location,
+                                      study.grade),
+                            tex_escape(study.period)))
+            if study.courses:
+                out.append("{\\small\\color{muted}" + tex_escape(", ".join(study.courses))
+                           + "}\\par")
+            out.append("\\vspace{3pt}")
+        parts["education"] = out
+
+    if document.skills:
+        parts["skills"] = ["\\cvsection{Skills}", _tex_dots(*document.skills) + "\\par"]
+
+    if document.certifications:
+        out = ["\\cvsection{Certifications}"]
+        for cert in document.certifications:
+            line = tex_escape(cert.name)
+            if cert.issuer:
+                line += " {\\color{muted}--- " + tex_escape(cert.issuer) + "}"
+            out.append(_cmd("cvline", line, tex_escape(cert.year)))
+        parts["certifications"] = out
+
+    if document.languages:
+        parts["languages"] = [
+            "\\cvsection{Languages}",
+            _tex_dots(*[" ".join(x for x in (lang.name, lang.level) if x)
+                        for lang in document.languages]) + "\\par"]
+    return parts
+
+
+def _fill(shell, body, theme, density="normal"):
+    accent = (theme.accent if theme else NEUTRAL.accent).lstrip("#").upper()
+    d = DENSITIES.get(density, DENSITIES["normal"])
+    return (shell.replace("%%JOBHUNT-ACCENT%%", accent)
+                 .replace("%%JOBHUNT-SIZE%%", d["tex_size"])
+                 .replace("%%JOBHUNT-MARGIN%%", d["tex_margin"])
+                 .replace("%%JOBHUNT-TOP%%", d["tex_top"])
+                 .replace("%%JOBHUNT-ITEMSEP%%", d["tex_itemsep"])
+                 .replace("%%JOBHUNT-GAP%%", d["tex_gap"])
+                 .replace("%%JOBHUNT-BODY%%", "\n".join([*_TEX_PRELUDE, *body])))
+
+
+def cv_latex(document, template=None, theme=NEUTRAL, density="normal", order=None):
     """A CV as a LaTeX source document."""
-    shell = template or PLAIN_TEX
-    body = []
-
-    body.append(_cmd("cvname", tex_escape(document.personal.full_name or "CV")))
+    body = [_cmd("cvname", tex_escape(document.personal.full_name or "CV"))]
     if document.personal.headline:
-        body.append("{\\small " + tex_escape(document.personal.headline)
-                    + "}\\par\\vspace{4pt}")
+        body.append("{\\small\\color{muted}" + tex_escape(document.personal.headline)
+                    + "}\\par\\vspace{3pt}")
     contact = _tex_contact(document.personal)
     if contact:
         body.append(_cmd("cvcontact", contact))
-    if document.summary:
-        body.append(tex_escape(document.summary) + "\\par")
-
-    if document.experience:
-        body.append("\\cvsection{Experience}")
-        for role in document.experience:
-            where = " --- ".join(x for x in (role.company, role.location) if x)
-            body.append(_cmd("cventry", tex_escape(role.position or where),
-                             _tex_dots(where if role.position else "",
-                                       role.period)))
-            if role.bullets:
-                body.append("\\begin{itemize}")
-                body += ["  \\item " + tex_escape(b) for b in role.bullets]
-                body.append("\\end{itemize}")
-            body.append("\\vspace{4pt}")
-
-    if document.projects:
-        body.append("\\cvsection{Projects}")
-        for project in document.projects:
-            body.append(_cmd("cventry", tex_escape(project.name),
-                             tex_escape(", ".join(project.tech))
-                             if project.tech else ""))
-            if project.description:
-                body.append(tex_escape(project.description) + "\\par")
-            body.append("\\vspace{4pt}")
-
-    if document.education:
-        body.append("\\cvsection{Education}")
-        for study in document.education:
-            head = ", ".join(x for x in (study.level, study.field_of_study) if x)
-            body.append(_cmd("cventry", tex_escape(head or study.institution),
-                             _tex_dots(study.institution if head else "",
-                                       study.location, study.period,
-                                       study.grade)))
-            body.append("\\vspace{3pt}")
-
-    if document.skills:
-        body.append("\\cvsection{Skills}")
-        body.append(_tex_dots(*document.skills) + "\\par")
-
-    if document.languages:
-        body.append("\\cvsection{Languages}")
-        body.append(_tex_dots(*[" ".join(x for x in (lang.name, lang.level) if x)
-                                for lang in document.languages]) + "\\par")
-
-    accent = (theme.accent if theme else NEUTRAL.accent).lstrip("#").upper()
-    return (shell.replace("%%JOBHUNT-ACCENT%%", accent)
-                 .replace("%%JOBHUNT-BODY%%", "\n".join(body)))
+    parts = _tex_sections(document)
+    for name in section_order(document, order):
+        body += parts.get(name, [])
+    return _fill(template or PLAIN_TEX, body, theme, density)
 
 
 def letter_latex(document, template=None, theme=NEUTRAL):
-    """A cover letter as a LaTeX source document."""
-    shell = template or PLAIN_LETTER_TEX
+    """A cover letter as a LaTeX source document, with the same furniture as
+    the HTML one: the date written out in the letter's language, and a subject
+    line naming the role."""
     body = [_cmd("cvname", tex_escape(document.personal.full_name or ""))]
     contact = _tex_contact(document.personal)
     if contact:
         body.append(_cmd("cvcontact", contact))
     body.append("\\vspace{10pt}")
 
-    for line in (document.written_on, document.company, document.role):
-        if line:
-            body.append(tex_escape(line) + "\\par")
+    if document.written_on:
+        body.append(tex_escape(_long_date(document.written_on, document.language)) + "\\par")
+    if document.company:
+        body.append(tex_escape(document.company) + "\\par")
+    if document.role:
+        body.append(_cmd("cvsubject",
+                         tex_escape(f"{_subject(document.language)} {document.role}")))
     if document.greeting:
         body.append("\\vspace{6pt}" + tex_escape(document.greeting) + "\\par")
     for para in document.paragraphs:
@@ -2514,16 +2704,14 @@ def letter_latex(document, template=None, theme=NEUTRAL):
         body.append("\\vspace{6pt}" + tex_escape(document.closing) + "\\par")
     if document.signature:
         body.append("\\vspace{14pt}" + tex_escape(document.signature) + "\\par")
-
-    accent = (theme.accent if theme else NEUTRAL.accent).lstrip("#").upper()
-    return (shell.replace("%%JOBHUNT-ACCENT%%", accent)
-                 .replace("%%JOBHUNT-BODY%%", "\n".join(body)))
+    return _fill(template or PLAIN_LETTER_TEX, body, theme)
 
 
-def to_latex(document, template=None, theme=NEUTRAL):
+def to_latex(document, template=None, theme=NEUTRAL, density="normal", order=None):
     """Whichever kind of document this is, as LaTeX."""
-    maker = letter_latex if hasattr(document, "paragraphs") else cv_latex
-    return maker(document, template, theme)
+    if hasattr(document, "paragraphs"):
+        return letter_latex(document, template, theme)
+    return cv_latex(document, template, theme, density, order)
 
 
 def write_pdf_latex(source, path, engine=None):
@@ -2584,12 +2772,119 @@ def _tex_complaint(done):
     return "\n".join(said[:6]) or "\n".join(log[-6:])
 
 
-def render_pdf(document, path, template=None, theme=NEUTRAL):
+class Rendering(str):
+    """Which renderer ran - "latex" or "browser", so `== "latex"` still reads -
+    carrying how the page came out: `pages`, the `density` it was set at, what
+    was `trimmed` to get there, the page `budget`, and whether it is still
+    `over` it."""
+
+    pages = 0
+    density = "normal"
+    trimmed = ()
+    budget = 1
+    over = False
+
+
+def _rendering(how, **facts):
+    made = Rendering(how)
+    for name, value in facts.items():
+        setattr(made, name, value)
+    return made
+
+
+#: Two pages is for a long career. Everyone else gets one, and can ask for more.
+LONG_CAREER = 10
+
+
+def page_budget(document):
+    """How many pages this document may run to before it is over."""
+    if hasattr(document, "paragraphs"):
+        return 1
+    held = years_held(document)
+    return 2 if held is not None and held >= LONG_CAREER else 1
+
+
+#: What gives, in order, when a CV runs over its budget: the typography first,
+#: and only that unless `fit` is asked for - cutting content is the person's
+#: call, so it is opt-in, and every cut is reported by name.
+_LADDER = (("normal", 0), ("compact", 0), ("dense", 0), ("dense", 1), ("dense", 2))
+_FIRST_SENTENCE = re.compile(r"^(.+?[.!?])(?:\s|$)")
+
+
+def trimmed(document, level):
+    """A copy of `document` cut to `level`, and the list of what went.
+
+    Level 1 keeps five bullets per role, drops course lists and shortens each
+    project to its first sentence. Level 2 also keeps three bullets in every
+    role but the first, and three projects. Nothing is reworded: a cut is a
+    cut, and the markdown beside the PDF still carries the whole document.
+    """
+    if level < 1 or hasattr(document, "paragraphs"):
+        return document, []
+    cut, cuts = clone(document), []
+    for i, role in enumerate(cut.experience):
+        keep = 5 if level == 1 or i == 0 else 3
+        if len(role.bullets) > keep:
+            cuts.append(f"{len(role.bullets) - keep} bullet(s) from "
+                        f"{role.company or f'role {i + 1}'}")
+            role.bullets = role.bullets[:keep]
+    for study in cut.education:
+        if study.courses:
+            cuts.append(f"the course list under {study.institution or 'a degree'}")
+            study.courses = []
+    for project in cut.projects:
+        match = _FIRST_SENTENCE.match(project.description or "")
+        if match and match.group(1) != project.description:
+            cuts.append(f"the rest of {project.name or 'a project'}'s description")
+            project.description = match.group(1)
+    if level >= 2 and len(cut.projects) > 3:
+        cuts.append(f"{len(cut.projects) - 3} project(s)")
+        cut.projects = cut.projects[:3]
+    return cut, cuts
+
+
+def _page_counts(data):
+    found = re.findall(rb"/Type\s*/Pages\b[^>]*?/Count\s+(\d+)", data)
+    found += re.findall(rb"/Count\s+(\d+)[^>]*?/Type\s*/Pages\b", data)
+    return [int(n) for n in found]
+
+
+def pdf_pages(path):
+    """How many pages a PDF has, read from the file with no library.
+
+    The page tree's `/Count` is the number. Chrome writes it in the clear; a
+    TeX engine puts it in a compressed object stream, so those are inflated and
+    searched too. Zero when the file is not there or says nothing - a test that
+    stubs the renderer writes no file, and zero reads as "unknown, stop".
+    """
+    path = Path(path)
+    if not path.exists():
+        return 0
+    raw = path.read_bytes()
+    counts = _page_counts(raw)
+    if not counts:
+        for match in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", raw, re.S):
+            try:
+                counts += _page_counts(zlib.decompress(match.group(1)))
+            except zlib.error:
+                continue
+    if counts:
+        return max(counts)
+    return len(re.findall(rb"/Type\s*/Page(?![s/a-zA-Z])", raw))
+
+
+def render_pdf(document, path, template=None, theme=NEUTRAL, pages=None, fit=False,
+               order=None, prefer=None):
     """Render `document` to `path`, and say how it was rendered.
 
     LaTeX when a template was asked for, or when one is not and an engine is
     there. The browser otherwise - which is not a failure and is not silent:
     the returned name is what the caller tells the user.
+
+    A CV is fitted to its page budget - `pages`, or one, or two past ten years
+    of experience - by setting it tighter first and, only when `fit` is asked
+    for, by cutting content, every cut named. Over budget it is still written,
+    and the result says so.
     """
     asked = resolve_template(template)
     if template and asked is None:
@@ -2597,14 +2892,27 @@ def render_pdf(document, path, template=None, theme=NEUTRAL):
             f"No template called {template!r}. Built in: "
             f"{', '.join(sorted(LATEX_TEMPLATES))}. A path must end in .tex.")
 
-    if asked is None and find_tex() is None:
-        write_pdf(to_html(document, theme), path)
-        return "browser"
-
-    if asked is None and hasattr(document, "paragraphs"):
+    browser = prefer == "browser" or (asked is None and find_tex() is None)
+    letter = hasattr(document, "paragraphs")
+    if asked is None and letter:
         asked = PLAIN_LETTER_TEX
-    write_pdf_latex(to_latex(document, asked, theme), path)
-    return "latex"
+
+    budget = page_budget(document) if pages is None else pages
+    steps = _LADDER[:1] if letter or budget <= 0 else (_LADDER if fit else _LADDER[:3])
+    made = None
+    for density, level in steps:
+        cut, cuts = trimmed(document, level)
+        if browser:
+            write_pdf(to_html(cut, theme, density, order), path)
+        else:
+            write_pdf_latex(to_latex(cut, asked, theme, density, order), path)
+        count = pdf_pages(path)
+        made = _rendering("browser" if browser else "latex", pages=count, density=density,
+                          trimmed=tuple(cuts), budget=budget,
+                          over=budget > 0 and count > budget)
+        if count <= budget or count == 0:
+            break
+    return made
 
 
 def write_pdf(page, path):

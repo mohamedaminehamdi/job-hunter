@@ -20,6 +20,27 @@ python3 pdf.py <run>/cv.yaml --browser               # force the browser
 `--theme` takes `neutral`, `classic` (serif), or a hex colour. A posting's own
 colour is read off its page and stored in `job.yaml` as `brand_color`.
 
+## One page
+
+A CV is fitted to a page budget: one page, or two once the profile dates to
+ten years of work. When it runs over, the page is set tighter first - smaller
+type, narrower margins - and the content is never touched unless you ask:
+
+```bash
+python3 pdf.py <run>/cv.yaml --fit            # may cut bullets, course lists, project text
+python3 pdf.py <run>/cv.yaml --pages 2        # allow two pages; 0 for no budget
+python3 pdf.py <run>/cv.yaml --order student  # Education first; or experienced; or a list
+```
+
+The result says `"pages"`, `"density"`, what was `"trimmed"` and whether it is
+still `"over_budget"`. Every cut is named, and the markdown beside the PDF
+always carries the whole document. If it is over budget without `--fit`, tell
+the person, and offer the two honest fixes: let it cut, or tailor with fewer
+bullets. Do not rewrite the CV yourself to make it fit.
+
+Sections print in the order a reader of that CV expects - a student's degree
+first, an experienced hire's roles first - unless `--order` says otherwise.
+
 ## Which renderer runs
 
 **LaTeX, if a TeX engine is installed.** That is the default and needs no
