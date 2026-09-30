@@ -948,10 +948,21 @@ class FitReport:
 _NOISE = frozenset("""
 a an the and or of for to in at on with by from new our we you your job role
 position opening opportunity career careers hiring m f d w x h
-one two three four five six seven eight nine ten
+one two three four five six seven eight nine ten e.g i.e etc vs
 du sie wir ihr der die das den dem ein eine einen als auch bei mit von und oder
 le la les un une des du au aux et ou avec chez dans pour par
+january february march april may june july august september october november
+december monday tuesday wednesday thursday friday saturday sunday
+spring summer autumn fall winter
+janvier février mar avril mai juin juillet août septembre octobre novembre
+décembre lundi mardi mercredi jeudi vendredi samedi dimanche printemp été
+automne hiver januar februar märz juni juli oktober dezember montag dienstag
+mittwoch donnerstag freitag samstag sonntag
 """.split())
+# Months, days and seasons are in there because "Available for a Summer 2027
+# internship (May/June start dates)" reported Summer, May and June as gaps.
+# Listed in the form `norm` produces - "mar" for mars, "printemp" - because that
+# is what they are compared against.
 
 #: The vocabulary requirements are written in, as opposed to what they require.
 #: "Experience with Kafka" is about Kafka; every other word is scaffolding.
@@ -962,6 +973,9 @@ skill background track record hands-on plus bonus ideally preferably must have
 has having is are be been you your we our team environment able comfortable
 significant substantial extensive considerable relevant appropriate suitable
 equivalent similar related various several multiple broad wide
+advanced intermediate basic fluent native professional level minimum required
+mandatory preferred desirable essential production available availability
+previous prior currently pursuing
 demonstrated ausgezeichnete gute kenntnisse erfahrung jahre sowie expérience
 connaissance solide maîtrise ans bonne
 """.split())
@@ -998,38 +1012,142 @@ _YEARS = re.compile(
 _PRESENT = frozenset("present now current ongoing today heute aujourd'hui actuel".split())
 
 
-def salient_terms(line, vocabulary=frozenset()):
+#: A list mark right after the first word: "Docker, Kubernetes, Helm", "C++/Rust".
+_LIST_MARK = re.compile(r"^\W*[^\s,/&]+\s*[,/&]")
+_CONJUNCTIONS = frozenset("and or und oder et ou".split())
+
+
+def _pieces(word):
+    """A token split at its slashes and hyphens, unless every part is an
+    acronym. "CI/CD", "TCP/IP" and "UI/UX" are one name each. "Science/Software",
+    "May/June", "AI-assisted", "hours/week" and "C/C++" are two words that are
+    judged on their own - the first three were each reported whole as a gap on
+    a real posting, and nothing in any profile is spelled that way."""
+    parts = [part for part in re.split(r"[/-]", word) if part]
+    if len(parts) < 2 or all(part.isalpha() and part.isupper() for part in parts):
+        return [word]
+    return parts
+
+
+def _kind(word, vocabulary, ordinary, own):
+    """What one token is to a reader. None for furniture - noise, scaffolding,
+    HR vocabulary, the posting's own company and location, a word the posting
+    itself writes in lowercase elsewhere. "name" when something marks it as
+    one: an acronym, a capital inside it, a digit, a symbol, or a place on the
+    candidate's own skills list. "capital" when only its leading capital says
+    so. "content" for an ordinary lowercase word, which is what makes a
+    sentence."""
+    key = norm(word)
+    if (len(word) < 2 or key in _NOISE or key in _SCAFFOLDING or key in _SOFT
+            or key in own):
+        return None
+    if (word.isupper() or any(c.isupper() for c in word[1:])
+            or any(c.isdigit() or c in "+#." for c in word)
+            or key in vocabulary):
+        return "name"
+    if word[0].isupper():
+        return "capital" if key not in ordinary else None
+    return "content"
+
+
+def _list_head(line, tokens, kinds):
+    """Whether the first word heads a list of names rather than a sentence.
+
+    "Docker, Kubernetes, Helm" and "Kubernetes and Docker" are lists: a list
+    mark after the first word, and a name on the other side of it. "Design
+    and implement REST APIs" has the conjunction and not the name, and reads
+    as the sentence it is.
+    """
+    if len(tokens) < 2:
+        return False
+    if _LIST_MARK.match(line) is None and norm(tokens[1]) not in _CONJUNCTIONS:
+        return False
+    following = next((kind for kind in kinds[1:] if kind is not None), None)
+    return following in ("name", "capital")
+
+
+def salient_terms(line, vocabulary=frozenset(), ordinary=frozenset(), own=frozenset()):
     """The concrete things a requirement line asks for, in order, deduplicated.
 
     Precision over recall, deliberately. A term is kept when it looks like a
-    *name* rather than a word: an acronym, a capitalised word, or something
-    carrying a digit or a symbol - AWS, Kubernetes, C++, CI/CD, Python3.
+    *name* rather than a word: an acronym, a word with a capital inside it, a
+    capitalised word mid-sentence, or something carrying a digit or a symbol -
+    AWS, PostgreSQL, Kubernetes, C++, CI/CD, Python3.
+
+    Four things a capital letter, or a symbol, does not prove.
+
+    The first word of a sentence is capitalised for being first - "Build data
+    pipelines" asks for pipelines, not for Build, and "Build REST APIs" asks
+    for REST APIs - so when anything but furniture follows the first word, a
+    leading capital alone does not make it a name. A list is not a sentence:
+    "Docker, Kubernetes, Helm" and "Kubernetes and Docker" keep their first
+    word, and so does a name followed only by scaffolding - "Terraform
+    experience", "Kubernetes in production".
+
+    A word the posting itself writes in lowercase somewhere is a word however
+    a title-cased line dresses it - "Excellent Problem Solving Skills" asks
+    for nothing called Problem. `ordinary` is that set, and the posting's own
+    company and location - `own` - are furniture whatever their case: "In
+    office in Austin, TX" and "Cloudflare for Students" say where the job is
+    and who is hiring. `extract` builds both from the posting. Months, days
+    and seasons are noise for the same reason: "Available for a Summer 2027
+    internship (May/June start dates)" asks for nothing a profile could hold.
+
+    A slash or a hyphen joins two names only when both are acronyms - CI/CD,
+    TCP/IP. Anywhere else the parts are judged on their own: "Computer
+    Science/Software Engineering" is backed by a Software Engineering degree,
+    "AI-assisted" by AI, and "docs/runbooks" or "hours/week" by nothing,
+    because they name nothing.
 
     `vocabulary` rescues the exception: plenty of real tools are lowercase -
     dbt, npm, kubectl - and would look like ordinary words. A token the
-    candidate lists among their own skills is a name whatever its case.
+    candidate lists among their own skills is a name whatever its case and
+    wherever it sits in the line.
 
     The cost is that a lowercase tool the candidate does *not* have is missed
-    here. That is the right trade: a wrongly reported gap - telling someone they
-    lack "production" - is worse than a quiet omission, because the
-    requirement's own sentence is printed beside the verdict for them to read.
+    here, and so is one that opens a sentence - "Kubernetes for container
+    orchestration" - when it is not among their skills. That is the right
+    trade: a wrongly reported gap - telling someone they lack "Build", or
+    "Summer" - is worse than a quiet omission, because the requirement's own
+    sentence is printed beside the verdict for them to read.
     """
+    tokens = [piece for word in words(line) for piece in _pieces(word)]
+    kinds = [_kind(word, vocabulary, ordinary, own) for word in tokens]
+    sentence = (not _list_head(line, tokens, kinds)
+                and any(kind is not None for kind in kinds[1:]))
     found = []
     seen = set()
-    for word in words(line):
+    for position, (word, kind) in enumerate(zip(tokens, kinds)):
         key = norm(word)
-        if len(word) < 2 or key in seen:
+        if kind is None or kind == "content" or key in seen:
             continue
-        if key in _NOISE or key in _SCAFFOLDING or key in _SOFT:
-            continue
-        named = (word.isupper() or word[0].isupper()
-                 or any(c.isdigit() or c in "+#/." for c in word)
-                 or key in vocabulary)
-        if not named:
+        if kind == "capital" and position == 0 and sentence:
             continue
         seen.add(key)
         found.append(word)
     return found
+
+
+def ordinary_words(job):
+    """Words the posting writes in lowercase somewhere.
+
+    A capital on one of them elsewhere is a sentence start or title case, not
+    a name: the "Build" opening a requirement is the same build as the "build
+    and run" in the description. Nothing here widens what counts as evidence -
+    it only narrows what counts as a requirement.
+    """
+    body = "\n".join([job.description, job.source_text, *job.requirements,
+                       *job.responsibilities, *job.nice_to_have])
+    return frozenset(norm(word) for word in words(body) if word[0].islower())
+
+
+def own_words(job):
+    """The posting's own company and location. No profile backs "Cloudflare"
+    or "Austin", and no requirement means them: a line that names them is
+    saying where the job is and who is hiring. Two letters and under is left
+    alone so a company called "Scale AI" does not swallow AI."""
+    return frozenset(norm(word) for word in words(f"{job.company} {job.location}")
+                     if len(word) > 2)
 
 
 def years_required(line):
@@ -1093,9 +1211,10 @@ def extract(job, vocabulary=frozenset()):
     if not stated and job.keywords:
         stated = [(word, "required") for word in job.keywords]
 
+    ordinary, own = ordinary_words(job), own_words(job)
     found = []
     for line, kind in stated:
-        terms = salient_terms(line, vocabulary)
+        terms = salient_terms(line, vocabulary, ordinary, own)
         found.append(Requirement(
             text=line.strip(), kind=kind, terms=terms,
             why=("" if terms else
