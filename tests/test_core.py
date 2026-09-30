@@ -233,6 +233,27 @@ def test_the_browser_does_not_hold_the_run_open(tmp_path, monkeypatch):
     assert all(t <= 5 for t in waits if t is not None), waits
 
 
+def test_windows_browsers_are_looked_for_where_windows_puts_them(monkeypatch):
+    """Most job seekers are on Windows, and the search list had no entry for
+    it: a machine with Chrome and Edge in their default places was told it
+    had no browser. The platform is passed in rather than faked on `os`,
+    because pathlib picks its Path class from `os.name` too."""
+    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\ada\AppData\Local")
+    monkeypatch.setenv("PROGRAMFILES", r"C:\Program Files")
+    candidates = jh.browser_candidates("nt")
+    assert r"C:\Program Files\Google\Chrome\Application\chrome.exe" in candidates
+    assert r"C:\Users\ada\AppData\Local\Microsoft\Edge\Application\msedge.exe" in candidates
+    assert candidates[:len(jh._CHROMES)] == list(jh._CHROMES), "the Unix list still leads"
+    assert any(r"MiKTeX\miktex\bin\x64" in d for d in jh.tex_dirs("nt"))
+
+
+def test_on_a_unix_the_windows_paths_are_not_tried():
+    if jh.os.name == "nt":
+        pytest.skip("this is Windows")
+    assert not any(".exe" in c for c in jh.browser_candidates())
+    assert jh.tex_dirs() == list(jh._TEX_DIRS)
+
+
 def test_no_browser_says_the_markdown_was_still_written(tmp_path, monkeypatch):
     monkeypatch.setenv("JOBHUNT_BROWSER", "/nonexistent/browser")
     with pytest.raises(jh.PdfError, match="markdown version was still written"):

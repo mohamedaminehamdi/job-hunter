@@ -71,7 +71,8 @@ Or download a folder from the install page and drop it in. No terminal needed.
 **What it needs:** Python 3.9 or newer, which macOS and every Linux already
 has, and Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
 No API key — your agent is the model, so whatever you already pay for covers
-it.
+it. On Windows, install Python from python.org and use the folder download
+above; Chrome and Edge are found in their usual places.
 
 **Optional:** a TeX engine. If you have one — `tectonic` is a single binary —
 CVs and letters are set in LaTeX instead, which is what most people expect a CV

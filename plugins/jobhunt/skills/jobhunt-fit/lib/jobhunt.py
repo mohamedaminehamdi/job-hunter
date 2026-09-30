@@ -2217,7 +2217,37 @@ _CHROMES = (
     "/usr/bin/microsoft-edge", "/snap/bin/chromium",
 )
 _CHROME_NAMES = ("google-chrome", "google-chrome-stable", "chromium",
-                 "chromium-browser", "chrome", "microsoft-edge", "brave-browser")
+                 "chromium-browser", "chrome", "microsoft-edge", "brave-browser",
+                 "msedge", "brave")
+
+#: Where the same browsers install on Windows, under the three roots an
+#: installer may pick. Built at call time from the environment, because the
+#: drive letter and the user's profile folder are not knowable in advance.
+_WINDOWS_TAILS = (r"Google\Chrome\Application\chrome.exe",
+                  r"Microsoft\Edge\Application\msedge.exe",
+                  r"BraveSoftware\Brave-Browser\Application\brave.exe",
+                  r"Chromium\Application\chrome.exe")
+
+
+def _windows_roots():
+    return [root for root in (os.environ.get("PROGRAMFILES", r"C:\Program Files"),
+                              os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"),
+                              os.environ.get("LOCALAPPDATA", ""))
+            if root]
+
+
+def browser_candidates(platform=None):
+    """Every path a browser is looked for at, in order, on `platform` - the
+    `os.name` of this machine unless a test says otherwise.
+
+    Windows is the platform most job seekers are on, and it had no entry: the
+    tool announced "No Chrome, Chromium, Edge or Brave found" on a machine
+    with two of them installed in their default places.
+    """
+    found = list(_CHROMES)
+    if (platform or os.name) == "nt":
+        found += [root + "\\" + tail for root in _windows_roots() for tail in _WINDOWS_TAILS]
+    return found
 
 #: How long to wait for Chrome's output, and how long it must stop growing for.
 _PDF_TIMEOUT = 60.0
@@ -2236,7 +2266,7 @@ def find_browser():
              or os.environ.get("JOB_HUNTER_BROWSER", "").strip())
     if named:
         return named if Path(named).exists() else shutil.which(named)
-    for candidate in _CHROMES:
+    for candidate in browser_candidates():
         if Path(candidate).exists():
             return candidate
     for name in _CHROME_NAMES:
@@ -2265,6 +2295,24 @@ _TEX_NAMES = ("tectonic", "xelatex", "lualatex", "pdflatex")
 #: MacTeX and TeX Live put themselves here and not always on PATH.
 _TEX_DIRS = ("/Library/TeX/texbin", "/usr/local/texlive/bin",
              "/opt/homebrew/bin", "/usr/local/bin")
+
+
+def tex_dirs(platform=None):
+    """The folders a TeX engine is looked for in when it is not on PATH.
+
+    On Windows, MiKTeX installs per user under LOCALAPPDATA and TeX Live
+    under C:\\texlive\\<year>; neither puts itself on PATH for a shell that
+    was already open. The TeX Live year is read off the disk, newest first,
+    and only on a real Windows - a Unix cannot glob a drive letter.
+    """
+    found = list(_TEX_DIRS)
+    if (platform or os.name) == "nt":
+        for root in _windows_roots():
+            found.append(root + r"\MiKTeX\miktex\bin\x64")
+        if os.name == "nt":
+            found += [str(p) for p in sorted(Path("C:/texlive").glob("*/bin/windows"),
+                                             reverse=True)]
+    return found
 
 _TEX_TIMEOUT = 300.0
 
@@ -2310,11 +2358,11 @@ def find_tex():
         found = shutil.which(name)
         if found:
             return found
-    for folder in _TEX_DIRS:
+    for folder in tex_dirs():
         for name in _TEX_NAMES:
-            candidate = Path(folder) / name
-            if candidate.exists():
-                return str(candidate)
+            for candidate in (Path(folder) / name, Path(folder) / f"{name}.exe"):
+                if candidate.exists():
+                    return str(candidate)
     return None
 
 
