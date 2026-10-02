@@ -48,7 +48,7 @@ to `datetime.UTC` and every skill stops importing on a stock Mac.
 ```bash
 pytest
 ruff check core plugins tools tests
-python tools/sync.py                 # if you touched core/
+python tools/sync.py                 # if you touched core/ or LICENSE
 python tools/build_site.py           # if you touched a SKILL.md
 python tools/build_archives.py       # if you touched any skill
 shellcheck -s sh install.sh          # if you touched the installer
@@ -65,7 +65,7 @@ stale.
    picked. A test checks for it.
 2. The script beside it, ending with `raise SystemExit(jh.run_cli(work))` so
    the exit codes mean the same thing as everywhere else.
-3. `python tools/sync.py` to give it the library.
+3. `python tools/sync.py` to give it the library and the license.
 4. Add it to `tools/site/data.py` — `ORDER`, `HEADLINES`, `PLAIN` — and to
    `SKILLS` in `install.sh`. Tests fail if you forget either.
 

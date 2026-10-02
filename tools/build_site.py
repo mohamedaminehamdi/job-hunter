@@ -523,9 +523,11 @@ def build():
 
 <footer>
   <div class="wrap">
-    <p>MIT licensed. It applies to nothing and sends nothing.</p>
+    <p>Free for your own job search, not for commercial use. It applies to
+       nothing and sends nothing.</p>
     <nav>
       <a href="https://github.com/{REPO}">Source</a>
+      <a href="https://github.com/{REPO}/blob/main/LICENSE">License</a>
       <a href="https://github.com/{REPO}/issues">Issues</a>
       <a href="download/jobhunt-all.zip" download>Download</a>
     </nav>

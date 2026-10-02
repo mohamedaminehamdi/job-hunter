@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Copy `core/jobhunt.py` into every skill that ships a script.
+"""Copy `core/jobhunt.py` and `LICENSE` into the skills.
 
 Skills are installed one at a time. A skill that imported from a sibling would
 work in this repo and break the moment somebody installs it on its own, so each
-one carries its own copy of the library and none of them import across.
+one carries its own copy of the library and none of them import across. Each
+one carries the license for the same reason: a single skill's zip is often all
+somebody downloads, and the terms have to travel with it.
 
 That duplication is the design, not an oversight - but duplication that drifts
 is worse than either choice, so this is the only thing allowed to write those
@@ -19,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "core" / "jobhunt.py"
+LICENSE = ROOT / "LICENSE"
 SKILLS = ROOT / "plugins" / "jobhunt" / "skills"
 
 HEADER = (
@@ -28,10 +31,16 @@ HEADER = (
 
 
 def copies():
-    """Every skill directory that ships a script, and so needs the library."""
+    """Every copy to keep, with what it should hold: the library in each skill
+    that ships a script, and the license in every skill."""
+    library = wanted()
+    terms = LICENSE.read_text(encoding="utf-8")
     for skill in sorted(SKILLS.iterdir()) if SKILLS.exists() else []:
-        if skill.is_dir() and any(skill.glob("*.py")):
-            yield skill / "lib" / "jobhunt.py"
+        if not skill.is_dir():
+            continue
+        if any(skill.glob("*.py")):
+            yield skill / "lib" / "jobhunt.py", library
+        yield skill / "LICENSE", terms
 
 
 def wanted():
@@ -40,11 +49,11 @@ def wanted():
 
 def main(argv):
     check = "--check" in argv
-    body = wanted()
-    digest = hashlib.sha256(body.encode()).hexdigest()[:12]
+    digest = hashlib.sha256(wanted().encode()).hexdigest()[:12]
+    everything = list(copies())
     stale = []
 
-    for target in copies():
+    for target, body in everything:
         current = target.read_text(encoding="utf-8") if target.exists() else ""
         if current == body:
             continue
@@ -53,14 +62,15 @@ def main(argv):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(body, encoding="utf-8")
 
-    total = len(list(copies()))
     if check and stale:
-        print(f"out of date ({len(stale)} of {total}):", file=sys.stderr)
+        print(f"out of date ({len(stale)} of {len(everything)}):", file=sys.stderr)
         for path in stale:
             print(f"  {path}", file=sys.stderr)
         print("\nRun: python tools/sync.py", file=sys.stderr)
         return 1
-    print(f"{'checked' if check else 'wrote'} {total} copies of jobhunt.py [{digest}]")
+    libraries = sum(target.name == "jobhunt.py" for target, _ in everything)
+    print(f"{'checked' if check else 'wrote'} {libraries} copies of jobhunt.py "
+          f"[{digest}] and {len(everything) - libraries} of LICENSE")
     return 0
 
 
