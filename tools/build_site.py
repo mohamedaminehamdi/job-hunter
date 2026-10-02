@@ -11,6 +11,7 @@ without being listed in tools/site/data.py.
 
 import html
 import sys
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "site"))
@@ -25,6 +26,9 @@ RAW = f"https://raw.githubusercontent.com/{REPO}/main"
 
 #: The mark, as a data URI - one request fewer and nothing to 404.
 FAVICON = logo.favicon()
+
+#: The same mark as a file, for the README, which cannot use a data URI.
+LOGO = urllib.parse.unquote(FAVICON.split(",", 1)[1]) + "\n"
 
 
 def e(value):
@@ -543,22 +547,24 @@ def build():
 
 def main(argv):
     check = "--check" in argv
-    OUT.mkdir(parents=True, exist_ok=True)
-    target = OUT / "index.html"
     page = build()
+    made = {OUT / "index.html": page, OUT / "assets" / "logo.svg": LOGO}
 
     if check:
-        current = target.read_text(encoding="utf-8") if target.exists() else ""
-        if current != page:
-            print("docs/index.html is out of date.\n\nRun: python tools/build_site.py",
-                  file=sys.stderr)
-            return 1
-        print(f"checked docs/index.html ({len(page) // 1024} KB)")
+        for target, body in made.items():
+            current = target.read_text(encoding="utf-8") if target.exists() else ""
+            if current != body:
+                print(f"{target.relative_to(ROOT)} is out of date.\n\n"
+                      "Run: python tools/build_site.py", file=sys.stderr)
+                return 1
+        print(f"checked docs/index.html ({len(page) // 1024} KB) and the logo")
         return 0
 
-    target.write_text(page, encoding="utf-8")
+    for target, body in made.items():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
     (OUT / ".nojekyll").write_text("", encoding="utf-8")
-    print(f"wrote docs/index.html ({len(page) // 1024} KB)")
+    print(f"wrote docs/index.html ({len(page) // 1024} KB) and docs/assets/logo.svg")
     return 0
 
 

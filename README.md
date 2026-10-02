@@ -1,84 +1,88 @@
+<div align="center">
+
+<img src="docs/assets/logo.svg" width="76" height="76" alt="">
+
 # jobhunt
 
-Eleven skills for the coding agent you already use. Keep everything you have
-ever done in one place; paste a job link and get a CV built for it, the people
-worth messaging, and the message to send them.
+**Stop sending the same CV for every single job.**
 
-**[Install →](https://mohamedaminehamdi.github.io/job-hunter/)** · pick your
-agent and copy one command.
+Eleven skills for the coding agent you already use. Paste a job link, and get a
+CV built for that posting, the people worth messaging, and the message to send
+them, all from your own work.
 
----
+[![CI](https://github.com/mohamedaminehamdi/job-hunter/actions/workflows/ci.yml/badge.svg)](https://github.com/mohamedaminehamdi/job-hunter/actions/workflows/ci.yml)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-3776ab)](#install)
+[![No API key](https://img.shields.io/badge/API%20key-not%20needed-45c795)](#install)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-6b7280)](#license)
 
-## What it takes off your plate
+**[Install](#install)** · [How it works](#how-it-works) · [The eleven skills](#the-eleven-skills) · [When it goes wrong](#when-it-goes-wrong) · [Website](https://mohamedaminehamdi.github.io/job-hunter/)
 
-An application used to cost you an evening: tailoring the CV, working out who
-to contact, writing the message. Every time, for every job.
+<a href="https://mohamedaminehamdi.github.io/job-hunter/assets/launch.mp4"><img src="docs/assets/launch.jpg" width="860" alt="Play the 22-second jobhunt launch video"></a>
 
-**Your work lives in one profile.** Every role, project and side thing across
-every field you have worked in. You write it once, and each application draws
-from it — you never retype your history.
+<sub>Works with Claude Code, Codex, Gemini CLI, Cursor, Cline and Windsurf, on macOS and Linux.</sub>
 
-**A CV per job, without the evening.** It picks which of your work answers this
-posting and leads with it. Same facts, different order:
+</div>
 
-```
-The one CV you send everywhere        Built for this posting
-· Responsible for various tasks       ● Cut ETL runtime 35% (dbt models)
-· Worked on internal tooling          ● Own the ingestion pipelines
-· Involved in cross-team projects     ● Built the dashboards 40 people use
-● Cut ETL runtime 35% (dbt models)    · Responsible for various tasks
+## What it does
 
-1 of 3  in the first screenful        3 of 3  in the first screenful
-```
+**One profile, every job.** Every role, project and side thing, across every
+field you have worked in, lives in one file. You write it once and each
+application draws from it, so you never retype your history.
 
-Same six lines from your own profile. Your strongest three were below the fold,
-and most readers never reach them.
+**A CV per job, without the evening.** It reads the posting, checks every
+requirement against your own work, and leads with the lines this job asks for.
+Same facts, better order:
 
-**The message, already written.** It works out who at the company is worth
-contacting — alumni first, because that is what actually gets replies — builds
-the searches that find them, and drafts something specific enough to answer.
-You press send.
+<p align="center"><img src="docs/assets/reorder.gif" width="720" alt="The same six CV lines, reordered for a Senior Data Engineer posting. The three lines it asks for move above the fold, and the score goes from 1 of 3 to 3 of 3."></p>
 
+Most readers stop after the first screenful. On the one CV you send everywhere,
+your strongest three lines were below it.
 
-## Coming soon
+**Who to message, and what to say.** It works out who at the company is worth
+contacting (alumni first, because they are the ones who reply), builds the
+searches that find them, and drafts a note specific enough to answer.
 
-One-click apply on the boards that allow it, jobs found for you, and
-application tracking. **Not built yet** — today it prepares the application and
-hands it to you; the sending is still yours.
+**Your facts, your send button.** The CV is built from lines already in your
+profile. It never applies, never logs in and never sends anything: you read it,
+and you press send.
 
 ## Install
 
-Pick your agent on **[the install page](https://mohamedaminehamdi.github.io/job-hunter/)**,
-or:
+Pick your agent on **[the install page](https://mohamedaminehamdi.github.io/job-hunter/)**, or:
+
+**Claude Code or Codex**, as a plugin, at the prompt:
+
+```text
+/plugin marketplace add mohamedaminehamdi/job-hunter
+/plugin install jobhunt@jobhunt
+```
+
+**Any agent**, from a terminal on macOS or Linux:
 
 ```bash
-# any agent, macOS or Linux
 curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh
 
 # Cursor, Cline and Windsurf read skills per project, not per user
 curl -fsSL .../install.sh | sh -s -- --to .cursor
 ```
 
-Inside Claude Code or Codex you can install it as a plugin instead:
-
-```
-/plugin marketplace add mohamedaminehamdi/job-hunter
-/plugin install jobhunt@jobhunt
-```
-
-Or download a folder from the install page and drop it in. No terminal needed.
+**No terminal:** download a folder from the install page and drop it in.
 
 **What it needs:** Python 3.9 or newer, which macOS and every Linux already
 has, and Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
-No API key — your agent is the model, so whatever you already pay for covers
-it.
+No API key: your agent is the model, so whatever you already pay for covers it.
 
-**Optional:** a TeX engine. If you have one — `tectonic` is a single binary —
-CVs and letters are set in LaTeX instead, which is what most people expect a CV
-to look like and is several times faster. Nothing needs it: with no engine the
-browser renders them exactly as before, and the tool tells you which it used.
+<details>
+<summary><b>Optional:</b> LaTeX for the PDFs</summary>
 
-## Using it
+If you have a TeX engine (`tectonic` is a single binary), CVs and letters are
+set in LaTeX instead, which is what most people expect a CV to look like, and
+it is several times faster. Nothing needs it: with no engine the browser renders
+them exactly as before, and the tool tells you which it used.
+
+</details>
+
+## How it works
 
 Put your CV somewhere, open your agent in a folder you want to work in, and
 say what you want:
@@ -89,9 +93,9 @@ The first run reads your CV, writes `jobhunt/profile.yaml`, and **stops and
 asks you to check it**. A model just read your career; you approve it once, and
 everything after is built on facts you have agreed to.
 
-Then you get a folder per job:
+Then every job gets its own folder:
 
-```
+```text
 jobhunt/runs/2026-09-24-acme-senior-data-engineer/
 ├── fit-before.md     how your CV answered this job as it stood
 ├── cv.pdf  cv.md     the tailored CV
@@ -102,12 +106,12 @@ jobhunt/runs/2026-09-24-acme-senior-data-engineer/
 └── job.yaml          the posting, as read
 ```
 
-## The eleven
+## The eleven skills
 
 Each works on its own. Install just the review to score your CV, or just the
 fit score to decide whether a job is worth an evening.
 
-| | |
+| Skill | What it does |
 |---|---|
 | `jobhunt` | the whole thing, in order |
 | `jobhunt-profile` | your CV → one YAML file everything else reads |
@@ -121,17 +125,16 @@ fit score to decide whether a job is worth an evening.
 | `jobhunt-outreach` | who to message, and what to say |
 | `jobhunt-critique` | what's still wrong, before you send it |
 
-## What it does not do today
+## What it does not do (yet)
 
-- **Apply to anything.** It produces the documents; you send them. On the
-  roadmap for the boards that allow it — not built yet.
-- **Scrape LinkedIn.** LinkedIn walls and throttles automated access and the
-  risk lands on *your* account. It builds the searches; you run them, and that
-  is not changing.
-- **Search for jobs.** You bring the link, for now.
+- **Apply to anything.** It produces the documents; you send them. One-click
+  apply, on the boards that allow it, is on the roadmap and not built yet.
+- **Scrape LinkedIn.** LinkedIn walls and throttles automated access, and the
+  risk lands on *your* account. It builds the searches; you run them. That is
+  not changing.
+- **Find jobs.** You bring the link, for now.
 - **Track your applications**, beyond one line per run in `runs/log.md`. It is
-  markdown; type what happened next into it.
-
+  markdown, so type what happened next into it.
 
 ## When it goes wrong
 
@@ -146,7 +149,9 @@ fit score to decide whether a job is worth an evening.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), and [AGENTS.md](AGENTS.md) for how the
-repo is laid out. `pytest` — 444 tests, on Python 3.9 and up.
+repo is laid out. `pytest` runs the suite, on Python 3.9 and up.
+
+If jobhunt saved you an evening, a star helps the next person find it.
 
 ## License
 
@@ -157,3 +162,9 @@ products need a separate license from the author. Every skill carries a copy
 of the [LICENSE](LICENSE).
 
 Earlier versions were released under MIT, and copies of those stay MIT.
+
+## Credits
+
+The launch video was made with [/brag](https://github.com/latent-spaces/brag).
+Type is [Geist](https://vercel.com/font), and the icons are
+[Phosphor](https://phosphoricons.com/).
