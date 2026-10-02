@@ -25,17 +25,6 @@ from jobhunt import (  # noqa: E402
 
 
 @pytest.fixture
-def home(tmp_path, monkeypatch):
-    """An isolated JOB_HUNTER_HOME, set in the environment as well as returned."""
-    directory = tmp_path / "home"
-    directory.mkdir()
-    monkeypatch.setenv("JOB_HUNTER_HOME", str(directory))
-    monkeypatch.setenv("JOB_HUNTER_MODEL", "test/model")
-    monkeypatch.setenv("JOB_HUNTER_API_KEY", "test-key")
-    return directory
-
-
-@pytest.fixture
 def profile():
     return Profile(
         personal=Personal(name="Ada", surname="Lovelace", headline="Data Engineer",

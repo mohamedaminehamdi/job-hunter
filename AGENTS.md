@@ -61,6 +61,7 @@ plugins/jobhunt/skills/<name>/
     SKILL.md                     the judgement half: instructions for a model
     <name>.py                    the exact half: argv in, JSON out
     lib/jobhunt.py               a copy of core/jobhunt.py
+    LICENSE                      a copy of the root LICENSE
 tools/sync.py                    maintains those copies
 tools/build_site.py              docs/index.html, from the skills themselves
 tools/build_archives.py          docs/download/*.zip
@@ -85,7 +86,7 @@ a test waves through.
 ```bash
 pytest                                  # 373 tests
 ruff check core plugins tools tests
-python tools/sync.py                    # if you touched core/
+python tools/sync.py                    # if you touched core/ or LICENSE
 python tools/build_site.py              # if you touched a SKILL.md
 python tools/build_archives.py          # if you touched any skill
 shellcheck -s sh install.sh

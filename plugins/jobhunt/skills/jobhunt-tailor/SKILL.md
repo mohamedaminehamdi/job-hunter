@@ -17,7 +17,7 @@ afterwards - it cannot be expressed.
 ## 1. Read the brief
 
 ```bash
-python3 tailor.py --brief --run <run> x
+python3 tailor.py --brief --run <run>
 ```
 
 Prints the profile with every role and project numbered, then the posting.

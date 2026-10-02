@@ -234,9 +234,28 @@ def test_the_browser_does_not_hold_the_run_open(tmp_path, monkeypatch):
 
 
 def test_no_browser_says_the_markdown_was_still_written(tmp_path, monkeypatch):
-    monkeypatch.setenv("JOB_HUNTER_BROWSER", "/nonexistent/browser")
+    monkeypatch.setenv("JOBHUNT_BROWSER", "/nonexistent/browser")
     with pytest.raises(jh.PdfError, match="markdown version was still written"):
         jh.write_pdf("<p>hi</p>", tmp_path / "x.pdf")
+
+
+def test_the_browser_variable_the_docs_name_is_the_one_read(tmp_path, monkeypatch):
+    """README, the pdf skill and CI all say JOBHUNT_BROWSER. The code read only
+    the older JOB_HUNTER_BROWSER, so setting the documented one did nothing
+    and the error message told people to set a name nothing documents."""
+    fake = tmp_path / "chrome"
+    fake.write_text("")
+    monkeypatch.delenv("JOB_HUNTER_BROWSER", raising=False)
+    monkeypatch.setenv("JOBHUNT_BROWSER", str(fake))
+    assert jh.find_browser() == str(fake)
+
+
+def test_the_older_browser_variable_still_works(tmp_path, monkeypatch):
+    fake = tmp_path / "chrome"
+    fake.write_text("")
+    monkeypatch.delenv("JOBHUNT_BROWSER", raising=False)
+    monkeypatch.setenv("JOB_HUNTER_BROWSER", str(fake))
+    assert jh.find_browser() == str(fake)
 
 
 # --- it has to run where people are ----------------------------------------
