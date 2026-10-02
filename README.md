@@ -15,11 +15,11 @@ them, all from your own work.
 [![No API key](https://img.shields.io/badge/API%20key-not%20needed-45c795)](#install)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-6b7280)](#license)
 
-**[Install](#install)** · [How it works](#how-it-works) · [The eleven skills](#the-eleven-skills) · [When it goes wrong](#when-it-goes-wrong) · [Website](https://mohamedaminehamdi.github.io/job-hunter/)
-
-<a href="https://mohamedaminehamdi.github.io/job-hunter/assets/launch.mp4"><img src="docs/assets/launch.jpg" width="860" alt="Play the 22-second jobhunt launch video"></a>
+**[Install](#install)** · [How it works](#how-it-works) · [The eleven skills](#the-eleven-skills) · [FAQ](#faq) · [Website](https://mohamedaminehamdi.github.io/job-hunter/)
 
 <sub>Works with Claude Code, Codex, Gemini CLI, Cursor, Cline and Windsurf, on macOS and Linux.</sub>
+
+<a href="https://mohamedaminehamdi.github.io/job-hunter/assets/launch.mp4"><img src="docs/assets/launch.jpg" width="860" alt="Play the 22-second jobhunt launch video"></a>
 
 </div>
 
@@ -42,13 +42,17 @@ your strongest three lines were below it.
 contacting (alumni first, because they are the ones who reply), builds the
 searches that find them, and drafts a note specific enough to answer.
 
-**Your facts, your send button.** The CV is built from lines already in your
-profile. It never applies, never logs in and never sends anything: you read it,
-and you press send.
+**Your facts, your send button.** The CV is built from what is already in your
+profile. It does not apply for you, log in as you, or send anything: you read
+it, and you press send.
 
 ## Install
 
-Pick your agent on **[the install page](https://mohamedaminehamdi.github.io/job-hunter/)**, or:
+| Agent | How | Where it reads skills from |
+|---|---|---|
+| Claude Code, Codex | the plugin, or the one-line script | your home folder, so every project |
+| Gemini CLI | the one-line script | your home folder, so every project |
+| Cursor, Cline, Windsurf | the script with `--to` | only the folder you have open |
 
 **Claude Code or Codex**, as a plugin, at the prompt:
 
@@ -57,16 +61,44 @@ Pick your agent on **[the install page](https://mohamedaminehamdi.github.io/job-
 /plugin install jobhunt@jobhunt
 ```
 
-**Any agent**, from a terminal on macOS or Linux:
+**Any agent**, from a terminal on macOS or Linux. It finds the agents you have
+and installs into each:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh
-
-# Cursor, Cline and Windsurf read skills per project, not per user
-curl -fsSL .../install.sh | sh -s -- --to .cursor
 ```
 
-**No terminal:** download a folder from the install page and drop it in.
+**Cursor, Cline or Windsurf** read skills per project, so run it in the folder
+you keep for your job search, with `--to .cline` or `--to .windsurf` for those:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --to .cursor
+```
+
+<details>
+<summary><b>Just some of the skills</b>, a dry run, or removing them</summary>
+
+Each skill works on its own, so you can take only the ones you want:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/install.sh | sh -s -- --only jobhunt-review,jobhunt-fit
+```
+
+`--list` shows what would be installed and where, and changes nothing.
+`--uninstall` removes them again.
+
+</details>
+
+<details>
+<summary><b>No terminal</b></summary>
+
+[Download all eleven](https://mohamedaminehamdi.github.io/job-hunter/download/jobhunt-all.zip),
+unzip it, and put the folders in `~/.claude/skills/`, `~/.codex/skills/`,
+`~/.gemini/skills/`, or your project's `.cursor/skills/`. Make the directory if
+it is not there yet. The [install page](https://mohamedaminehamdi.github.io/job-hunter/)
+has one zip per skill too.
+
+</details>
 
 **What it needs:** Python 3.9 or newer, which macOS and every Linux already
 has, and Chrome, Chromium, Edge or Brave for reading job pages and making PDFs.
@@ -83,6 +115,17 @@ them exactly as before, and the tool tells you which it used.
 </details>
 
 ## How it works
+
+```mermaid
+flowchart TD
+    cv["Your CV"] --> profile["profile.yaml<br/>you check it once"]
+    link["A job link"] --> posting["The posting, read"]
+    profile --> before
+    posting --> before["Fit, before"]
+    before --> tailor["A CV for this job"] --> after["Fit, after"]
+    after --> letter["Cover letter and PDFs"] --> critique["What is still weak"] --> outreach["Who to message, and what to say"]
+    outreach --> you(["You read it, and press send"])
+```
 
 Put your CV somewhere, open your agent in a folder you want to work in, and
 say what you want:
@@ -106,6 +149,28 @@ jobhunt/runs/2026-09-24-acme-senior-data-engineer/
 └── job.yaml          the posting, as read
 ```
 
+You can also ask for one part on its own:
+
+| Say | Runs |
+|---|---|
+| how good is my CV? | `jobhunt-review` |
+| how well do I match https://boards.greenhouse.io/acme/jobs/42 | `jobhunt-fit` |
+| help me answer "Do you have experience with Kafka?" | `jobhunt-answer` |
+| who should I contact about this job? | `jobhunt-outreach` |
+
+<details>
+<summary>What a note in <code>outreach.md</code> looks like</summary>
+
+The site's example, in the format the skill writes:
+
+> **Connection note** (188 of 280 characters — LinkedIn rejects anything longer)
+>
+> Hi Lena - fellow TU Berlin grad here. I rewrote a dbt warehouse and cut ETL
+> runtime 35%, and saw Zeta is hiring a data engineer. Would you have 10
+> minutes to tell me what the team is like?
+
+</details>
+
 ## The eleven skills
 
 Each works on its own. Install just the review to score your CV, or just the
@@ -125,16 +190,68 @@ fit score to decide whether a job is worth an evening.
 | `jobhunt-outreach` | who to message, and what to say |
 | `jobhunt-critique` | what's still wrong, before you send it |
 
-## What it does not do (yet)
+## Roadmap
 
-- **Apply to anything.** It produces the documents; you send them. One-click
-  apply, on the boards that allow it, is on the roadmap and not built yet.
-- **Scrape LinkedIn.** LinkedIn walls and throttles automated access, and the
-  risk lands on *your* account. It builds the searches; you run them. That is
-  not changing.
-- **Find jobs.** You bring the link, for now.
-- **Track your applications**, beyond one line per run in `runs/log.md`. It is
-  markdown, so type what happened next into it.
+- [x] A tailored CV, a cover letter, a fit score and outreach, from one job link
+- [ ] **One-click apply**, on the boards that allow it
+- [ ] **Jobs found for you**: postings your profile already answers
+- [ ] **Application tracking**: what you sent, when, and what came back. Until
+      then, `runs/log.md` has one line per run; it is markdown, so type what
+      happened next into it.
+
+Not built yet: today it prepares the application, and you send it. Want one
+sooner? [Suggest it](https://github.com/mohamedaminehamdi/job-hunter/issues/new?template=idea.yml).
+
+One thing is not on the roadmap: **scraping LinkedIn.** LinkedIn walls and
+throttles automated access, and the risk lands on *your* account. It builds the
+searches; you run them.
+
+## FAQ
+
+<details>
+<summary><b>Will it make things up?</b></summary>
+
+The CV is assembled from your profile: the roles in it are picked from yours,
+and a skill the model adds that your profile does not list is dropped, and you
+are told. If the tailored CV still names something your profile does not back,
+the after score flags it as `claimed but not evidenced`.
+
+</details>
+
+<details>
+<summary><b>Will it make my CV good?</b></summary>
+
+It will make your CV **accurate**, and put your strongest evidence where a
+reader meets it. It cannot give you experience you do not have, and it will
+tell you plainly when a job needs some.
+
+</details>
+
+<details>
+<summary><b>Where does my CV go?</b></summary>
+
+Into `jobhunt/`, in the folder you work in. There is no account and no server,
+and nothing is uploaded anywhere by jobhunt itself. Your agent reads it, on the
+same terms as anything else you show it.
+
+</details>
+
+<details>
+<summary><b>Do I need to pay for anything?</b></summary>
+
+No. Your coding agent is the model, so whatever you already pay for covers it.
+There is no provider to sign up to and no token bill.
+
+</details>
+
+<details>
+<summary><b>Can I just use one skill?</b></summary>
+
+Yes. Each folder carries its own copy of the library and imports nothing from
+its siblings, so one installed alone works exactly the same as all eleven. See
+[Install](#install) for `--only`.
+
+</details>
 
 ## When it goes wrong
 
@@ -145,6 +262,10 @@ fit score to decide whether a job is worth an evening.
 | `No profile at ...` | Put a CV somewhere and ask for a profile first |
 | `is YAML this reader does not do` | Hand-edited `profile.yaml` using a `{a: b}` map. Use block style |
 | The fit score says `0 of 0` | The posting stated no requirements, so it fell back to keywords. Coarser, and it says so |
+| `No TeX engine found` | You asked for a LaTeX template and there is no engine. Install `tectonic`, or set `JOBHUNT_TEX`. The markdown was still written |
+
+Something else? [Open an issue](https://github.com/mohamedaminehamdi/job-hunter/issues/new?template=bug.yml)
+with what you ran and what came back, and leave your CV out of it.
 
 ## Contributing
 
@@ -167,4 +288,5 @@ Earlier versions were released under MIT, and copies of those stay MIT.
 
 The launch video was made with [/brag](https://github.com/latent-spaces/brag).
 Type is [Geist](https://vercel.com/font), and the icons are
-[Phosphor](https://phosphoricons.com/).
+[Phosphor](https://phosphoricons.com/). The README borrows ideas from
+[awesome-readme](https://github.com/matiassingers/awesome-readme).
