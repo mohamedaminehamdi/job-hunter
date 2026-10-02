@@ -200,7 +200,15 @@ svg { display: block; }
 .bar nav a:hover { opacity: 1; background: rgba(255, 255, 255, .12);
                    text-decoration: none; }
 .bar.stuck nav a:hover { background: var(--rule-soft); }
-@media (max-width: 760px) { .bar nav a.hide-sm { display: none; } }
+/* On a phone the in-page links go, but GitHub and the star stay as icons:
+   the label is hidden to the eye only, so it is still the link's name. */
+@media (max-width: 760px) {
+  .bar nav a.hide-sm { display: none; }
+  .bar nav a.icon-sm { padding: 10px; }
+  .bar nav a.icon-sm .ico { width: 19px; height: 19px; }
+  .bar nav a.icon-sm .label { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 
 /* --- buttons ------------------------------------------------------------ */
 
