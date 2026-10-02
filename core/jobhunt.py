@@ -177,11 +177,16 @@ def clone(obj, **changes):
 
 
 class YamlError(ValueError):
-    """A YAML file we could not read, and where."""
+    """A YAML file we could not read, and where: the line, and the file when
+    whoever raised it knows which. A run holds four YAML files, so "line 4"
+    on its own sends the user to the wrong one."""
 
-    def __init__(self, line, message):
+    def __init__(self, line, message, path=""):
         self.line = line
-        super().__init__(f"line {line}: {message}")
+        self.message = message
+        self.path = str(path)
+        where = f"{self.path}, line {line}" if self.path else f"line {line}"
+        super().__init__(f"{where}: {message}")
 
 
 _KEY = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*)\s*:(?:\s+(?P<value>.*))?$")
@@ -348,13 +353,19 @@ _LOOKS_TYPED = re.compile(
     r"|true|false|yes|no|on|off|null|~|\d{4}-\d\d-\d\d.*)$", re.IGNORECASE)
 
 
+#: A hash after whitespace opens a comment, so "Python # scripting" written
+#: bare reads back as "Python" - from this reader and from every other one.
+_COMMENTISH = re.compile(r"[ \t]#")
+
+
 def _scalar(value):
     text_value = "" if value is None else str(value)
     if "\n" in text_value:
         return None                                   # caller writes a | block
     if (text_value == "" or not _PLAIN.match(text_value)
             or _LOOKS_TYPED.match(text_value) or text_value.endswith(" ")
-            or ": " in text_value or text_value.endswith(":")):
+            or ": " in text_value or text_value.endswith(":")
+            or _COMMENTISH.search(text_value)):
         return '"' + text_value.replace("\\", "\\\\").replace('"', '\\"') + '"'
     return text_value
 
@@ -402,10 +413,12 @@ def yaml_dump(data, indent=0):
 
 # --- model ------------------------------------------------------------------
 #
-# Loading a profile or a posting NEVER raises. Intake produces partial, messy
-# data - a half-parsed PDF, a template with placeholders still in it, a posting
-# behind a login wall - and the right response is a checklist the user can act
-# on, not a stack trace. Validation reports; it does not reject.
+# Loading a profile or a posting never rejects its *content*. Intake produces
+# partial, messy data - a half-parsed PDF, a template with placeholders still in
+# it, a posting behind a login wall - and the right response is a checklist the
+# user can act on, not a stack trace. Validation reports; it does not reject.
+# The one thing `load` does raise on is a file that is not YAML at all, with
+# the line number, because "fix line 14" is the checklist for that.
 
 #: Deliberately loose: these catch obvious junk without rejecting unusual-but-real
 #: values. Someone's email really can have a + and four dots in it.
@@ -722,17 +735,24 @@ class Job:
 def load(cls, path, **overrides):
     """Read a record from YAML. Returns an empty one if there is nothing there.
 
-    Malformed YAML yields an empty record rather than raising: something always
-    has to be shown to the user, and `report()` is where they find out what is
-    wrong with it.
+    Missing fields never raise - `report()` is where the user hears about
+    those. A file that is not the YAML subset does raise, as `YamlError` with
+    the line, because swallowing it here reported a `{a: b}` on line 14 as
+    "a name is required" and "add at least one role": the exact failure the
+    reader was rewritten to stop, put back one layer up. Every script runs
+    under `run_cli`, which turns the error into exit 1 and that one sentence.
     """
     path = Path(path)
     if not path.exists():
         return build(cls, {}, **overrides)
     try:
-        raw = yaml_load(path.read_text(encoding="utf-8"))
-    except (YamlError, OSError, UnicodeDecodeError):
-        raw = {}
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return build(cls, {}, **overrides)
+    try:
+        raw = yaml_load(source)
+    except YamlError as exc:
+        raise YamlError(exc.line, exc.message, path) from None
     return build(cls, raw, **overrides)
 
 
@@ -2205,9 +2225,13 @@ _SETTLE = 0.4
 def find_browser():
     """A Chromium-family browser on this machine, or None.
 
-    `JOB_HUNTER_BROWSER` overrides, for a machine with one somewhere unusual.
+    `JOBHUNT_BROWSER` overrides, for a machine with one somewhere unusual -
+    the name the README, the pdf skill and CI give. The code read only the
+    older `JOB_HUNTER_BROWSER` for a while, so the documented one did nothing;
+    the old name is still honoured for anyone who set it.
     """
-    named = os.environ.get("JOB_HUNTER_BROWSER", "").strip()
+    named = (os.environ.get("JOBHUNT_BROWSER", "").strip()
+             or os.environ.get("JOB_HUNTER_BROWSER", "").strip())
     if named:
         return named if Path(named).exists() else shutil.which(named)
     for candidate in _CHROMES:
@@ -2591,7 +2615,7 @@ def write_pdf(page, path):
         raise PdfError(
             "No Chrome, Chromium, Edge or Brave found, so the PDF could not be "
             "made. The markdown version was still written and is ready to send. "
-            "Install any of those browsers, or set JOB_HUNTER_BROWSER to one.")
+            "Install any of those browsers, or set JOBHUNT_BROWSER to one.")
 
     work = Path(tempfile.mkdtemp(prefix="jobhunt-pdf-"))
     source = work / "document.html"

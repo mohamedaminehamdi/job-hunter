@@ -71,6 +71,24 @@ def test_a_value_with_a_colon_is_quoted():
     assert roundtrip({"note": "fleet: we partner"}) == {"note": "fleet: we partner"}
 
 
+def test_a_value_with_a_hash_after_a_space_is_quoted():
+    """Written bare, "Python # scripting" reads back as "Python": a hash after
+    whitespace opens a comment, here and in every other YAML reader. A skill
+    list is exactly where someone writes one. "C#" is not a comment and stays
+    bare.
+    """
+    for value in ("Python # scripting", "On-call # weekends only", "C# / .NET"):
+        assert roundtrip({"skill": value}) == {"skill": value}, value
+        assert roundtrip({"skills": [value]}) == {"skills": [value]}, value
+    assert '"' not in yaml_dump({"skill": "C# / .NET"})
+    try:
+        import yaml
+    except ImportError:  # the oracle is a dev dependency, not a shipped one
+        return
+    data = {"skills": ["Python # scripting"], "summary": "Ops # on-call"}
+    assert yaml.safe_load(yaml_dump(data)) == data
+
+
 def test_a_long_value_is_never_folded():
     """A folded achievement bullet is what someone then edits wrongly."""
     long = "Cut ETL runtime by 35% " * 12

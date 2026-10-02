@@ -1,10 +1,12 @@
 from pathlib import Path
 
+import pytest
 from jobhunt import (
     BLOCKING,
     Personal,
     Profile,
     Role,
+    YamlError,
     build,
     load,
     save,
@@ -90,10 +92,28 @@ def test_load_missing_file_gives_empty_profile(tmp_path: Path):
     assert load(Profile, tmp_path / "nope.yaml") == Profile()
 
 
-def test_load_malformed_yaml_gives_empty_profile(tmp_path: Path):
+def test_load_malformed_yaml_names_the_line_instead_of_an_empty_profile(tmp_path: Path):
+    """Swallowed here, a `{a: b}` on line 3 came out as "a name is required"
+    and "add at least one role" - the failure the YAML reader was rewritten to
+    stop, put back one layer up."""
     bad = tmp_path / "profile.yaml"
-    bad.write_text("this: [unclosed", encoding="utf-8")
-    assert load(Profile, bad) == Profile()
+    bad.write_text("personal:\n  name: Ada\nskills: {a: b}\n", encoding="utf-8")
+    with pytest.raises(YamlError) as caught:
+        load(Profile, bad)
+    assert caught.value.line == 3
+    assert "this reader does not do" in str(caught.value)
+    # A run holds four YAML files; "line 3" alone sends them to the wrong one.
+    assert str(caught.value).startswith(f"{bad}, line 3: ")
+
+
+def test_load_yaml_that_merely_lacks_fields_reports_rather_than_raising(tmp_path: Path):
+    """The line between the two: a file this reader can parse but that says
+    too little is a checklist, not an error."""
+    thin = tmp_path / "profile.yaml"
+    thin.write_text("skills:\n- Go\n", encoding="utf-8")
+    p = load(Profile, thin)
+    assert p.skills == ["Go"]
+    assert "personal.name" in blocking(p)
 
 
 def test_unknown_keys_are_dropped_not_fatal():

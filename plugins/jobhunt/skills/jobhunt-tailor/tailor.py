@@ -17,14 +17,20 @@ import jobhunt as jh  # noqa: E402
 
 def work(argv):
     parser = argparse.ArgumentParser(prog="tailor", description=__doc__)
-    parser.add_argument("selection", help="the JSON you wrote: summary, roles, "
-                                          "projects, skills")
+    parser.add_argument("selection", nargs="?",
+                        help="the JSON you wrote: summary, roles, projects, skills")
     parser.add_argument("--run", required=True)
     parser.add_argument("--profile")
     parser.add_argument("--brief", action="store_true",
                         help="print the profile and the job as a prompt block "
                              "and stop - this is what you write the JSON from")
     args = parser.parse_args(argv)
+    # The brief comes before there is a selection to give, so the positional
+    # cannot be required: it used to be, and the skill had to be run with a
+    # dummy "x" on the end to read it.
+    if not args.brief and not args.selection:
+        parser.error("give the selection JSON you wrote, or --brief to read "
+                     "the profile and the posting first")
 
     run = jh.run_dir(args.run)
     job = jh.load(jh.Job, jh.require(run, "job.yaml"))

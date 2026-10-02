@@ -113,6 +113,7 @@ def test_each_archive_holds_one_complete_skill(skill):
     with zipfile.ZipFile(archive) as zf:
         names = zf.namelist()
     assert f"{skill}/SKILL.md" in names
+    assert f"{skill}/LICENSE" in names, "the terms must travel with the skill"
     scripts = [n for n in names if n.endswith(".py") and "/lib/" not in n]
     if scripts:
         assert f"{skill}/lib/jobhunt.py" in names, "a script with no library"

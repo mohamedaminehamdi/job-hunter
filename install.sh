@@ -111,7 +111,10 @@ download_source() {
     || die "need curl or wget to download the skills"
   command -v tar >/dev/null 2>&1 || die "need tar to unpack the download"
 
-  tmp=$(mktemp -d 2>/dev/null || mktemp -d -t jobhunt)
+  # Inside $work, which the trap below removes on exit. Its own mktemp here
+  # left a copy of the whole repo in /tmp after every curl | sh install.
+  tmp="$work/download"
+  mkdir -p "$tmp" || die "could not create a temporary directory"
   url="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$url" -o "$tmp/src.tar.gz" || die "could not download from $url"

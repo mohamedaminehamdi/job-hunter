@@ -152,6 +152,23 @@ def test_no_skill_assumes_one_vendors_tools():
             assert tool not in text, f"{skill.name} names {tool}"
 
 
+# --- the environment variables --------------------------------------------
+
+def test_every_variable_the_docs_tell_people_to_set_is_one_the_code_reads():
+    """JOBHUNT_BROWSER was documented in the README, the pdf skill and CI, and
+    read nowhere - the code looked for an older name. A variable named in the
+    docs that the library never reads is advice that silently does nothing."""
+    core = (ROOT / "core" / "jobhunt.py").read_text(encoding="utf-8")
+    read = set(re.findall(r'environ\.get\("(JOB(?:HUNT|_HUNTER)_[A-Z_]+)"', core))
+    assert read, "nothing reads any variable - the pattern has drifted"
+    sources = [ROOT / "README.md", ROOT / ".github" / "workflows" / "ci.yml",
+               *(skill / "SKILL.md" for skill in ALL)]
+    for source in sources:
+        text = source.read_text(encoding="utf-8")
+        for name in set(re.findall(r"\b(JOB(?:HUNT|_HUNTER)_[A-Z_]+)\b", text)):
+            assert name in read, f"{source.relative_to(ROOT)} names {name}"
+
+
 # --- the run directory both halves agree on --------------------------------
 
 def test_the_files_the_skills_name_are_the_ones_the_scripts_write():

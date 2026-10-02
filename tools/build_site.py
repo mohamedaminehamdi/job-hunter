@@ -335,10 +335,11 @@ def build():
       <nav>
         <a href="#how" class="hide-sm">How it works</a>
         <a href="#example" class="hide-sm">The difference</a>
-        <a href="https://github.com/{REPO}" class="hide-sm">
-          {icon("github-logo")}GitHub</a>
-        <a href="https://github.com/{REPO}" class="star hide-sm"
-           title="Starring it helps people find it">{icon("star")}Star</a>
+        <a href="https://github.com/{REPO}" class="icon-sm" title="GitHub">
+          {icon("github-logo")}<span class="label">GitHub</span></a>
+        <a href="https://github.com/{REPO}" class="star icon-sm"
+           title="Starring it helps people find it">{icon("star")}<span
+           class="label">Star</span></a>
         <a href="#install">Install</a>
       </nav>
     </div>
@@ -521,9 +522,11 @@ def build():
 
 <footer>
   <div class="wrap">
-    <p>MIT licensed. It applies to nothing and sends nothing.</p>
+    <p>Free for your own job search, not for commercial use. It applies to
+       nothing and sends nothing.</p>
     <nav>
       <a href="https://github.com/{REPO}">Source</a>
+      <a href="https://github.com/{REPO}/blob/main/LICENSE">License</a>
       <a href="https://github.com/{REPO}/issues">Issues</a>
       <a href="download/jobhunt-all.zip" download>Download</a>
     </nav>
