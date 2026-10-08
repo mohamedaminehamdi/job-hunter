@@ -79,16 +79,32 @@ def test_the_page_counts_the_skills_rather_than_claiming_a_number(page):
 
 
 def test_every_download_link_points_at_an_archive_that_exists(page):
-    links = set(re.findall(r'href="(download/[^"]+)"', page))
-    assert links, "the page offers no downloads"
-    for link in links:
-        assert (DOCS / link).exists(), f"{link} is linked but was never built"
+    """The page links the latest release, which carries exactly the zips built
+    here (.github/workflows/release.yml), so every name must be one of them."""
+    names = set(re.findall(r'href="https://github\.com/[^"]+/releases/latest/download/([^"]+)"',
+                           page))
+    assert names, "the page offers no downloads"
+    for name in names:
+        assert (DOWNLOAD / name).exists(), f"{name} is linked but was never built"
+    assert 'href="download/' not in page, \
+        "a download link skips the release, so nobody would know it happened"
+
+
+def test_downloads_are_added_up_across_every_release():
+    """Old releases keep their counts, so a total has to include them."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    import downloads
+    found = [{"assets": [{"name": "jobhunt-skills.tar.gz", "download_count": 5},
+                         {"name": "jobhunt-all.zip", "download_count": 2}]},
+             {"assets": [{"name": "jobhunt-skills.tar.gz", "download_count": 3}]},
+             {"assets": []}]
+    assert downloads.totals(found) == {"jobhunt-skills.tar.gz": 8, "jobhunt-all.zip": 2}
 
 
 def test_every_skill_is_still_built_as_its_own_archive():
     """The page no longer links these one by one - the card grid that did was
-    removed. They are still built, because `install.sh --only` fetches them
-    and the download route offers the whole set."""
+    removed. They are still built, and every release carries each one as its
+    own file."""
     for skill in SKILLS:
         assert (DOWNLOAD / f"{skill}.zip").exists(), skill
 
@@ -97,7 +113,7 @@ def test_the_page_offers_no_skill_that_does_not_exist(page):
     """Scoped to where a skill is actually named to the reader - a download
     link or the id shown on a card. `jobhunt-agent` in the script is a storage
     key, not a claim about what ships."""
-    offered = set(re.findall(r'href="download/([a-z-]+)\.zip"', page))
+    offered = set(re.findall(r'/releases/latest/download/([a-z-]+)\.zip"', page))
     offered |= set(re.findall(r'<span class="id">([a-z-]+)</span>', page))
     assert offered, "the page names no skills at all"
     for name in offered - {"jobhunt-all"}:

@@ -23,6 +23,9 @@ OUT = ROOT / "docs"
 SITE = Path(__file__).resolve().parent / "site"
 REPO = data.REPO
 RAW = f"https://raw.githubusercontent.com/{REPO}/main"
+#: Downloads come from the latest release, not from docs/: GitHub counts
+#: every download of a release file, and nothing else here can be counted.
+RELEASE = f"https://github.com/{REPO}/releases/latest/download"
 
 #: The mark, as a data URI - one request fewer and nothing to 404.
 FAVICON = logo.favicon()
@@ -163,7 +166,7 @@ def routes(agent):
         f"<p>No terminal at all. Unzip it and put the folder in {place} — make "
         "that directory if it is not there yet.</p>"
         f'<p style="margin-top:14px"><a class="btn btn-ghost" '
-        f'href="download/jobhunt-all.zip" download>{icon("download-simple")}'
+        f'href="{RELEASE}/jobhunt-all.zip" download>{icon("download-simple")}'
         f"All {HOW_MANY} skills</a></p></div>")
 
     warn = " warn" if agent["scope"] == "project" else ""
@@ -532,7 +535,7 @@ def build():
       <a href="https://github.com/{REPO}">Source</a>
       <a href="https://github.com/{REPO}/blob/main/LICENSE">License</a>
       <a href="https://github.com/{REPO}/issues">Issues</a>
-      <a href="download/jobhunt-all.zip" download>Download</a>
+      <a href="{RELEASE}/jobhunt-all.zip" download>Download</a>
     </nav>
   </div>
 </footer>

@@ -94,6 +94,15 @@ reading the failure knows what broke without opening the file.
   here are the only record of a failure that took an hour to find.
 - English, and PEP 8. Docstrings on new functions and classes.
 
+## Releases
+
+Merging a change to `docs/download/` publishes a release
+(`.github/workflows/release.yml`), and both the site's download buttons and
+`install.sh` fetch from the latest one: GitHub counts every download of a
+release file, and nothing else here can be counted. `python tools/downloads.py`
+adds the counts up across every release. Plugin installs clone the repo
+instead, so they only show in the repo's traffic, and only for fourteen days.
+
 ## Never commit
 
 `jobhunt/`, `cv/`, `runs/` or `profile.yaml`. Those are somebody's career and
