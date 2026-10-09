@@ -92,11 +92,11 @@ curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/i
 <details>
 <summary><b>No terminal</b></summary>
 
-[Download all eleven](https://mohamedaminehamdi.github.io/job-hunter/download/jobhunt-all.zip),
+[Download all eleven](https://github.com/mohamedaminehamdi/job-hunter/releases/latest/download/jobhunt-all.zip),
 unzip it, and put the folders in `~/.claude/skills/`, `~/.codex/skills/`,
 `~/.gemini/skills/`, or your project's `.cursor/skills/`. Make the directory if
-it is not there yet. The [install page](https://mohamedaminehamdi.github.io/job-hunter/)
-has one zip per skill too.
+it is not there yet. The [latest release](https://github.com/mohamedaminehamdi/job-hunter/releases/latest)
+has each skill as its own zip too.
 
 </details>
 

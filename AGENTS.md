@@ -64,7 +64,8 @@ plugins/jobhunt/skills/<name>/
     LICENSE                      a copy of the root LICENSE
 tools/sync.py                    maintains those copies
 tools/build_site.py              docs/index.html, from the skills themselves
-tools/build_archives.py          docs/download/*.zip
+tools/build_archives.py          docs/download/*.zip, and a release's files
+tools/downloads.py               how many times each release file was downloaded
 install.sh                       POSIX sh, every install route
 ```
 

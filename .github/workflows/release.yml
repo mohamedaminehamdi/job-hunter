@@ -1,0 +1,43 @@
+name: Release
+
+# The site and the installer download from the latest release, because GitHub
+# counts every download of a release file and nothing else here can be counted
+# (`python tools/downloads.py` adds them up). A release is cut whenever what
+# people download changes - the archives under docs/download, which CI keeps
+# current - so a README edit does not make one. Old releases stay, so their
+# counts stay too.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/download/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the release files
+        run: python3 tools/build_archives.py --release dist
+
+      - name: Publish them as the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}"
+          gh release create "$tag" dist/* \
+            --title "jobhunt $(date -u +%Y-%m-%d)" \
+            --generate-notes \
+            --latest

@@ -8,12 +8,16 @@ copies rather than by reading the script.
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALL = ROOT / "install.sh"
+sys.path.insert(0, str(ROOT / "tools"))
+import build_archives  # noqa: E402
+
 SKILLS = sorted(p.name for p in (ROOT / "plugins" / "jobhunt" / "skills").iterdir()
                 if p.is_dir())
 
@@ -206,3 +210,60 @@ def test_the_source_override_is_checked_before_it_is_used(home, tmp_path):
              "JOBHUNT_SOURCE": str(tmp_path / "not-a-clone")})
     assert done.returncode != 0
     assert "has no plugins/jobhunt/skills" in done.stderr
+
+
+# --- downloaded, as `curl ... | sh` does with no checkout to copy from -------
+
+def downloaded(home, tmp_path, serve):
+    """`curl ... | sh` where the installer has to download the skills.
+
+    A `curl` first on PATH serves local tarballs by URL and logs every URL it
+    was asked for, so the test sees which address the installer tried first.
+    It runs from an empty directory, or the installer would find this clone.
+    """
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    log = tmp_path / "urls.log"
+    cases = "".join(f'  *{tail}) cp "{path}" "$out" ;;\n' for tail, path in serve.items())
+    curl = bin_dir / "curl"
+    curl.write_text(
+        "#!/bin/sh\n"
+        'out=""; url=""\n'
+        "while [ $# -gt 0 ]; do\n"
+        '  case "$1" in -o) out="$2"; shift ;; -*) ;; *) url="$1" ;; esac\n'
+        "  shift\n"
+        "done\n"
+        f'echo "$url" >> "{log}"\n'
+        'case "$url" in\n' + cases + "  *) exit 22 ;;\nesac\n")
+    curl.chmod(0o755)
+    empty = tmp_path / "elsewhere"
+    empty.mkdir()
+    done = subprocess.run(
+        f'cat "{INSTALL}" | sh -s --', shell=True, capture_output=True, text=True,
+        cwd=str(empty),
+        env={"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+             "HOME": str(home), "NO_COLOR": "1"})
+    return done, log.read_text().split() if log.exists() else []
+
+
+def test_a_download_comes_from_the_latest_release(home, tmp_path):
+    """GitHub counts every download of a release file, which is the only way to
+    know how many people install this - so the release is tried first, and the
+    tarball it carries has to unpack the way the installer reads it."""
+    release = build_archives.write_tarball(tmp_path / "release.tar.gz")
+    done, urls = downloaded(home, tmp_path,
+                            {"/releases/latest/download/jobhunt-skills.tar.gz": release})
+    assert done.returncode == 0, done.stderr
+    assert urls == [f"https://github.com/mohamedaminehamdi/job-hunter/releases/latest/"
+                    f"download/{build_archives.TARBALL}"]
+    assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == SKILLS
+
+
+def test_with_no_release_it_falls_back_to_the_branch(home, tmp_path):
+    """Before the first release, or if one is missing, an install still works."""
+    branch = build_archives.write_tarball(tmp_path / "branch.tar.gz", prefix="job-hunter-main")
+    done, urls = downloaded(home, tmp_path, {"/tar.gz/refs/heads/main": branch})
+    assert done.returncode == 0, done.stderr
+    assert "/releases/latest/" in urls[0]
+    assert urls[1].startswith("https://codeload.github.com/")
+    assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == SKILLS

@@ -9,7 +9,8 @@
 #   ./install.sh --uninstall
 #
 # JOBHUNT_SOURCE=/path/to/clone  copies from a checkout you already have
-# rather than downloading.
+# rather than downloading. Otherwise it downloads the latest release, which
+# GitHub counts, and falls back to the main branch if there is none.
 #
 # POSIX sh on purpose: /bin/sh is dash on Debian and bash on macOS, and this
 # has to run on both without anybody choosing an interpreter. No bashisms, no
@@ -105,6 +106,14 @@ find_source() {
   return 1
 }
 
+fetch() {
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$1" -o "$2"
+  else
+    wget -qO "$2" "$1"
+  fi
+}
+
 download_source() {
   # Piped from curl, so there is no clone. Fetch a tarball into a temp dir.
   command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 \
@@ -115,12 +124,15 @@ download_source() {
   # left a copy of the whole repo in /tmp after every curl | sh install.
   tmp="$work/download"
   mkdir -p "$tmp" || die "could not create a temporary directory"
-  url="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "$tmp/src.tar.gz" || die "could not download from $url"
-  else
-    wget -qO "$tmp/src.tar.gz" "$url" || die "could not download from $url"
-  fi
+
+  # The latest release first: GitHub counts every download of a release file,
+  # which is how anyone knows this gets installed. The branch is the fallback,
+  # so a missing release never breaks an install. Both unpack to job-hunter-*.
+  release="https://github.com/$REPO/releases/latest/download/jobhunt-skills.tar.gz"
+  branch="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
+  fetch "$release" "$tmp/src.tar.gz" 2>/dev/null \
+    || fetch "$branch" "$tmp/src.tar.gz" \
+    || die "could not download from $release or $branch"
   tar -xzf "$tmp/src.tar.gz" -C "$tmp" || die "the download did not unpack"
   inner=$(find "$tmp" -maxdepth 1 -type d -name 'job-hunter-*' | head -1)
   [ -d "$inner/plugins/jobhunt/skills" ] || die "the download has no skills in it"

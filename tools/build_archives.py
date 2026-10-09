@@ -8,17 +8,33 @@ corporate laptop will not run curl | sh.
 
     python tools/build_archives.py            write docs/download/
     python tools/build_archives.py --check    exit 1 if any is stale
+    python tools/build_archives.py --release DIR
+                                              the zips, plus the installer's
+                                              tarball, for a GitHub release
+
+The site and the installer download from the latest release rather than from
+docs/ or the branch, because GitHub counts every download of a release file -
+the only way to know how many people install this.
 """
 
+import gzip
 import hashlib
 import json
+import shutil
 import sys
+import tarfile
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS = ROOT / "plugins" / "jobhunt" / "skills"
 OUT = ROOT / "docs" / "download"
+
+#: What `install.sh` fetches from a release. Its one top-level folder matches
+#: the `job-hunter-*` the branch tarball unpacks to, so the installer reads
+#: either the same way.
+TARBALL = "jobhunt-skills.tar.gz"
+PREFIX = "job-hunter-release"
 
 #: Never shipped inside a skill.
 JUNK = {"__pycache__", ".DS_Store", ".pytest_cache"}
@@ -69,11 +85,48 @@ def build():
     return made
 
 
+def write_tarball(target, prefix=PREFIX):
+    """Every skill as a .tar.gz, laid out as the repo lays it out, under
+    `prefix/`. Fixed times and sorted entries, like the zips."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("wb") as raw, \
+            gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as packed, \
+            tarfile.open(fileobj=packed, mode="w", format=tarfile.USTAR_FORMAT) as tar:
+        for skill in sorted(p for p in SKILLS.iterdir() if p.is_dir()):
+            for path in files_of(skill):
+                info = tarfile.TarInfo(f"{prefix}/{path.relative_to(ROOT).as_posix()}")
+                info.size = path.stat().st_size
+                info.mtime = 315532800                      # 1980-01-01, as the zips
+                info.mode = 0o755 if path.suffix == ".py" else 0o644
+                with path.open("rb") as data:
+                    tar.addfile(info, data)
+    return target
+
+
+def release(dest):
+    """Everything a release carries: the zips the site hands out and the
+    tarball the installer fetches."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for path in build().values():
+        shutil.copyfile(path, dest / path.name)
+    write_tarball(dest / TARBALL)
+    return sorted(p.name for p in dest.iterdir())
+
+
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
 def main(argv):
+    if "--release" in argv:
+        at = argv.index("--release") + 1
+        if at >= len(argv):
+            print("--release needs a directory", file=sys.stderr)
+            return 2
+        names = release(Path(argv[at]))
+        print(f"wrote {len(names)} release files to {argv[at]}")
+        return 0
+
     check = "--check" in argv
     before = {p.name: digest(p) for p in OUT.glob("*.zip")} if OUT.exists() else {}
     made = build()
