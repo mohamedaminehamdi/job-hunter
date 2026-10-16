@@ -2612,6 +2612,34 @@ def _windows_roots():
             if root]
 
 
+def _on_path(name):
+    """`shutil.which(name)`, searching only the folders PATH names in full.
+
+    On Windows, which() tries the current folder before PATH, and an empty or
+    relative PATH entry means the current folder anywhere. Either way a
+    chrome.exe or xelatex.exe sitting in the folder the tool was run from -
+    an unzipped download, a shared drive - would run in place of the real
+    one. A name with a folder in it is a path the user chose and is taken as
+    given.
+    """
+    if os.path.dirname(name):
+        return name if Path(name).exists() else None
+    exts = [""]
+    if os.name == "nt":
+        pathext = [e for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").lower()
+                   .split(os.pathsep) if e]
+        if os.path.splitext(name)[1].lower() not in pathext:
+            exts = pathext
+    for folder in os.environ.get("PATH", "").split(os.pathsep):
+        if not os.path.isabs(folder):
+            continue
+        for ext in exts:
+            candidate = os.path.join(folder, name + ext)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+    return None
+
+
 def browser_candidates(platform=None):
     """Every path a browser is looked for at, in order, on `platform` - the
     `os.name` of this machine unless a test says otherwise.
@@ -2641,12 +2669,12 @@ def find_browser():
     named = (os.environ.get("JOBHUNT_BROWSER", "").strip()
              or os.environ.get("JOB_HUNTER_BROWSER", "").strip())
     if named:
-        return named if Path(named).exists() else shutil.which(named)
+        return _on_path(named)
     for candidate in browser_candidates():
         if Path(candidate).exists():
             return candidate
     for name in _CHROME_NAMES:
-        found = shutil.which(name)
+        found = _on_path(name)
         if found:
             return found
     return None
@@ -2677,20 +2705,18 @@ def tex_dirs(platform=None):
     """The folders a TeX engine is looked for in when it is not on PATH.
 
     On Windows, MiKTeX installs under Program Files for everyone or under
-    LOCALAPPDATA\\Programs for one user, and TeX Live under C:\\texlive\\<year>;
-    none puts itself on PATH for a shell that was already open. MiKTeX has
-    no 64-bit build in Program Files (x86), so that root is not tried. The
-    TeX Live year is read off the disk, newest first, and only on a real
-    Windows - a Unix cannot glob a drive letter.
+    LOCALAPPDATA\\Programs for one user, and does not put itself on PATH for
+    a shell that was already open. MiKTeX has no 64-bit build in Program
+    Files (x86), so that root is not tried. TeX Live's C:\\texlive is not
+    tried either: any user can create a folder at the root of C:, so an
+    engine found there could be anybody's. Its installer puts it on PATH,
+    and `JOBHUNT_TEX` names it otherwise.
     """
     found = list(_TEX_DIRS)
     if (platform or os.name) == "nt":
         found.append(_program_files() + r"\MiKTeX\miktex\bin\x64")
         if os.environ.get("LOCALAPPDATA"):
             found.append(os.environ["LOCALAPPDATA"] + r"\Programs\MiKTeX\miktex\bin\x64")
-        if os.name == "nt":
-            found += [str(p) for p in sorted(Path("C:/texlive").glob("*/bin/windows"),
-                                             reverse=True)]
     return found
 
 _TEX_TIMEOUT = 300.0
@@ -2732,9 +2758,9 @@ def find_tex():
     """
     named = os.environ.get("JOBHUNT_TEX", "").strip()
     if named:
-        return named if Path(named).exists() else shutil.which(named)
+        return _on_path(named)
     for name in _TEX_NAMES:
-        found = shutil.which(name)
+        found = _on_path(name)
         if found:
             return found
     # Only Windows names its engines .exe; a Unix has no reason to look for one.
