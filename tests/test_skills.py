@@ -37,7 +37,7 @@ def frontmatter(skill):
     return jh.yaml_load(body.split("---\n", 2)[1])
 
 
-# --- the eleven exist and are described ------------------------------------
+# --- the twelve exist and are described ------------------------------------
 
 def test_every_skill_is_a_real_one():
     """No count to keep in step - just that every directory is a skill and

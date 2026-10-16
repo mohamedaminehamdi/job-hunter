@@ -14,7 +14,8 @@ allowed-tools: Bash, Read, Write, Glob
 
 The job: `$1`
 
-This runs the other ten jobhunt skills in order. Each one also works on its
+This runs ten of the other eleven jobhunt skills in order. `jobhunt-find`
+comes before it, to pick the job. Each one also works on its
 own; this is the sequence when someone wants the whole thing.
 
 ## Where the scripts are

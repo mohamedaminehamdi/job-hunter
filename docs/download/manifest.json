@@ -1,62 +1,67 @@
 {
   "jobhunt": {
     "file": "jobhunt.zip",
-    "bytes": 4194,
-    "sha256": "36707142f28f42fe"
+    "bytes": 4222,
+    "sha256": "7f75fab71841a303"
   },
   "jobhunt-all": {
     "file": "jobhunt-all.zip",
-    "bytes": 678544,
-    "sha256": "b85be519039fe4dd"
+    "bytes": 788328,
+    "sha256": "9b256c4507199a84"
   },
   "jobhunt-answer": {
     "file": "jobhunt-answer.zip",
-    "bytes": 66434,
-    "sha256": "c22458ed2c68fe3e"
+    "bytes": 70267,
+    "sha256": "861292729ab0d26b"
   },
   "jobhunt-critique": {
     "file": "jobhunt-critique.zip",
-    "bytes": 66651,
-    "sha256": "3265403e33ac5c6d"
+    "bytes": 70484,
+    "sha256": "dcfb50aeaa8cd7f8"
+  },
+  "jobhunt-find": {
+    "file": "jobhunt-find.zip",
+    "bytes": 71448,
+    "sha256": "ecb7a2127ac0a322"
   },
   "jobhunt-fit": {
     "file": "jobhunt-fit.zip",
-    "bytes": 67262,
-    "sha256": "1ce05d8f7b48ec76"
+    "bytes": 71095,
+    "sha256": "93797d501ca10f04"
   },
   "jobhunt-letter": {
     "file": "jobhunt-letter.zip",
-    "bytes": 66758,
-    "sha256": "7d6bf32bad17165c"
+    "bytes": 70591,
+    "sha256": "167e4dde333f4030"
   },
   "jobhunt-outreach": {
     "file": "jobhunt-outreach.zip",
-    "bytes": 66782,
-    "sha256": "2489342a18b5afca"
+    "bytes": 70615,
+    "sha256": "0f0d5ebeb27cbb61"
   },
   "jobhunt-pdf": {
     "file": "jobhunt-pdf.zip",
-    "bytes": 68610,
-    "sha256": "0b6158ffe9fe941c"
+    "bytes": 72443,
+    "sha256": "17ad0fccaf4524ea"
   },
   "jobhunt-posting": {
     "file": "jobhunt-posting.zip",
-    "bytes": 68265,
-    "sha256": "6d654c372344bb54"
+    "bytes": 72098,
+    "sha256": "e173f2cf7a719771"
   },
   "jobhunt-profile": {
     "file": "jobhunt-profile.zip",
-    "bytes": 67688,
-    "sha256": "13c374949b87f124"
+    "bytes": 71521,
+    "sha256": "20d081399c87505d"
   },
   "jobhunt-review": {
     "file": "jobhunt-review.zip",
-    "bytes": 67651,
-    "sha256": "dec13503f124cda1"
+    "bytes": 71484,
+    "sha256": "ce94d23fc9acb8c1"
   },
   "jobhunt-tailor": {
     "file": "jobhunt-tailor.zip",
-    "bytes": 68469,
-    "sha256": "8054d77527c3575b"
+    "bytes": 72302,
+    "sha256": "7f8cefb52b87ac2e"
   }
 }

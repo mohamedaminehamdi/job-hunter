@@ -6,7 +6,7 @@
 
 **Stop sending the same CV for every single job.**
 
-Eleven skills for the coding agent you already use. Paste a job link, and get a
+Twelve skills for the coding agent you already use. Paste a job link, and get a
 CV built for that posting, the people worth messaging, and the message to send
 them, all from your own work.
 
@@ -15,7 +15,7 @@ them, all from your own work.
 [![No API key](https://img.shields.io/badge/API%20key-not%20needed-45c795)](#install)
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-6b7280)](#license)
 
-**[Install](#install)** · [How it works](#how-it-works) · [The eleven skills](#the-eleven-skills) · [FAQ](#faq) · [Website](https://mohamedaminehamdi.github.io/job-hunter/)
+**[Install](#install)** · [How it works](#how-it-works) · [The twelve skills](#the-twelve-skills) · [FAQ](#faq) · [Website](https://mohamedaminehamdi.github.io/job-hunter/)
 
 <sub>Works with Claude Code, Codex, Gemini CLI, Cursor, Cline and Windsurf, on macOS and Linux.</sub>
 
@@ -92,7 +92,7 @@ curl -fsSL https://raw.githubusercontent.com/mohamedaminehamdi/job-hunter/main/i
 <details>
 <summary><b>No terminal</b></summary>
 
-[Download all eleven](https://github.com/mohamedaminehamdi/job-hunter/releases/latest/download/jobhunt-all.zip),
+[Download all twelve](https://github.com/mohamedaminehamdi/job-hunter/releases/latest/download/jobhunt-all.zip),
 unzip it, and put the folders in `~/.claude/skills/`, `~/.codex/skills/`,
 `~/.gemini/skills/`, or your project's `.cursor/skills/`. Make the directory if
 it is not there yet. The [latest release](https://github.com/mohamedaminehamdi/job-hunter/releases/latest)
@@ -159,6 +159,7 @@ You can also ask for one part on its own:
 | how well do I match https://boards.greenhouse.io/acme/jobs/42 | `jobhunt-fit` |
 | help me answer "Do you have experience with Kafka?" | `jobhunt-answer` |
 | who should I contact about this job? | `jobhunt-outreach` |
+| which jobs at Figma fit me? | `jobhunt-find` |
 
 <details>
 <summary>What a note in <code>outreach.md</code> looks like</summary>
@@ -173,7 +174,7 @@ The site's example, in the format the skill writes:
 
 </details>
 
-## The eleven skills
+## The twelve skills
 
 Each works on its own. Install just the review to score your CV, or just the
 fit score to decide whether a job is worth an evening.
@@ -183,6 +184,7 @@ fit score to decide whether a job is worth an evening.
 | `jobhunt` | the whole thing, in order |
 | `jobhunt-profile` | your CV → one YAML file everything else reads |
 | `jobhunt-review` | score the CV on its own, with no job description |
+| `jobhunt-find` | a company's careers board, ranked by how many of your skills each opening names |
 | `jobhunt-posting` | a job URL → structured posting, in your own browser |
 | `jobhunt-fit` | how well you match, before and after |
 | `jobhunt-tailor` | a CV for this job, out of what you have already done |
@@ -196,7 +198,8 @@ fit score to decide whether a job is worth an evening.
 
 - [x] A tailored CV, a cover letter, a fit score and outreach, from one job link
 - [ ] **One-click apply**, on the boards that allow it
-- [ ] **Jobs found for you**: postings your profile already answers
+- [x] A company's Greenhouse or Lever board, ranked against your profile
+- [ ] **Jobs found for you** across boards, without naming the company first
 - [ ] **Application tracking**: what you sent, when, and what came back. Until
       then, `runs/log.md` has one line per run; it is markdown, so type what
       happened next into it.
@@ -250,7 +253,7 @@ There is no provider to sign up to and no token bill.
 <summary><b>Can I just use one skill?</b></summary>
 
 Yes. Each folder carries its own copy of the library and imports nothing from
-its siblings, so one installed alone works exactly the same as all eleven. See
+its siblings, so one installed alone works exactly the same as all twelve. See
 [Install](#install) for `--only`.
 
 </details>

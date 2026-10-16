@@ -20,7 +20,7 @@ set -eu
 
 REPO="mohamedaminehamdi/job-hunter"
 BRANCH="main"
-SKILLS="jobhunt jobhunt-profile jobhunt-review jobhunt-posting jobhunt-fit \
+SKILLS="jobhunt jobhunt-profile jobhunt-review jobhunt-find jobhunt-posting jobhunt-fit \
 jobhunt-tailor jobhunt-letter jobhunt-answer jobhunt-pdf \
 jobhunt-outreach jobhunt-critique"
 
@@ -49,7 +49,7 @@ Install the jobhunt skills.
 
   --list           show what would be installed and where, change nothing
   --to DIR         install into DIR/skills (e.g. --to ~/.claude)
-  --only A,B       install only these skills (default: all eleven)
+  --only A,B       install only these skills (default: all twelve)
   --uninstall      remove them again
   --help
 

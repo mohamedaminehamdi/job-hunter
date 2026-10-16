@@ -47,7 +47,7 @@ def test_it_installs_into_every_agent_it_finds(home):
         assert (home / agent / "skills" / "jobhunt-review" / "lib" / "jobhunt.py").exists()
 
 
-def test_all_eleven_install(home):
+def test_all_twelve_install(home):
     assert run(home).returncode == 0
     assert sorted(p.name for p in (home / ".claude" / "skills").iterdir()) == SKILLS
 
