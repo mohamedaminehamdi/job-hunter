@@ -346,6 +346,8 @@ def test_miktex_is_looked_for_where_its_installer_puts_it(monkeypatch):
     assert r"C:\Program Files\MiKTeX\miktex\bin\x64" in dirs
     assert r"C:\Users\ada\AppData\Local\Programs\MiKTeX\miktex\bin\x64" in dirs
     assert not any("(x86)" in d for d in dirs), dirs
+    assert not any(d.lower().startswith(("c:\\texlive", "c:/texlive")) for d in dirs), \
+        "any user can create C:\\texlive"
 
 
 def test_on_a_unix_the_windows_paths_are_not_tried(tmp_path, monkeypatch):
@@ -363,6 +365,32 @@ def test_on_a_unix_the_windows_paths_are_not_tried(tmp_path, monkeypatch):
     assert jh.find_tex() is None
     (tmp_path / "xelatex").write_text("")
     assert jh.find_tex() == str(tmp_path / "xelatex"), "the folder is searched"
+
+
+def test_an_engine_in_the_current_folder_is_not_run(tmp_path, monkeypatch):
+    """Windows' which() tries the current folder before PATH, and an empty or
+    relative PATH entry means the current folder anywhere, so an xelatex
+    unzipped next to a CV would run in place of the real one. Only absolute
+    PATH entries are searched, for a bare JOBHUNT_TEX too."""
+    if jh.os.name == "nt":
+        pytest.skip("the fakes are not .exe")
+    for folder in ("here", "here/rel", "real"):
+        (tmp_path / folder).mkdir(parents=True, exist_ok=True)
+        engine = tmp_path / folder / "xelatex"
+        engine.write_text("")
+        engine.chmod(0o755)
+    real = str(tmp_path / "real" / "xelatex")
+    monkeypatch.chdir(tmp_path / "here")
+    monkeypatch.delenv("JOBHUNT_TEX", raising=False)
+    monkeypatch.setattr(jh, "_TEX_NAMES", ("xelatex",))
+    monkeypatch.setattr(jh, "_TEX_DIRS", ())
+
+    monkeypatch.setenv("PATH", jh.os.pathsep.join(["", ".", "rel"]))
+    assert jh.find_tex() is None
+    monkeypatch.setenv("PATH", jh.os.pathsep.join(["", "rel", str(tmp_path / "real")]))
+    assert jh.find_tex() == real
+    monkeypatch.setenv("JOBHUNT_TEX", "xelatex")
+    assert jh.find_tex() == real, "a bare name is looked up on PATH, not here"
 
 
 def test_no_browser_says_the_markdown_was_still_written(tmp_path, monkeypatch):
