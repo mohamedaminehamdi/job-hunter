@@ -70,7 +70,7 @@ jobs:
       - name: Render the gallery
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && !cancelled()
         run: python tools/gallery.py gallery
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && !cancelled()
         with:
           name: cv-gallery
